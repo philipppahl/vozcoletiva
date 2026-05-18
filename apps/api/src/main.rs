@@ -21,6 +21,7 @@ async fn route(event: Request) -> Result<Response<lambda_http::Body>, Error> {
         _ => Ok(Response::builder()
             .status(404)
             .header("content-type", "application/json")
+            .header("access-control-allow-origin", "*")
             .body(r#"{"error":"not_found"}"#.into())?),
     }
 }

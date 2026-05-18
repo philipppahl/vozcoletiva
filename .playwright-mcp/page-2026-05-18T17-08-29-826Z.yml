@@ -1,0 +1,9 @@
+- main [ref=e4]:
+  - generic [ref=e5]:
+    - img "vozcoletiva" [ref=e6]
+    - heading "vozcoletiva" [level=1] [ref=e10]
+    - paragraph [ref=e11]: Structured collective decision-making. Foundation slice — features land one plan-feature cycle at a time.
+  - radiogroup "Theme" [ref=e12]:
+    - button "system" [ref=e13]
+    - button "light" [active] [pressed] [ref=e14]
+    - button "dark" [ref=e15]

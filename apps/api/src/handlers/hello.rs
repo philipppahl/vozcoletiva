@@ -22,6 +22,7 @@ pub async fn handle() -> Result<Response<Body>, Error> {
     Ok(Response::builder()
         .status(200)
         .header("content-type", "application/json")
+        .header("access-control-allow-origin", "*")
         .body(serde_json::to_string(&body)?.into())?)
 }
 
@@ -47,5 +48,10 @@ mod tests {
         let parsed: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
         assert_eq!(parsed["ok"], serde_json::json!(true));
         assert_eq!(parsed["version"], serde_json::json!(VERSION));
+
+        assert_eq!(
+            response.headers().get("access-control-allow-origin").unwrap(),
+            "*",
+        );
     }
 }
