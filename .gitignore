@@ -1,0 +1,42 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+.vite/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# AWS CDK
+cdk.out/
+.cdk.staging/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Caches
+.cache/
+.parcel-cache/
