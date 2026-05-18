@@ -3,6 +3,7 @@ use lambda_http::{Request, RequestExt};
 use crate::error::AppError;
 
 pub mod jwt;
+pub mod perms;
 
 /// Identity established by a verified Cognito access token.
 #[derive(Debug, Clone)]

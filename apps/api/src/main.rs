@@ -1,6 +1,7 @@
 use lambda_http::{run, service_fn, tracing as lambda_tracing, Error, Request, Response};
 
 mod auth;
+mod domain;
 mod error;
 mod handlers;
 mod repo;
@@ -24,23 +25,79 @@ async fn main() -> Result<(), Error> {
 }
 
 async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::Body>, Error> {
-    let raw_path = event.uri().path();
-    let method = event.method();
-
+    let raw_path = event.uri().path().to_string();
+    let method = event.method().clone();
     // API Gateway may include the stage prefix in the forwarded path
     // ("/v1/hello") or strip it ("/hello") depending on the integration shape.
-    // Accept both.
-    let path = raw_path.strip_prefix("/v1").unwrap_or(raw_path);
+    let path = raw_path.strip_prefix("/v1").unwrap_or(&raw_path).to_string();
 
-    tracing::info!(?method, raw_path, normalised_path = ?path, "request_received");
+    tracing::info!(?method, %raw_path, %path, "request_received");
 
-    match (method.as_str(), path) {
-        ("GET", "/hello") => handlers::hello::handle().await,
-        ("GET", "/me") => handlers::me::handle(&state, event).await,
-        _ => Ok(Response::builder()
-            .status(404)
-            .header("content-type", "application/json")
-            .header("access-control-allow-origin", "*")
-            .body(r#"{"error":"not_found"}"#.into())?),
+    if method == "OPTIONS" {
+        return cors_preflight();
     }
+
+    let segments: Vec<&str> = path.trim_start_matches('/').split('/').collect();
+
+    match (method.as_str(), segments.as_slice()) {
+        ("GET", ["hello"]) => handlers::hello::handle().await,
+        ("GET", ["me"]) => handlers::me::handle(&state, event).await,
+
+        // Projects
+        ("POST", ["projects"]) => handlers::projects::create(&state, event).await,
+        ("GET", ["projects"]) => handlers::projects::list_mine(&state, event).await,
+        ("GET", ["projects", slug]) => handlers::projects::get(&state, event, slug).await,
+
+        // Members
+        ("GET", ["projects", slug, "members"]) => {
+            handlers::members::list(&state, event, slug).await
+        }
+
+        // Invites — project-scoped
+        ("POST", ["projects", slug, "invites"]) => {
+            handlers::invites::issue(&state, event, slug).await
+        }
+        ("GET", ["projects", slug, "invites"]) => {
+            handlers::invites::list(&state, event, slug).await
+        }
+        ("DELETE", ["projects", slug, "invites", invite_id]) => {
+            handlers::invites::revoke(&state, event, slug, invite_id).await
+        }
+
+        // Invites — accept flow
+        ("GET", ["invites", token]) => {
+            handlers::invites::preview_by_token(&state, event, token).await
+        }
+        ("GET", ["invites", "by-code", code]) => {
+            handlers::invites::preview_by_code(&state, event, code).await
+        }
+        ("POST", ["invites", "by-code", code, "accept"]) => {
+            handlers::invites::accept_by_code(&state, event, code).await
+        }
+        ("POST", ["invites", token, "accept"]) => {
+            handlers::invites::accept(&state, event, token).await
+        }
+
+        _ => not_found(),
+    }
+}
+
+fn cors_preflight() -> Result<Response<lambda_http::Body>, Error> {
+    Ok(Response::builder()
+        .status(204)
+        .header("access-control-allow-origin", "*")
+        .header("access-control-allow-headers", "authorization,content-type")
+        .header(
+            "access-control-allow-methods",
+            "GET,POST,PATCH,DELETE,OPTIONS",
+        )
+        .body(lambda_http::Body::Empty)?)
+}
+
+fn not_found() -> Result<Response<lambda_http::Body>, Error> {
+    Ok(Response::builder()
+        .status(404)
+        .header("content-type", "application/json")
+        .header("access-control-allow-origin", "*")
+        .body(r#"{"error":"not_found","message":"route not found"}"#.into())?)
 }

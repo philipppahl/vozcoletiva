@@ -81,3 +81,167 @@ msgstr "An account with this email already exists."
 
 msgid "That verification code is invalid or has expired."
 msgstr "That verification code is invalid or has expired."
+
+# --- projects slice ---
+
+msgid "Your projects"
+msgstr "Your projects"
+
+msgid "You don't have any projects yet."
+msgstr "You don't have any projects yet."
+
+msgid "Create a project"
+msgstr "Create a project"
+
+msgid "Got an invite code?"
+msgstr "Got an invite code?"
+
+msgid "Create project"
+msgstr "Create project"
+
+msgid "Project name"
+msgstr "Project name"
+
+msgid "Slug"
+msgstr "Slug"
+
+msgid "Used in URLs: vozcoletiva.com/p/<slug>. Lowercase, dashes only."
+msgstr "Used in URLs: vozcoletiva.com/p/<slug>. Lowercase, dashes only."
+
+msgid "Please enter a project name."
+msgstr "Please enter a project name."
+
+msgid "Name must be 80 characters or fewer."
+msgstr "Name must be 80 characters or fewer."
+
+msgid "Slug must be 3 to 32 characters."
+msgstr "Slug must be 3 to 32 characters."
+
+msgid "Slug may only contain a-z, 0-9, and '-'. No leading or trailing dash."
+msgstr "Slug may only contain a-z, 0-9, and '-'. No leading or trailing dash."
+
+msgid "This slug is already taken. Try another."
+msgstr "This slug is already taken. Try another."
+
+msgid "← All projects"
+msgstr "← All projects"
+
+msgid "Overview"
+msgstr "Overview"
+
+msgid "Members"
+msgstr "Members"
+
+msgid "Invites"
+msgstr "Invites"
+
+msgid "Loading…"
+msgstr "Loading…"
+
+msgid "Could not load this project."
+msgstr "Could not load this project."
+
+msgid "Could not load members."
+msgstr "Could not load members."
+
+msgid "Template"
+msgstr "Template"
+
+msgid "Visibility"
+msgstr "Visibility"
+
+msgid "Topics, proposals, comments, and the document library land in upcoming plan-feature cycles. For now: invite people and watch them show up in the Members tab."
+msgstr "Topics, proposals, comments, and the document library land in upcoming plan-feature cycles. For now: invite people and watch them show up in the Members tab."
+
+msgid "Issue a new invite"
+msgstr "Issue a new invite"
+
+msgid "Role"
+msgstr "Role"
+
+msgid "Member"
+msgstr "Member"
+
+msgid "Observer"
+msgstr "Observer"
+
+msgid "Expires in (days)"
+msgstr "Expires in (days)"
+
+msgid "Max uses"
+msgstr "Max uses"
+
+msgid "Issue invite"
+msgstr "Issue invite"
+
+msgid "Only owners and admins can issue invites."
+msgstr "Only owners and admins can issue invites."
+
+msgid "Active invites"
+msgstr "Active invites"
+
+msgid "No invites yet."
+msgstr "No invites yet."
+
+msgid "uses"
+msgstr "uses"
+
+msgid "expires"
+msgstr "expires"
+
+msgid "Copy URL"
+msgstr "Copy URL"
+
+msgid "Copy code"
+msgstr "Copy code"
+
+msgid "Copy"
+msgstr "Copy"
+
+msgid "Copied"
+msgstr "Copied"
+
+msgid "Revoke"
+msgstr "Revoke"
+
+msgid "You're invited"
+msgstr "You're invited"
+
+msgid "You'll join as"
+msgstr "You'll join as"
+
+msgid "This link expires"
+msgstr "This link expires"
+
+msgid "This invite is no longer valid."
+msgstr "This invite is no longer valid."
+
+msgid "That invite link doesn't seem to exist anymore."
+msgstr "That invite link doesn't seem to exist anymore."
+
+msgid "Accept invite"
+msgstr "Accept invite"
+
+msgid "Not now"
+msgstr "Not now"
+
+msgid "Join with a code"
+msgstr "Join with a code"
+
+msgid "Enter the 8-character invite code someone shared with you."
+msgstr "Enter the 8-character invite code someone shared with you."
+
+msgid "Code"
+msgstr "Code"
+
+msgid "Code must be exactly 8 characters."
+msgstr "Code must be exactly 8 characters."
+
+msgid "We couldn't find an invite for that code."
+msgstr "We couldn't find an invite for that code."
+
+msgid "That invite is no longer valid."
+msgstr "That invite is no longer valid."
+
+msgid "Join"
+msgstr "Join"

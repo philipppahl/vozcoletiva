@@ -1,11 +1,10 @@
 openapi: 3.1.0
 info:
   title: vozcoletiva API
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    HTTP API for vozcoletiva. The foundation slice exposes only the hello endpoint
-    used to prove the pipeline end-to-end (Rust handler → API Gateway → typed FE client).
-    Features land one `plan-feature` cycle at a time on top of this scaffold.
+    HTTP API for vozcoletiva. The projects slice adds project + membership +
+    invite endpoints on top of the auth slice's /v1/me.
   license:
     name: AGPL-3.0-or-later
     url: https://www.gnu.org/licenses/agpl-3.0.html
@@ -20,7 +19,6 @@ paths:
   /v1/hello:
     get:
       summary: Healthcheck and version
-      description: Returns a small JSON payload confirming the API is reachable.
       operationId: getHello
       tags: [meta]
       responses:
@@ -34,38 +32,256 @@ paths:
   /v1/me:
     get:
       summary: Current user profile
-      description: |
-        Returns the authenticated user's profile. On first call after sign-up,
-        creates the profile in the data store (idempotent under concurrent calls).
       operationId: getMe
       tags: [auth]
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       parameters:
         - in: query
           name: display_name
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 80
+          schema: { type: string, minLength: 1, maxLength: 80 }
           required: false
-          description: |
-            Display name used at first-profile creation. Ignored on subsequent
-            calls when the profile already exists. Sign-up flow forwards the
-            value the user entered.
       responses:
         '200':
           description: User profile.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/UserProfile'
+              schema: { $ref: '#/components/schemas/UserProfile' }
         '401':
           description: Missing, malformed, or expired access token.
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ApiError'
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /v1/projects:
+    get:
+      summary: List the caller's projects
+      operationId: listMyProjects
+      tags: [projects]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: A list of projects with the caller's role on each.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectListResponse' }
+        '401':
+          description: Missing or invalid auth.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+    post:
+      summary: Create a project
+      operationId: createProject
+      tags: [projects]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProjectBody' }
+      responses:
+        '201':
+          description: Project created. Caller is the Owner.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Project' }
+        '400':
+          description: Invalid name / slug / template.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '409':
+          description: Slug already taken.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /v1/projects/{slug}:
+    get:
+      summary: Get a project by slug
+      operationId: getProject
+      tags: [projects]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Project + caller's role.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectDetailResponse' }
+        '403':
+          description: Not a member.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: Project does not exist.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /v1/projects/{slug}/members:
+    get:
+      summary: List members of a project
+      operationId: listMembers
+      tags: [members]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Members of the project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemberListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{slug}/invites:
+    get:
+      summary: List a project's invites
+      operationId: listInvites
+      tags: [invites]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Invites for the project.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InviteListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Issue a new invite
+      operationId: issueInvite
+      tags: [invites]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IssueInviteBody' }
+      responses:
+        '201':
+          description: Invite created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invite' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /v1/projects/{slug}/invites/{inviteId}:
+    delete:
+      summary: Revoke an invite
+      operationId: revokeInvite
+      tags: [invites]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - in: path
+          name: inviteId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Invite revoked.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/invites/{token}:
+    get:
+      summary: Preview an invite by URL token
+      operationId: previewInviteByToken
+      tags: [invites]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Invite metadata + validity.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvitePreview' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/invites/by-code/{code}:
+    get:
+      summary: Preview an invite by short code
+      operationId: previewInviteByCode
+      tags: [invites]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Invite metadata + validity.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InvitePreview' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/invites/by-code/{code}/accept:
+    post:
+      summary: Accept an invite by short code
+      operationId: acceptInviteByCode
+      tags: [invites]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Membership added.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AcceptInviteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Invite revoked, expired, or used up.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /v1/invites/{token}/accept:
+    post:
+      summary: Accept an invite and become a project member
+      operationId: acceptInvite
+      tags: [invites]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Membership added (or already present).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AcceptInviteResponse' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Invite revoked, expired, or used up.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 
 components:
   securitySchemes:
@@ -75,48 +291,201 @@ components:
       bearerFormat: JWT
       description: Cognito access token.
 
+  parameters:
+    Slug:
+      in: path
+      name: slug
+      required: true
+      schema: { type: string, minLength: 3, maxLength: 32 }
+
+  responses:
+    Forbidden:
+      description: Forbidden.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    NotFound:
+      description: Not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+    BadRequest:
+      description: Bad request.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+
   schemas:
     Hello:
       type: object
       required: [ok, version]
       additionalProperties: false
       properties:
-        ok:
-          type: boolean
-          const: true
-        version:
-          type: string
-          description: The semver of the deployed Lambda build.
-          example: "0.1.0"
+        ok: { type: boolean, const: true }
+        version: { type: string }
 
-    UserProfile:
+    Ok:
       type: object
-      required: [user_id, display_name, locale, theme, created_at]
+      required: [ok]
       additionalProperties: false
       properties:
-        user_id:
-          type: string
-          description: Cognito sub (UUID).
-        display_name:
-          type: string
-        locale:
-          type: string
-          enum: [en, pt]
-        theme:
-          type: string
-          enum: [system, light, dark]
-        created_at:
-          type: string
-          format: date-time
+        ok: { type: boolean }
 
     ApiError:
       type: object
       required: [error, message]
       additionalProperties: false
       properties:
-        error:
+        error: { type: string }
+        message: { type: string }
+
+    UserProfile:
+      type: object
+      required: [user_id, display_name, locale, theme, created_at]
+      additionalProperties: false
+      properties:
+        user_id: { type: string }
+        display_name: { type: string }
+        locale: { type: string, enum: [en, pt] }
+        theme: { type: string, enum: [system, light, dark] }
+        created_at: { type: string, format: date-time }
+
+    Role:
+      type: string
+      enum: [owner, admin, moderator, member, observer]
+
+    Project:
+      type: object
+      required: [id, slug, name, template, visibility, owner_id, created_at]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        template: { type: string }
+        visibility: { type: string, enum: [private, public] }
+        owner_id: { type: string }
+        created_at: { type: string, format: date-time }
+
+    CreateProjectBody:
+      type: object
+      required: [name, slug]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        slug: { type: string, minLength: 3, maxLength: 32, pattern: '^[a-z0-9][a-z0-9-]{1,30}[a-z0-9]$' }
+        template:
           type: string
-          description: Machine-readable error code.
-        message:
-          type: string
-          description: Human-readable error message.
+          enum: [custom]
+          default: custom
+
+    ProjectListEntry:
+      type: object
+      required: [project, role]
+      additionalProperties: false
+      properties:
+        project: { $ref: '#/components/schemas/Project' }
+        role: { $ref: '#/components/schemas/Role' }
+
+    ProjectListResponse:
+      type: object
+      required: [projects]
+      additionalProperties: false
+      properties:
+        projects:
+          type: array
+          items: { $ref: '#/components/schemas/ProjectListEntry' }
+
+    ProjectDetailResponse:
+      type: object
+      required: [project, role]
+      additionalProperties: false
+      properties:
+        project: { $ref: '#/components/schemas/Project' }
+        role: { $ref: '#/components/schemas/Role' }
+
+    Member:
+      type: object
+      required: [user_id, display_name, role, joined_at]
+      additionalProperties: false
+      properties:
+        user_id: { type: string }
+        display_name: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        joined_at: { type: string, format: date-time }
+
+    MemberListResponse:
+      type: object
+      required: [members]
+      additionalProperties: false
+      properties:
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/Member' }
+
+    IssueInviteBody:
+      type: object
+      required: [role]
+      additionalProperties: false
+      properties:
+        role: { $ref: '#/components/schemas/Role' }
+        expires_in_days: { type: integer, minimum: 1, maximum: 365 }
+        max_uses: { type: integer, minimum: 1 }
+        note: { type: string, maxLength: 200 }
+
+    Invite:
+      type: object
+      required:
+        [id, project_id, token, code, role, use_count, issued_by, issued_at]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        token: { type: string }
+        code: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        max_uses: { type: integer, nullable: true }
+        use_count: { type: integer }
+        expires_at: { type: string, format: date-time, nullable: true }
+        note: { type: string, nullable: true }
+        issued_by: { type: string }
+        issued_at: { type: string, format: date-time }
+        revoked_at: { type: string, format: date-time, nullable: true }
+
+    InviteListResponse:
+      type: object
+      required: [invites]
+      additionalProperties: false
+      properties:
+        invites:
+          type: array
+          items: { $ref: '#/components/schemas/Invite' }
+
+    InvitePreview:
+      type: object
+      required: [project_name, project_slug, role, use_count, revoked, valid]
+      additionalProperties: false
+      properties:
+        project_name: { type: string }
+        project_slug: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        expires_at: { type: string, format: date-time, nullable: true }
+        use_count: { type: integer }
+        max_uses: { type: integer, nullable: true }
+        revoked: { type: boolean }
+        valid: { type: boolean }
+
+    AcceptInviteResponse:
+      type: object
+      required: [project, role]
+      additionalProperties: false
+      properties:
+        project:
+          type: object
+          required: [id, slug, name]
+          additionalProperties: false
+          properties:
+            id: { type: string }
+            slug: { type: string }
+            name: { type: string }
+        role: { $ref: '#/components/schemas/Role' }

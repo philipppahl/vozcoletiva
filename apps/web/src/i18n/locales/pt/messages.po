@@ -81,3 +81,167 @@ msgstr "Já existe uma conta com este email."
 
 msgid "That verification code is invalid or has expired."
 msgstr "Esse código de verificação é inválido ou expirou."
+
+# --- projects slice ---
+
+msgid "Your projects"
+msgstr "Os teus projetos"
+
+msgid "You don't have any projects yet."
+msgstr "Ainda não tens projetos."
+
+msgid "Create a project"
+msgstr "Criar um projeto"
+
+msgid "Got an invite code?"
+msgstr "Tens um código de convite?"
+
+msgid "Create project"
+msgstr "Criar projeto"
+
+msgid "Project name"
+msgstr "Nome do projeto"
+
+msgid "Slug"
+msgstr "Slug"
+
+msgid "Used in URLs: vozcoletiva.com/p/<slug>. Lowercase, dashes only."
+msgstr "Usado em URLs: vozcoletiva.com/p/<slug>. Apenas minúsculas e traços."
+
+msgid "Please enter a project name."
+msgstr "Por favor introduz um nome para o projeto."
+
+msgid "Name must be 80 characters or fewer."
+msgstr "O nome deve ter no máximo 80 caracteres."
+
+msgid "Slug must be 3 to 32 characters."
+msgstr "O slug deve ter entre 3 e 32 caracteres."
+
+msgid "Slug may only contain a-z, 0-9, and '-'. No leading or trailing dash."
+msgstr "O slug pode conter apenas a-z, 0-9 e '-'. Sem traços no início ou fim."
+
+msgid "This slug is already taken. Try another."
+msgstr "Este slug já está em uso. Tenta outro."
+
+msgid "← All projects"
+msgstr "← Todos os projetos"
+
+msgid "Overview"
+msgstr "Visão geral"
+
+msgid "Members"
+msgstr "Membros"
+
+msgid "Invites"
+msgstr "Convites"
+
+msgid "Loading…"
+msgstr "A carregar…"
+
+msgid "Could not load this project."
+msgstr "Não foi possível carregar este projeto."
+
+msgid "Could not load members."
+msgstr "Não foi possível carregar os membros."
+
+msgid "Template"
+msgstr "Modelo"
+
+msgid "Visibility"
+msgstr "Visibilidade"
+
+msgid "Topics, proposals, comments, and the document library land in upcoming plan-feature cycles. For now: invite people and watch them show up in the Members tab."
+msgstr "Tópicos, propostas, comentários e a biblioteca de documentos chegam em ciclos seguintes. Por agora: convida pessoas e vê-as a aparecer na aba Membros."
+
+msgid "Issue a new invite"
+msgstr "Emitir um novo convite"
+
+msgid "Role"
+msgstr "Função"
+
+msgid "Member"
+msgstr "Membro"
+
+msgid "Observer"
+msgstr "Observador"
+
+msgid "Expires in (days)"
+msgstr "Expira em (dias)"
+
+msgid "Max uses"
+msgstr "Utilizações máximas"
+
+msgid "Issue invite"
+msgstr "Emitir convite"
+
+msgid "Only owners and admins can issue invites."
+msgstr "Apenas proprietários e administradores podem emitir convites."
+
+msgid "Active invites"
+msgstr "Convites ativos"
+
+msgid "No invites yet."
+msgstr "Ainda não há convites."
+
+msgid "uses"
+msgstr "utilizações"
+
+msgid "expires"
+msgstr "expira"
+
+msgid "Copy URL"
+msgstr "Copiar URL"
+
+msgid "Copy code"
+msgstr "Copiar código"
+
+msgid "Copy"
+msgstr "Copiar"
+
+msgid "Copied"
+msgstr "Copiado"
+
+msgid "Revoke"
+msgstr "Revogar"
+
+msgid "You're invited"
+msgstr "Foste convidado"
+
+msgid "You'll join as"
+msgstr "Vais juntar-te como"
+
+msgid "This link expires"
+msgstr "Este link expira"
+
+msgid "This invite is no longer valid."
+msgstr "Este convite já não é válido."
+
+msgid "That invite link doesn't seem to exist anymore."
+msgstr "Esse link de convite parece já não existir."
+
+msgid "Accept invite"
+msgstr "Aceitar convite"
+
+msgid "Not now"
+msgstr "Agora não"
+
+msgid "Join with a code"
+msgstr "Juntar-te com um código"
+
+msgid "Enter the 8-character invite code someone shared with you."
+msgstr "Introduz o código de convite de 8 caracteres que te partilharam."
+
+msgid "Code"
+msgstr "Código"
+
+msgid "Code must be exactly 8 characters."
+msgstr "O código deve ter exatamente 8 caracteres."
+
+msgid "We couldn't find an invite for that code."
+msgstr "Não encontrámos um convite com esse código."
+
+msgid "That invite is no longer valid."
+msgstr "Esse convite já não é válido."
+
+msgid "Join"
+msgstr "Juntar"

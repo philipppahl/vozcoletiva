@@ -1,5 +1,6 @@
 import { i18n } from '@lingui/core';
 import { I18nProvider } from '@lingui/react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -7,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import './styles/global.css';
 import { currentLocale, initI18n } from './i18n';
 import { useAuthStore } from './lib/auth/store';
+import { queryClient } from './lib/query';
 import { initTheme } from './lib/theme';
 import { routeTree } from './routeTree.gen';
 
@@ -33,8 +35,10 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <I18nProvider i18n={i18n}>
-      <RouterProvider router={router} />
-    </I18nProvider>
+    <QueryClientProvider client={queryClient}>
+      <I18nProvider i18n={i18n}>
+        <RouterProvider router={router} />
+      </I18nProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );

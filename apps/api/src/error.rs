@@ -1,15 +1,19 @@
 use thiserror::Error;
 
-/// Project-wide error taxonomy. Expands as features land. Some variants
-/// exist for future use and are flagged dead-code-allowed until the next slice.
+/// Project-wide error taxonomy. Expands as features land.
 #[derive(Debug, Error)]
-#[allow(dead_code)]
 pub enum AppError {
     #[error("unauthorized: {0}")]
     Unauthorized(String),
 
+    #[error("forbidden: {0}")]
+    Forbidden(String),
+
     #[error("not found")]
     NotFound,
+
+    #[error("conflict: {0}")]
+    Conflict(String),
 
     #[error("bad request: {0}")]
     BadRequest(String),
@@ -22,7 +26,9 @@ impl AppError {
     pub fn status(&self) -> u16 {
         match self {
             Self::Unauthorized(_) => 401,
+            Self::Forbidden(_) => 403,
             Self::NotFound => 404,
+            Self::Conflict(_) => 409,
             Self::BadRequest(_) => 400,
             Self::Internal(_) => 500,
         }
@@ -31,7 +37,9 @@ impl AppError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::Unauthorized(_) => "unauthorized",
+            Self::Forbidden(_) => "forbidden",
             Self::NotFound => "not_found",
+            Self::Conflict(_) => "conflict",
             Self::BadRequest(_) => "bad_request",
             Self::Internal(_) => "internal_error",
         }
