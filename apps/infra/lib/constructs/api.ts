@@ -2,6 +2,7 @@ import * as path from 'node:path';
 import type { EnvName } from '@vozcoletiva/shared';
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { EndpointType, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
+import type { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import type { Table } from 'aws-cdk-lib/aws-dynamodb';
 import {
   Architecture,
@@ -16,6 +17,8 @@ import { Construct } from 'constructs';
 export interface ApiProps {
   readonly env: EnvName;
   readonly table: Table;
+  readonly userPool: UserPool;
+  readonly userPoolClient: UserPoolClient;
 }
 
 /**
@@ -61,6 +64,8 @@ export class Api extends Construct {
       tracing: Tracing.ACTIVE,
       environment: {
         TABLE_NAME: props.table.tableName,
+        USER_POOL_ID: props.userPool.userPoolId,
+        USER_POOL_CLIENT_ID: props.userPoolClient.userPoolClientId,
         RUST_LOG: 'info',
       },
     });

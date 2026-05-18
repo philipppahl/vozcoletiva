@@ -1,3 +1,4 @@
+import { lingui } from '@lingui/vite-plugin';
 import tailwind from '@tailwindcss/vite';
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
 import react from '@vitejs/plugin-react';
@@ -5,9 +6,15 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  // amazon-cognito-identity-js → buffer expects Node's `global`. Map it to
+  // `globalThis` for the browser.
+  define: {
+    global: 'globalThis',
+  },
   plugins: [
     TanStackRouterVite({ target: 'react', autoCodeSplitting: true }),
-    react(),
+    react({ babel: { plugins: ['macros'] } }),
+    lingui(),
     tailwind(),
     VitePWA({
       registerType: 'autoUpdate',

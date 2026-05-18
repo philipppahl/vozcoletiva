@@ -1,16 +1,15 @@
+import { i18n } from '@lingui/core';
 import { DEFAULT_LOCALE, type Locale, SUPPORTED_LOCALES } from '@vozcoletiva/shared';
 
-/**
- * i18n bootstrap placeholder.
- *
- * Lingui's runtime + macro infrastructure lands in the auth slice (the first
- * feature that surfaces user-visible strings). The foundation slice ships only
- * the locale catalogue files (empty), the locale-selection plumbing, and the
- * default-locale fallback so subsequent feature work can drop translations in
- * without re-architecting.
- */
+import { messages as enMessages } from './locales/en/messages.po';
+import { messages as ptMessages } from './locales/pt/messages.po';
 
 const STORAGE_KEY = 'voz.locale';
+
+const CATALOGUES: Record<Locale, { messages: Record<string, string> }> = {
+  en: { messages: enMessages },
+  pt: { messages: ptMessages },
+};
 
 function detectBrowserLocale(): Locale {
   if (typeof navigator === 'undefined') return DEFAULT_LOCALE;
@@ -33,4 +32,18 @@ export function setLocale(locale: Locale) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(STORAGE_KEY, locale);
   document.documentElement.lang = locale;
+  i18n.load(locale, CATALOGUES[locale].messages);
+  i18n.activate(locale);
+}
+
+export function initI18n() {
+  // Load both catalogues so language switches don't require a network hop.
+  for (const locale of SUPPORTED_LOCALES) {
+    i18n.load(locale, CATALOGUES[locale].messages);
+  }
+  const locale = currentLocale();
+  i18n.activate(locale);
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = locale;
+  }
 }

@@ -31,7 +31,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/Hello'
 
+  /v1/me:
+    get:
+      summary: Current user profile
+      description: |
+        Returns the authenticated user's profile. On first call after sign-up,
+        creates the profile in the data store (idempotent under concurrent calls).
+      operationId: getMe
+      tags: [auth]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: display_name
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 80
+          required: false
+          description: |
+            Display name used at first-profile creation. Ignored on subsequent
+            calls when the profile already exists. Sign-up flow forwards the
+            value the user entered.
+      responses:
+        '200':
+          description: User profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Missing, malformed, or expired access token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Cognito access token.
+
   schemas:
     Hello:
       type: object
@@ -45,3 +88,35 @@ components:
           type: string
           description: The semver of the deployed Lambda build.
           example: "0.1.0"
+
+    UserProfile:
+      type: object
+      required: [user_id, display_name, locale, theme, created_at]
+      additionalProperties: false
+      properties:
+        user_id:
+          type: string
+          description: Cognito sub (UUID).
+        display_name:
+          type: string
+        locale:
+          type: string
+          enum: [en, pt]
+        theme:
+          type: string
+          enum: [system, light, dark]
+        created_at:
+          type: string
+          format: date-time
+
+    ApiError:
+      type: object
+      required: [error, message]
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code.
+        message:
+          type: string
+          description: Human-readable error message.

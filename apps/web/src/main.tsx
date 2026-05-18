@@ -1,13 +1,18 @@
+import { i18n } from '@lingui/core';
+import { I18nProvider } from '@lingui/react';
 import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import './styles/global.css';
-import { currentLocale } from './i18n';
+import { currentLocale, initI18n } from './i18n';
+import { useAuthStore } from './lib/auth/store';
 import { initTheme } from './lib/theme';
 import { routeTree } from './routeTree.gen';
 
 initTheme();
+initI18n();
+useAuthStore.getState().hydrate();
 
 const router = createRouter({
   routeTree,
@@ -28,6 +33,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <I18nProvider i18n={i18n}>
+      <RouterProvider router={router} />
+    </I18nProvider>
   </StrictMode>,
 );

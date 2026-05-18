@@ -30,6 +30,21 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 # Errors.
 thiserror = "1.0"
 
+# AWS SDK + supporting libs.
+aws-config = { version = "1.5", features = ["behavior-version-latest"] }
+aws-sdk-dynamodb = "1.62"
+
+# JWT verification.
+jsonwebtoken = "9.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+tokio-sync = { package = "tokio", version = "1.41", features = ["sync"] }
+
+# Misc.
+once_cell = "1.20"
+uuid = { version = "1.11", features = ["serde"] }
+async-trait = "0.1"
+
 [profile.release]
 opt-level = 3
 lto = "thin"

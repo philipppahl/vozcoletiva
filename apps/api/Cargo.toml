@@ -15,12 +15,20 @@ path = "src/main.rs"
 [dependencies]
 lambda_http = { workspace = true }
 lambda_runtime = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-dynamodb = { workspace = true }
+jsonwebtoken = { workspace = true }
+reqwest = { workspace = true }
+chrono = { workspace = true }
+once_cell = { workspace = true }
+uuid = { workspace = true }
+async-trait = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync"] }

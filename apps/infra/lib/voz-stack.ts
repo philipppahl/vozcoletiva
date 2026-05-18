@@ -20,7 +20,12 @@ export class VozStack extends Stack {
 
     const data = new DataTable(this, 'Data', { env: envConfig.env });
     const auth = new Auth(this, 'Auth', { env: envConfig.env });
-    const api = new Api(this, 'Api', { env: envConfig.env, table: data.table });
+    const api = new Api(this, 'Api', {
+      env: envConfig.env,
+      table: data.table,
+      userPool: auth.userPool,
+      userPoolClient: auth.webClient,
+    });
     const web = new WebHosting(this, 'Web', { env: envConfig.env });
 
     Tags.of(this).add('Project', 'vozcoletiva');

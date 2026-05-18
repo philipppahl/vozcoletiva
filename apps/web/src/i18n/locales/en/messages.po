@@ -4,5 +4,80 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Lingui (placeholder)\n"
+"X-Generator: Lingui\n"
 "Language: en\n"
+
+msgid "vozcoletiva"
+msgstr "vozcoletiva"
+
+msgid "Structured collective decision-making."
+msgstr "Structured collective decision-making."
+
+msgid "Sign in"
+msgstr "Sign in"
+
+msgid "Sign up"
+msgstr "Sign up"
+
+msgid "Sign out"
+msgstr "Sign out"
+
+msgid "Create an account"
+msgstr "Create an account"
+
+msgid "Welcome back"
+msgstr "Welcome back"
+
+msgid "Display name"
+msgstr "Display name"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "Password"
+msgstr "Password"
+
+msgid "Verification code"
+msgstr "Verification code"
+
+msgid "Continue"
+msgstr "Continue"
+
+msgid "Verify"
+msgstr "Verify"
+
+msgid "Already have an account?"
+msgstr "Already have an account?"
+
+msgid "Don't have an account?"
+msgstr "Don't have an account?"
+
+msgid "We sent a 6-digit code to {email}. Enter it below to finish creating your account."
+msgstr "We sent a 6-digit code to {email}. Enter it below to finish creating your account."
+
+msgid "Hello, {displayName}"
+msgstr "Hello, {displayName}"
+
+msgid "Password must be at least 12 characters."
+msgstr "Password must be at least 12 characters."
+
+msgid "Please enter a valid email."
+msgstr "Please enter a valid email."
+
+msgid "Please enter a display name."
+msgstr "Please enter a display name."
+
+msgid "Please enter the 6-digit code."
+msgstr "Please enter the 6-digit code."
+
+msgid "Something went wrong. Please try again."
+msgstr "Something went wrong. Please try again."
+
+msgid "Incorrect email or password."
+msgstr "Incorrect email or password."
+
+msgid "An account with this email already exists."
+msgstr "An account with this email already exists."
+
+msgid "That verification code is invalid or has expired."
+msgstr "That verification code is invalid or has expired."
