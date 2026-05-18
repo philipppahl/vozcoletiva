@@ -44,3 +44,7 @@ yarn-error.log*
 # Caches
 .cache/
 .parcel-cache/
+
+# Playwright MCP verification artefacts
+verification-*.png
+.playwright-mcp/
