@@ -66,10 +66,11 @@ function SignedInView() {
   }, [session]);
 
   if (!session) return null;
+  const displayName = session.displayName;
   return (
     <div className="flex flex-col items-center gap-3">
       <p className="text-base">
-        <Trans>Hello, {session.displayName}</Trans>
+        <Trans>Hello, {displayName}</Trans>
       </p>
       {profileError && (
         <p className="text-xs" style={{ color: 'var(--color-danger)' }}>
