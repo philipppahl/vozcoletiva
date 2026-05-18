@@ -111,22 +111,21 @@ async function main() {
 
   console.log(`\n=== vozcoletiva deploy → ${args.env}${args.dryRun ? ' (dry-run)' : ''} ===`);
 
-  // 1. Build Rust Lambda.
+  // 1. Build Rust Lambda. cargo-lambda is smart about incremental compilation;
+  // always invoking it is fine and avoids stale-artifact pitfalls.
+  console.log('\n• building Rust Lambda (cargo lambda build --release --arm64)…');
+  const probe = spawnSync('cargo lambda --version', { shell: true });
+  if (probe.status !== 0) {
+    console.error(
+      '\n✗ cargo-lambda is not installed. Install it once:\n' +
+        '    cargo install cargo-lambda\n' +
+        '  Then re-run this command.',
+    );
+    process.exit(1);
+  }
+  run('cargo lambda build --release --arm64 -p voz-api', { cwd: root });
   if (!existsSync(resolve(root, 'target/lambda/voz-api/bootstrap'))) {
-    console.log('\n• building Rust Lambda (cargo lambda build --release --arm64)…');
-    // cargo-lambda may not be installed yet; try and fall back to instructing the user.
-    const probe = spawnSync('cargo lambda --version', { shell: true });
-    if (probe.status !== 0) {
-      console.error(
-        '\n✗ cargo-lambda is not installed. Install it once:\n' +
-          '    cargo install cargo-lambda\n' +
-          '  Then re-run this command.',
-      );
-      process.exit(1);
-    }
-    run('cargo lambda build --release --arm64 -p voz-api', { cwd: root });
-  } else {
-    console.log('\n• Rust Lambda bootstrap already present (skipping rebuild).');
+    die('Lambda build did not produce target/lambda/voz-api/bootstrap');
   }
 
   // 2. Build web app.
