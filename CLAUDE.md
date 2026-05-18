@@ -83,7 +83,9 @@ The codebase is API-first. Three specific meanings:
 - **Scheduled actions:** EventBridge Scheduler (one-shot rules per proposal).
 - **Push:** direct Web Push (VAPID) for the PWA.
 - **Email:** SES (transactional).
-- **Frontend:** React + Vite + TypeScript. PWA via Workbox. Light + dark mode (`prefers-color-scheme` + manual override).
+- **Frontend:** React 19 + Vite + TypeScript (strict). Routing: TanStack Router. Styling: Tailwind v4. Component primitives: Radix UI + custom wrappers, **iOS-native default look & feel**. Data: TanStack Query v5. Forms: react-hook-form + Zod. Validation: Zod. i18n: Lingui. Markdown: react-markdown + remark-gfm + rehype-sanitize. Icons: Lucide. Testing: Vitest + RTL + Playwright. PWA via Workbox. UI state: Zustand. Light + dark mode. Full picks and rationale: `docs/frontend-stack.md`.
+- **Package manager / monorepo:** bun + bun workspaces (no Turborepo yet). Apps: `apps/web`, `apps/infra`. Packages: `packages/api-client` (generated from OpenAPI), `packages/shared`.
+- **API client codegen:** `bun run api:generate` produces `packages/api-client` from the OpenAPI spec; the dev commits the regenerated output. CI re-runs the codegen and fails the build if the committed output diverges from the current spec. Codegen must be deterministic.
 - **i18n:** EN + PT at launch.
 - **Logging:** `tracing` (Rust), `pino` (TypeScript) — conventions to follow.
 - **Analytics:** EventBridge → Firehose → S3 Parquet → Athena (when needed; not MVP).
@@ -93,6 +95,8 @@ The codebase is API-first. Three specific meanings:
 
 - Vision: `VISION.md`
 - Brand: `brand/palette.md`, `brand/logo-mark.svg`, `brand/logo-wordmark.svg`
+- Frontend stack: `docs/frontend-stack.md`
+- Data model: `docs/data-model.md`
 - Coding standards: `clean-code.md`
 - Skills: `.claude/skills/`
 - Conventions (to come): `docs/conventions/`
