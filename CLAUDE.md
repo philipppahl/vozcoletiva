@@ -16,7 +16,15 @@ Read once per session, reference as needed:
 - `clean-code.md` — universal coding standards (Rust + TypeScript).
 - `brand/palette.md` — colour tokens, typography, surface mapping for light + dark.
 
-(Further reading will be added as conventions land: logging, API style, DynamoDB access patterns, error taxonomy, etc.)
+When relevant to the work at hand:
+
+- `docs/conventions/testing.md` — pyramid, per-language tools, fixtures, snapshot + property + E2E policy.
+- `docs/conventions/validation.md` — boundary-first validation, newtypes, sanitization layers.
+- `docs/conventions/ci.md` — CI stages, caching, deploy gates, branch protection.
+- `docs/frontend-stack.md` — locked-in FE picks; the canonical reference for FE choices.
+- `docs/data-model.md` — DynamoDB single-table schema sketch and mapped access patterns.
+
+(More to come as conventions land: logging, API style, error taxonomy, observability.)
 
 ## The implementation cycle (non-negotiable)
 
@@ -42,6 +50,7 @@ A change is done when:
 - No `TODO` without an issue reference.
 - New log / audit / analytics events follow logging conventions (to be authored at `docs/conventions/logging.md` when first needed).
 - New architectural decisions captured in a decisions log (to be authored at `docs/decisions/`).
+- **UI-affecting changes verified in a real browser.** Mobile viewport first (390×844 baseline), then desktop. Golden path **and** at least one edge case walked through end to end. Light **and** dark mode both checked. Browser console clean of new errors/warnings. Automated tests passing is necessary but not sufficient. Protocol in `docs/conventions/testing.md` § *Manual UI verification*.
 
 ## Hard prohibitions
 
@@ -51,6 +60,7 @@ A change is done when:
 - **Never log PII** — email, real name, IP, vote choice tied to user, comment / chat content. Logging conventions to follow.
 - **Never commit secrets** to git. AWS Secrets Manager / SSM Parameter Store for production; `.env.local` (gitignored) for local dev.
 - **Never run `cdk deploy` directly.** Always via the `deploy` script with `--env <name>` (e.g. `--env dev`, `--env prod`).
+- **Never deploy to prod from a developer machine.** Prod deploys land via the GitHub Actions workflow only (see `docs/conventions/ci.md`). Break-glass via `VOZ_FORCE_PROD_DEPLOY=1` is logged and announced; not a routine path.
 - **Never amend or rebase** commits that have been pushed.
 - **Never reach behind the public API.** The webapp is a thin client over the same typed, versioned API external integrations will call. No backdoor "internal" endpoints.
 
@@ -98,6 +108,6 @@ The codebase is API-first. Three specific meanings:
 - Frontend stack: `docs/frontend-stack.md`
 - Data model: `docs/data-model.md`
 - Coding standards: `clean-code.md`
-- Skills: `.claude/skills/`
-- Conventions (to come): `docs/conventions/`
+- Skills: `.claude/skills/` (`plan-feature`, `run-checks`, `run-tests`, `deploy`)
+- Conventions: `docs/conventions/` — `testing.md`, `validation.md`, `ci.md`
 - Decisions log (to come): `docs/decisions/`

@@ -32,7 +32,7 @@ Do NOT trigger this skill for:
 1. **Plan.** Produce the plan in the structure below. **Do not write code.** Do not create files other than the plan itself if requested.
 2. **Wait.** End the plan with an explicit `## Approval needed` block listing decisions the human must confirm. Do not proceed past this point until acknowledged.
 3. **Execute.** Once approved, follow the plan. Surface deviations explicitly when they happen — never silently expand scope.
-4. **Summary.** End with what changed, what tests pass, what's left, what's deferred. Cross-reference the original plan.
+4. **Summary.** End with what changed, what tests pass, what's left, what's deferred. Cross-reference the original plan. **If the change affects any UI surface, the Summary must include a "UI verification" block** — see § *UI verification gate (execution turn)* below.
 
 ## Plan structure
 
@@ -132,3 +132,20 @@ Markdown. The plan IS the output. No code. End the turn after the Approval neede
 ## Output format on the execution turn
 
 Code changes via Edit / Write. Final message follows the Summary structure described in `CLAUDE.md`.
+
+## UI verification gate (execution turn)
+
+If the executed change affects the React PWA — any new component, route, style, copy, accessibility behaviour, animation, or interaction — verifying the change in a real browser is part of "done." Automated tests are necessary but not sufficient.
+
+The Summary must include a **"UI verification" block** with:
+
+- **Viewports tested** — at minimum one mobile viewport (390×844 baseline) and one desktop viewport.
+- **Flows clicked through** — the golden path of the feature plus at least one edge case (empty state, validation failure, slow network, offline, …).
+- **Themes** — light **and** dark mode both opened.
+- **Console** — clean of new errors/warnings, or any seen called out explicitly.
+- **Languages** — EN **and** PT once translations are wired in (until then, EN only is acceptable; state which was checked).
+- **Anomalies** — anything that looked, scrolled, or behaved oddly. Better to flag than ignore.
+
+If the change is non-UI (pure backend, infra, docs, tooling), skip the UI-verification block and state explicitly in the Summary: *"no UI surface — verification gate not applicable."* That way the reader knows the gate was considered, not forgotten.
+
+Full protocol in `docs/conventions/testing.md` § *Manual UI verification (the last gate)*.
