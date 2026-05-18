@@ -245,3 +245,128 @@ msgstr "That invite is no longer valid."
 
 msgid "Join"
 msgstr "Join"
+
+# --- proposals slice ---
+
+msgid "Proposals"
+msgstr "Proposals"
+
+msgid "New"
+msgstr "New"
+
+msgid "New proposal"
+msgstr "New proposal"
+
+msgid "No proposals yet — be the first."
+msgstr "No proposals yet — be the first."
+
+msgid "Recently closed"
+msgstr "Recently closed"
+
+msgid "Title"
+msgstr "Title"
+
+msgid "Title must be 1-200 characters."
+msgstr "Title must be 1-200 characters."
+
+msgid "Body (Markdown)"
+msgstr "Body (Markdown)"
+
+msgid "Voting rule"
+msgstr "Voting rule"
+
+msgid "Simple majority"
+msgstr "Simple majority"
+
+msgid "Two-thirds"
+msgstr "Two-thirds"
+
+msgid "Runtime"
+msgstr "Runtime"
+
+msgid "2 min (testing)"
+msgstr "2 min (testing)"
+
+msgid "1 hour"
+msgstr "1 hour"
+
+msgid "1 day"
+msgstr "1 day"
+
+msgid "1 week"
+msgstr "1 week"
+
+msgid "Quorum (optional)"
+msgstr "Quorum (optional)"
+
+msgid "e.g. 3"
+msgstr "e.g. 3"
+
+msgid "Minimum number of voters required for the result to count."
+msgstr "Minimum number of voters required for the result to count."
+
+msgid "Quorum must be a whole number."
+msgstr "Quorum must be a whole number."
+
+msgid "Quorum {quorum}"
+msgstr "Quorum {quorum}"
+
+msgid "Create proposal"
+msgstr "Create proposal"
+
+msgid "Could not load proposals."
+msgstr "Could not load proposals."
+
+msgid "Could not load this proposal."
+msgstr "Could not load this proposal."
+
+msgid "← All proposals"
+msgstr "← All proposals"
+
+msgid "Voting"
+msgstr "Voting"
+
+msgid "Passed"
+msgstr "Passed"
+
+msgid "Rejected"
+msgstr "Rejected"
+
+msgid "Quorum failed"
+msgstr "Quorum failed"
+
+msgid "Withdrawn"
+msgstr "Withdrawn"
+
+msgid "Closing now"
+msgstr "Closing now"
+
+msgid "Closes in {minutes} min"
+msgstr "Closes in {minutes} min"
+
+msgid "Closes in {hours} h"
+msgstr "Closes in {hours} h"
+
+msgid "Closes in {days} days"
+msgstr "Closes in {days} days"
+
+msgid "Yes"
+msgstr "Yes"
+
+msgid "No"
+msgstr "No"
+
+msgid "Abstain"
+msgstr "Abstain"
+
+msgid "Your vote"
+msgstr "Your vote"
+
+msgid "Retract"
+msgstr "Retract"
+
+msgid "Voting is closed."
+msgstr "Voting is closed."
+
+msgid "Withdraw proposal"
+msgstr "Withdraw proposal"

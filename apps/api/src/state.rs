@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
 use aws_sdk_dynamodb::Client as DdbClient;
+use aws_sdk_scheduler::Client as SchedulerClient;
 
 use crate::auth::jwt::JwtVerifier;
+use crate::scheduler::SchedulerConfig;
 
 /// Per-process state passed into every handler. Built once at Lambda cold start.
 #[derive(Clone)]
@@ -10,6 +12,7 @@ pub struct AppState {
     pub ddb: Arc<DdbClient>,
     pub jwt: Arc<JwtVerifier>,
     pub table_name: String,
+    pub scheduler: Option<Arc<SchedulerConfig>>,
 }
 
 impl AppState {
@@ -29,10 +32,29 @@ impl AppState {
 
         let jwt = JwtVerifier::new(jwks_url, issuer, client_id).await?;
 
+        // Scheduler is optional — the worker Lambda doesn't need it (and doesn't
+        // have IAM perms for it). Configured iff all three env vars are present.
+        let scheduler = match (
+            std::env::var("SCHEDULER_GROUP_NAME"),
+            std::env::var("WORKER_FUNCTION_ARN"),
+            std::env::var("SCHEDULER_INVOKE_ROLE_ARN"),
+        ) {
+            (Ok(group_name), Ok(worker_arn), Ok(invoke_role_arn)) => {
+                Some(Arc::new(SchedulerConfig {
+                    client: SchedulerClient::new(&aws_config),
+                    group_name,
+                    worker_arn,
+                    invoke_role_arn,
+                }))
+            }
+            _ => None,
+        };
+
         Ok(Self {
             ddb: Arc::new(DdbClient::new(&aws_config)),
             jwt: Arc::new(jwt),
             table_name,
+            scheduler,
         })
     }
 }

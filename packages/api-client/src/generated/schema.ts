@@ -192,6 +192,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{slug}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List proposals in a project */
+        get: operations["listProposals"];
+        put?: never;
+        /** Create a proposal (Decision) */
+        post: operations["createProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{slug}/proposals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a proposal (with your current vote) */
+        get: operations["getProposal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{slug}/proposals/{id}/vote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cast or change a vote */
+        post: operations["castVote"];
+        /** Retract your current vote */
+        delete: operations["retractVote"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{slug}/proposals/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw a proposal (author-only, before close) */
+        post: operations["withdrawProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -208,6 +278,11 @@ export interface components {
             error: string;
             message: string;
         };
+        CastVoteBody: {
+            choice: components["schemas"]["Choice"];
+        };
+        /** @enum {string} */
+        Choice: "yes" | "no" | "abstain";
         CreateProjectBody: {
             name: string;
             slug: string;
@@ -216,6 +291,14 @@ export interface components {
              * @enum {string}
              */
             template: "custom";
+        };
+        CreateProposalBody: {
+            body: string;
+            /** Format: date-time */
+            ends_at: string;
+            quorum?: number | null;
+            title: string;
+            voting_mode: components["schemas"]["VotingMode"];
         };
         Hello: {
             /** @constant */
@@ -294,6 +377,32 @@ export interface components {
         ProjectListResponse: {
             projects: components["schemas"]["ProjectListEntry"][];
         };
+        Proposal: {
+            author_id: string;
+            body: string;
+            /** Format: date-time */
+            closed_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            id: string;
+            project_id: string;
+            quorum?: number | null;
+            status: components["schemas"]["ProposalStatus"];
+            tally_abstain: number;
+            tally_no: number;
+            tally_yes: number;
+            title: string;
+            voter_count: number;
+            voting_mode: components["schemas"]["VotingMode"];
+            your_choice?: components["schemas"]["Choice"];
+        };
+        ProposalListResponse: {
+            proposals: components["schemas"]["Proposal"][];
+        };
+        /** @enum {string} */
+        ProposalStatus: "voting" | "passed" | "rejected" | "quorum_failed" | "withdrawn";
         /** @enum {string} */
         Role: "owner" | "admin" | "moderator" | "member" | "observer";
         UserProfile: {
@@ -306,6 +415,8 @@ export interface components {
             theme: "system" | "light" | "dark";
             user_id: string;
         };
+        /** @enum {string} */
+        VotingMode: "simple_majority" | "qualified_two_thirds";
     };
     responses: {
         /** @description Bad request. */
@@ -337,6 +448,7 @@ export interface components {
         };
     };
     parameters: {
+        ProposalId: string;
         Slug: string;
     };
     requestBodies: never;
@@ -717,6 +829,185 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listProposals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proposals. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalListResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProposalBody"];
+            };
+        };
+        responses: {
+            /** @description Proposal created and scheduled to close. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proposal detail. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    castVote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CastVoteBody"];
+            };
+        };
+        responses: {
+            /** @description Vote recorded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            /** @description Voting is closed or your previous vote changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    retractVote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vote retracted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            /** @description No current vote to retract. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    withdrawProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proposal withdrawn. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Proposal"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            /** @description Proposal is already closed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
 }

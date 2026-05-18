@@ -8,6 +8,8 @@ pub mod invites;
 pub mod me;
 pub mod members;
 pub mod projects;
+pub mod proposals;
+pub mod votes;
 
 /// Run `f` and shape its result into a JSON response. Successful results return
 /// `status` and the body's JSON. `AppError` returns its mapped status + a

@@ -56,6 +56,26 @@ describe('VozStack (dev)', () => {
     t.resourceCountIs('AWS::CloudFront::Distribution', 1);
   });
 
+  it('provisions an API Lambda + a worker Lambda', () => {
+    const t = synth();
+    t.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'voz-dev-api',
+    });
+    t.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'voz-dev-worker',
+    });
+  });
+
+  it('creates the EventBridge schedule group + invoke role', () => {
+    const t = synth();
+    t.hasResourceProperties('AWS::Scheduler::ScheduleGroup', {
+      Name: 'voz-dev',
+    });
+    t.hasResourceProperties('AWS::IAM::Role', {
+      RoleName: 'voz-dev-scheduler-invoke',
+    });
+  });
+
   it('outputs the API URL, web URL, table name, and Cognito IDs', () => {
     const t = synth();
     t.hasOutput('ApiUrl', {});

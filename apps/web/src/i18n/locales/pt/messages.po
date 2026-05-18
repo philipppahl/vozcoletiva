@@ -245,3 +245,128 @@ msgstr "Esse convite já não é válido."
 
 msgid "Join"
 msgstr "Juntar"
+
+# --- proposals slice ---
+
+msgid "Proposals"
+msgstr "Propostas"
+
+msgid "New"
+msgstr "Nova"
+
+msgid "New proposal"
+msgstr "Nova proposta"
+
+msgid "No proposals yet — be the first."
+msgstr "Ainda não há propostas — sê o primeiro."
+
+msgid "Recently closed"
+msgstr "Recentemente fechadas"
+
+msgid "Title"
+msgstr "Título"
+
+msgid "Title must be 1-200 characters."
+msgstr "O título deve ter entre 1 e 200 caracteres."
+
+msgid "Body (Markdown)"
+msgstr "Corpo (Markdown)"
+
+msgid "Voting rule"
+msgstr "Regra de votação"
+
+msgid "Simple majority"
+msgstr "Maioria simples"
+
+msgid "Two-thirds"
+msgstr "Dois terços"
+
+msgid "Runtime"
+msgstr "Duração"
+
+msgid "2 min (testing)"
+msgstr "2 min (teste)"
+
+msgid "1 hour"
+msgstr "1 hora"
+
+msgid "1 day"
+msgstr "1 dia"
+
+msgid "1 week"
+msgstr "1 semana"
+
+msgid "Quorum (optional)"
+msgstr "Quórum (opcional)"
+
+msgid "e.g. 3"
+msgstr "ex.: 3"
+
+msgid "Minimum number of voters required for the result to count."
+msgstr "Número mínimo de votantes para o resultado contar."
+
+msgid "Quorum must be a whole number."
+msgstr "O quórum deve ser um número inteiro."
+
+msgid "Quorum {quorum}"
+msgstr "Quórum {quorum}"
+
+msgid "Create proposal"
+msgstr "Criar proposta"
+
+msgid "Could not load proposals."
+msgstr "Não foi possível carregar as propostas."
+
+msgid "Could not load this proposal."
+msgstr "Não foi possível carregar esta proposta."
+
+msgid "← All proposals"
+msgstr "← Todas as propostas"
+
+msgid "Voting"
+msgstr "Em votação"
+
+msgid "Passed"
+msgstr "Aprovada"
+
+msgid "Rejected"
+msgstr "Rejeitada"
+
+msgid "Quorum failed"
+msgstr "Sem quórum"
+
+msgid "Withdrawn"
+msgstr "Retirada"
+
+msgid "Closing now"
+msgstr "A fechar agora"
+
+msgid "Closes in {minutes} min"
+msgstr "Fecha em {minutes} min"
+
+msgid "Closes in {hours} h"
+msgstr "Fecha em {hours} h"
+
+msgid "Closes in {days} days"
+msgstr "Fecha em {days} dias"
+
+msgid "Yes"
+msgstr "Sim"
+
+msgid "No"
+msgstr "Não"
+
+msgid "Abstain"
+msgstr "Abstenção"
+
+msgid "Your vote"
+msgstr "O teu voto"
+
+msgid "Retract"
+msgstr "Retirar"
+
+msgid "Voting is closed."
+msgstr "A votação está fechada."
+
+msgid "Withdraw proposal"
+msgstr "Retirar proposta"

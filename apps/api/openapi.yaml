@@ -234,6 +234,129 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/projects/{slug}/proposals:
+    get:
+      summary: List proposals in a project
+      operationId: listProposals
+      tags: [proposals]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Proposals.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProposalListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      summary: Create a proposal (Decision)
+      operationId: createProposal
+      tags: [proposals]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProposalBody' }
+      responses:
+        '201':
+          description: Proposal created and scheduled to close.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Proposal' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1/projects/{slug}/proposals/{id}:
+    get:
+      summary: Get a proposal (with your current vote)
+      operationId: getProposal
+      tags: [proposals]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ProposalId'
+      responses:
+        '200':
+          description: Proposal detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Proposal' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{slug}/proposals/{id}/vote:
+    post:
+      summary: Cast or change a vote
+      operationId: castVote
+      tags: [proposals]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ProposalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CastVoteBody' }
+      responses:
+        '200':
+          description: Vote recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Voting is closed or your previous vote changed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+    delete:
+      summary: Retract your current vote
+      operationId: retractVote
+      tags: [proposals]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ProposalId'
+      responses:
+        '200':
+          description: Vote retracted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: No current vote to retract.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /v1/projects/{slug}/proposals/{id}/withdraw:
+    post:
+      summary: Withdraw a proposal (author-only, before close)
+      operationId: withdrawProposal
+      tags: [proposals]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ProposalId'
+      responses:
+        '200':
+          description: Proposal withdrawn.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Proposal' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: Proposal is already closed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
   /v1/invites/by-code/{code}/accept:
     post:
       summary: Accept an invite by short code
@@ -297,6 +420,11 @@ components:
       name: slug
       required: true
       schema: { type: string, minLength: 3, maxLength: 32 }
+    ProposalId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
 
   responses:
     Forbidden:
@@ -474,6 +602,80 @@ components:
         max_uses: { type: integer, nullable: true }
         revoked: { type: boolean }
         valid: { type: boolean }
+
+    VotingMode:
+      type: string
+      enum: [simple_majority, qualified_two_thirds]
+
+    Choice:
+      type: string
+      enum: [yes, no, abstain]
+
+    ProposalStatus:
+      type: string
+      enum: [voting, passed, rejected, quorum_failed, withdrawn]
+
+    CreateProposalBody:
+      type: object
+      required: [title, body, voting_mode, ends_at]
+      additionalProperties: false
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        body: { type: string, minLength: 1, maxLength: 50000 }
+        voting_mode: { $ref: '#/components/schemas/VotingMode' }
+        quorum: { type: integer, minimum: 1, maximum: 100000, nullable: true }
+        ends_at: { type: string, format: date-time }
+
+    CastVoteBody:
+      type: object
+      required: [choice]
+      additionalProperties: false
+      properties:
+        choice: { $ref: '#/components/schemas/Choice' }
+
+    Proposal:
+      type: object
+      required:
+        - id
+        - project_id
+        - author_id
+        - title
+        - body
+        - voting_mode
+        - ends_at
+        - status
+        - tally_yes
+        - tally_no
+        - tally_abstain
+        - voter_count
+        - created_at
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        author_id: { type: string }
+        title: { type: string }
+        body: { type: string }
+        voting_mode: { $ref: '#/components/schemas/VotingMode' }
+        quorum: { type: integer, nullable: true }
+        ends_at: { type: string, format: date-time }
+        status: { $ref: '#/components/schemas/ProposalStatus' }
+        tally_yes: { type: integer }
+        tally_no: { type: integer }
+        tally_abstain: { type: integer }
+        voter_count: { type: integer }
+        created_at: { type: string, format: date-time }
+        closed_at: { type: string, format: date-time, nullable: true }
+        your_choice: { $ref: '#/components/schemas/Choice', nullable: true }
+
+    ProposalListResponse:
+      type: object
+      required: [proposals]
+      additionalProperties: false
+      properties:
+        proposals:
+          type: array
+          items: { $ref: '#/components/schemas/Proposal' }
 
     AcceptInviteResponse:
       type: object

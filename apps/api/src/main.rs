@@ -1,13 +1,7 @@
 use lambda_http::{run, service_fn, tracing as lambda_tracing, Error, Request, Response};
 
-mod auth;
-mod domain;
-mod error;
-mod handlers;
-mod repo;
-mod state;
-
-use state::AppState;
+use voz_api::handlers;
+use voz_api::state::AppState;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -76,6 +70,26 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
         }
         ("POST", ["invites", token, "accept"]) => {
             handlers::invites::accept(&state, event, token).await
+        }
+
+        // Proposals
+        ("POST", ["projects", slug, "proposals"]) => {
+            handlers::proposals::create(&state, event, slug).await
+        }
+        ("GET", ["projects", slug, "proposals"]) => {
+            handlers::proposals::list(&state, event, slug).await
+        }
+        ("GET", ["projects", slug, "proposals", id]) => {
+            handlers::proposals::get(&state, event, slug, id).await
+        }
+        ("POST", ["projects", slug, "proposals", id, "vote"]) => {
+            handlers::votes::cast(&state, event, slug, id).await
+        }
+        ("DELETE", ["projects", slug, "proposals", id, "vote"]) => {
+            handlers::votes::retract(&state, event, slug, id).await
+        }
+        ("POST", ["projects", slug, "proposals", id, "withdraw"]) => {
+            handlers::proposals::withdraw(&state, event, slug, id).await
         }
 
         _ => not_found(),

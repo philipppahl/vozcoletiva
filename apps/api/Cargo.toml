@@ -8,9 +8,17 @@ authors.workspace = true
 repository.workspace = true
 publish = false
 
+[lib]
+name = "voz_api"
+path = "src/lib.rs"
+
 [[bin]]
 name = "voz-api"
 path = "src/main.rs"
+
+[[bin]]
+name = "voz-worker"
+path = "src/bin/worker.rs"
 
 [dependencies]
 lambda_http = { workspace = true }
@@ -23,6 +31,8 @@ tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
 aws-config = { workspace = true }
 aws-sdk-dynamodb = { workspace = true }
+aws-sdk-scheduler = { workspace = true }
+ammonia = { workspace = true }
 jsonwebtoken = { workspace = true }
 reqwest = { workspace = true }
 chrono = { workspace = true }

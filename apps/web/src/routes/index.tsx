@@ -1,9 +1,11 @@
 import { Trans } from '@lingui/macro';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import type { Theme } from '@vozcoletiva/shared';
+import { useEffect } from 'react';
 import { Logo } from '../components/Logo';
 import { RoleBadge } from '../components/RoleBadge';
 import { Button } from '../components/ui/Button';
+import { apiClient } from '../lib/api';
 import { useAuth } from '../lib/auth/hooks';
 import { useProjects } from '../lib/projects';
 import { useThemeStore } from '../lib/theme';
@@ -50,6 +52,18 @@ function SignedOutCtas() {
 function SignedInView() {
   const { session, signOut } = useAuth();
   const projects = useProjects();
+
+  // First-launch profile seed: hit /v1/me with our local display name so the
+  // user's USER#<sub>/PROFILE row is created with the right name. Without this,
+  // accept_invite and create_project's display-name fallback would seed it as
+  // the Cognito sub. Fires once per mount; the BE call is idempotent.
+  useEffect(() => {
+    if (!session) return;
+    void apiClient.GET('/v1/me', {
+      params: { query: { display_name: session.displayName } },
+    });
+  }, [session]);
+
   if (!session) return null;
   const displayName = session.displayName;
 

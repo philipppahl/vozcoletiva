@@ -1,9 +1,10 @@
 import * as path from 'node:path';
 import type { EnvName } from '@vozcoletiva/shared';
-import { Duration, RemovalPolicy } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { EndpointType, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import type { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import type { Table } from 'aws-cdk-lib/aws-dynamodb';
+import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import {
   Architecture,
   Code,
@@ -12,6 +13,7 @@ import {
   Tracing,
 } from 'aws-cdk-lib/aws-lambda';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { CfnScheduleGroup } from 'aws-cdk-lib/aws-scheduler';
 import { Construct } from 'constructs';
 
 export interface ApiProps {
@@ -22,20 +24,18 @@ export interface ApiProps {
 }
 
 /**
- * HTTP API Gateway fronting the Rust Lambda. For the foundation slice the
- * Lambda exposes one route (GET /v1/hello). Routes are added by appending to
- * the resource tree as features land.
+ * HTTP API Gateway fronting the Rust Lambda + a sibling worker Lambda invoked
+ * by EventBridge Scheduler at proposal close-time.
  */
 export class Api extends Construct {
   readonly url: string;
   readonly restApi: RestApi;
+  readonly workerFunctionArn: string;
 
   constructor(scope: Construct, id: string, props: ApiProps) {
     super(scope, id);
 
-    // Path to the compiled Lambda bootstrap. cargo-lambda emits to
-    // `target/lambda/voz-api/bootstrap`. The deploy script runs the build first.
-    const lambdaArtifactPath = path.resolve(
+    const apiArtifactPath = path.resolve(
       __dirname,
       '..',
       '..',
@@ -45,8 +45,64 @@ export class Api extends Construct {
       'lambda',
       'voz-api',
     );
+    const workerArtifactPath = path.resolve(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      '..',
+      'target',
+      'lambda',
+      'voz-worker',
+    );
 
-    const logGroup = new LogGroup(this, 'LambdaLogs', {
+    // --- Scheduler group ---------------------------------------------------
+    const scheduleGroupName = `voz-${props.env}`;
+    new CfnScheduleGroup(this, 'ScheduleGroup', {
+      name: scheduleGroupName,
+    });
+
+    // --- Worker Lambda -----------------------------------------------------
+    const workerLogGroup = new LogGroup(this, 'WorkerLogs', {
+      logGroupName: `/aws/lambda/voz-${props.env}-worker`,
+      retention: props.env === 'prod' ? RetentionDays.ONE_MONTH : RetentionDays.ONE_WEEK,
+      removalPolicy: props.env === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
+    });
+
+    const workerFn = new LambdaFunction(this, 'WorkerFn', {
+      functionName: `voz-${props.env}-worker`,
+      runtime: Runtime.PROVIDED_AL2023,
+      architecture: Architecture.ARM_64,
+      handler: 'bootstrap',
+      code: Code.fromAsset(workerArtifactPath),
+      memorySize: 256,
+      timeout: Duration.seconds(15),
+      logGroup: workerLogGroup,
+      tracing: Tracing.ACTIVE,
+      environment: {
+        TABLE_NAME: props.table.tableName,
+        USER_POOL_ID: props.userPool.userPoolId,
+        USER_POOL_CLIENT_ID: props.userPoolClient.userPoolClientId,
+        RUST_LOG: 'info',
+      },
+    });
+    props.table.grantReadWriteData(workerFn);
+
+    // --- Scheduler invoke role --------------------------------------------
+    const schedulerInvokeRole = new Role(this, 'SchedulerInvokeRole', {
+      roleName: `voz-${props.env}-scheduler-invoke`,
+      assumedBy: new ServicePrincipal('scheduler.amazonaws.com'),
+    });
+    schedulerInvokeRole.addToPolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['lambda:InvokeFunction'],
+        resources: [workerFn.functionArn],
+      }),
+    );
+
+    // --- API Lambda --------------------------------------------------------
+    const apiLogGroup = new LogGroup(this, 'LambdaLogs', {
       logGroupName: `/aws/lambda/voz-${props.env}-api`,
       retention: props.env === 'prod' ? RetentionDays.ONE_MONTH : RetentionDays.ONE_WEEK,
       removalPolicy: props.env === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
@@ -57,21 +113,54 @@ export class Api extends Construct {
       runtime: Runtime.PROVIDED_AL2023,
       architecture: Architecture.ARM_64,
       handler: 'bootstrap',
-      code: Code.fromAsset(lambdaArtifactPath),
+      code: Code.fromAsset(apiArtifactPath),
       memorySize: 256,
       timeout: Duration.seconds(10),
-      logGroup,
+      logGroup: apiLogGroup,
       tracing: Tracing.ACTIVE,
       environment: {
         TABLE_NAME: props.table.tableName,
         USER_POOL_ID: props.userPool.userPoolId,
         USER_POOL_CLIENT_ID: props.userPoolClient.userPoolClientId,
+        SCHEDULER_GROUP_NAME: scheduleGroupName,
+        WORKER_FUNCTION_ARN: workerFn.functionArn,
+        SCHEDULER_INVOKE_ROLE_ARN: schedulerInvokeRole.roleArn,
         RUST_LOG: 'info',
       },
     });
 
     props.table.grantReadWriteData(fn);
 
+    // Scheduler permissions, scoped to this env's schedule group.
+    const region = Stack.of(this).region;
+    const account = Stack.of(this).account;
+    const scheduleArnPrefix = `arn:aws:scheduler:${region}:${account}:schedule/${scheduleGroupName}/*`;
+    fn.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: [
+          'scheduler:CreateSchedule',
+          'scheduler:UpdateSchedule',
+          'scheduler:DeleteSchedule',
+          'scheduler:GetSchedule',
+        ],
+        resources: [scheduleArnPrefix],
+      }),
+    );
+    // PassRole so the API can pin the scheduler-invoke role onto schedules
+    // it creates.
+    fn.addToRolePolicy(
+      new PolicyStatement({
+        effect: Effect.ALLOW,
+        actions: ['iam:PassRole'],
+        resources: [schedulerInvokeRole.roleArn],
+        conditions: {
+          StringEquals: { 'iam:PassedToService': 'scheduler.amazonaws.com' },
+        },
+      }),
+    );
+
+    // --- REST API ---------------------------------------------------------
     this.restApi = new RestApi(this, 'Rest', {
       restApiName: `voz-${props.env}-api`,
       deployOptions: {
@@ -86,15 +175,12 @@ export class Api extends Construct {
       },
     });
 
-    // Forward every path + method under the v1 stage to the Lambda. The Rust
-    // handler routes internally based on (method, path). Avoids API-GW giving
-    // us a confusing 403 "Missing Authentication Token" for any path we
-    // haven't explicitly declared.
     this.restApi.root.addProxy({
       anyMethod: true,
       defaultIntegration: new LambdaIntegration(fn),
     });
 
     this.url = this.restApi.url;
+    this.workerFunctionArn = workerFn.functionArn;
   }
 }
