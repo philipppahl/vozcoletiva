@@ -1,0 +1,26 @@
+{
+  "name": "@vozcoletiva/infra",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "deploy": "./scripts/deploy.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "synth": "cdk synth --app 'bun bin/voz.ts'",
+    "diff": "cdk diff --app 'bun bin/voz.ts'",
+    "bootstrap": "cdk bootstrap --app 'bun bin/voz.ts'"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.170.0",
+    "constructs": "^10.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "aws-cdk": "^2.170.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

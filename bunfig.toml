@@ -1,0 +1,16 @@
+# Bun configuration for the vozcoletiva monorepo.
+# See https://bun.com/docs/runtime/bunfig
+
+[install]
+# Exact versions; reproducible installs.
+exact = true
+# Hoist dependencies; one node_modules at the root.
+linker = "hoisted"
+
+[install.cache]
+disable = false
+
+[test]
+# Vitest is the canonical test runner for apps/web and apps/infra.
+# Bun's built-in test runner is not used here to keep one runner across the workspace.
+preload = []

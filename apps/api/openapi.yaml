@@ -1,0 +1,47 @@
+openapi: 3.1.0
+info:
+  title: vozcoletiva API
+  version: 0.1.0
+  description: |
+    HTTP API for vozcoletiva. The foundation slice exposes only the hello endpoint
+    used to prove the pipeline end-to-end (Rust handler → API Gateway → typed FE client).
+    Features land one `plan-feature` cycle at a time on top of this scaffold.
+  license:
+    name: AGPL-3.0-or-later
+    url: https://www.gnu.org/licenses/agpl-3.0.html
+
+servers:
+  - url: https://dev.api.vozcoletiva.com
+    description: Dev environment (default API Gateway URL until vozcoletiva.com is wired)
+  - url: https://api.vozcoletiva.com
+    description: Prod environment
+
+paths:
+  /v1/hello:
+    get:
+      summary: Healthcheck and version
+      description: Returns a small JSON payload confirming the API is reachable.
+      operationId: getHello
+      tags: [meta]
+      responses:
+        '200':
+          description: API is reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hello'
+
+components:
+  schemas:
+    Hello:
+      type: object
+      required: [ok, version]
+      additionalProperties: false
+      properties:
+        ok:
+          type: boolean
+          const: true
+        version:
+          type: string
+          description: The semver of the deployed Lambda build.
+          example: "0.1.0"
