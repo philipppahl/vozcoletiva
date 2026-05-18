@@ -24,14 +24,19 @@ async fn main() -> Result<(), Error> {
 }
 
 async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::Body>, Error> {
-    let path = event.uri().path();
+    let raw_path = event.uri().path();
     let method = event.method();
 
-    tracing::info!(?method, ?path, "request_received");
+    // API Gateway may include the stage prefix in the forwarded path
+    // ("/v1/hello") or strip it ("/hello") depending on the integration shape.
+    // Accept both.
+    let path = raw_path.strip_prefix("/v1").unwrap_or(raw_path);
+
+    tracing::info!(?method, raw_path, normalised_path = ?path, "request_received");
 
     match (method.as_str(), path) {
-        ("GET", "/v1/hello") => handlers::hello::handle().await,
-        ("GET", "/v1/me") => handlers::me::handle(&state, event).await,
+        ("GET", "/hello") => handlers::hello::handle().await,
+        ("GET", "/me") => handlers::me::handle(&state, event).await,
         _ => Ok(Response::builder()
             .status(404)
             .header("content-type", "application/json")

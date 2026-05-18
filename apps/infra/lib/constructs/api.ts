@@ -86,11 +86,14 @@ export class Api extends Construct {
       },
     });
 
-    // Mount the Lambda at every path under v1 so the handler can route.
-    // The Rust handler matches "/v1/hello" — we strip the API GW stage
-    // prefix on the client by calling `${api.url}hello`.
-    const v1 = this.restApi.root.addResource('hello');
-    v1.addMethod('GET', new LambdaIntegration(fn));
+    // Forward every path + method under the v1 stage to the Lambda. The Rust
+    // handler routes internally based on (method, path). Avoids API-GW giving
+    // us a confusing 403 "Missing Authentication Token" for any path we
+    // haven't explicitly declared.
+    this.restApi.root.addProxy({
+      anyMethod: true,
+      defaultIntegration: new LambdaIntegration(fn),
+    });
 
     this.url = this.restApi.url;
   }

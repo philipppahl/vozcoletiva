@@ -40,13 +40,13 @@ describe('VozStack (dev)', () => {
     });
   });
 
-  it('creates an API Gateway REST API with a /hello resource', () => {
+  it('creates an API Gateway REST API with a proxy resource', () => {
     const t = synth();
     t.hasResourceProperties('AWS::ApiGateway::RestApi', {
       Name: 'voz-dev-api',
     });
     t.hasResourceProperties('AWS::ApiGateway::Resource', {
-      PathPart: 'hello',
+      PathPart: '{proxy+}',
     });
   });
 
