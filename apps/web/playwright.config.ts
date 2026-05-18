@@ -18,7 +18,9 @@ export default defineConfig({
     timeout: 60_000,
   },
   projects: [
-    { name: 'mobile', use: { ...devices['iPhone 14'] } },
+    // Use Chromium-based mobile emulation so CI's chromium-only install is sufficient.
+    // Real iOS Safari verification happens in the manual UI-verification gate.
+    { name: 'mobile', use: { ...devices['Pixel 7'] } },
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
   ],
 });
