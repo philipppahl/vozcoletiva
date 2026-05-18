@@ -16,7 +16,7 @@ interface VerifySearch {
   displayName: string;
 }
 
-export const Route = createFileRoute('/sign-up/verify')({
+export const Route = createFileRoute('/sign-up_/verify')({
   validateSearch: (search): VerifySearch => ({
     email: typeof search.email === 'string' ? search.email : '',
     displayName: typeof search.displayName === 'string' ? search.displayName : '',
