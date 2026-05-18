@@ -18,11 +18,16 @@ pub struct SchedulerConfig {
 /// re-creation is idempotent. Returns the schedule's ARN.
 pub async fn schedule_close(
     cfg: &SchedulerConfig,
+    project_id: &str,
     proposal_id: &str,
     fire_at: DateTime<Utc>,
 ) -> Result<String, AppError> {
     let name = format!("close-{proposal_id}");
-    let payload = serde_json::json!({ "proposal_id": proposal_id }).to_string();
+    let payload = serde_json::json!({
+        "project_id": project_id,
+        "proposal_id": proposal_id,
+    })
+    .to_string();
 
     let target = Target::builder()
         .arn(&cfg.worker_arn)

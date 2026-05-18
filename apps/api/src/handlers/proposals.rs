@@ -100,7 +100,7 @@ pub async fn create(
             // worker only), warn but don't fail — the worker can be invoked
             // manually if needed.
             if let Some(cfg) = state.scheduler.as_ref() {
-                match schedule_close(cfg, &prop.id, ends_at).await {
+                match schedule_close(cfg, &auth.project.id, &prop.id, ends_at).await {
                     Ok(arn) => {
                         let _ = proposal::set_schedule_arn(
                             state,
