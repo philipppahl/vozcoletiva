@@ -335,6 +335,98 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  /v1/projects/{slug}/proposals/{id}/comments:
+    get:
+      summary: List comments on a proposal
+      operationId: listComments
+      tags: [comments]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ProposalId'
+      responses:
+        '200':
+          description: Comments (chronological, including soft-deleted with body omitted).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      summary: Add a comment to a proposal
+      operationId: createComment
+      tags: [comments]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ProposalId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCommentBody' }
+      responses:
+        '201':
+          description: Comment created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{slug}/proposals/{id}/comments/{commentId}:
+    patch:
+      summary: Edit a comment (author only)
+      operationId: updateComment
+      tags: [comments]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ProposalId'
+        - in: path
+          name: commentId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCommentBody' }
+      responses:
+        '200':
+          description: Comment updated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Comment was deleted or changed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+    delete:
+      summary: Soft-delete a comment (author or admin)
+      operationId: deleteComment
+      tags: [comments]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ProposalId'
+        - in: path
+          name: commentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Comment soft-deleted (idempotent).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/projects/{slug}/proposals/{id}/withdraw:
     post:
       summary: Withdraw a proposal (author-only, before close)
@@ -667,6 +759,44 @@ components:
         created_at: { type: string, format: date-time }
         closed_at: { type: string, format: date-time, nullable: true }
         your_choice: { $ref: '#/components/schemas/Choice', nullable: true }
+
+    Comment:
+      type: object
+      required: [id, proposal_id, author_id, author_display_name, created_at]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        proposal_id: { type: string }
+        author_id: { type: string }
+        author_display_name: { type: string }
+        body: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        edited_at: { type: string, format: date-time, nullable: true }
+        deleted_at: { type: string, format: date-time, nullable: true }
+        deleted_by: { type: string, nullable: true }
+
+    CommentListResponse:
+      type: object
+      required: [comments]
+      additionalProperties: false
+      properties:
+        comments:
+          type: array
+          items: { $ref: '#/components/schemas/Comment' }
+
+    CreateCommentBody:
+      type: object
+      required: [body]
+      additionalProperties: false
+      properties:
+        body: { type: string, minLength: 1, maxLength: 10000 }
+
+    UpdateCommentBody:
+      type: object
+      required: [body]
+      additionalProperties: false
+      properties:
+        body: { type: string, minLength: 1, maxLength: 10000 }
 
     ProposalListResponse:
       type: object

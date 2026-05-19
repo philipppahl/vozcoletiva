@@ -23,6 +23,8 @@ export const qk = {
     invites: (slug: string) => ['projects', 'detail', slug, 'invites'] as const,
     proposals: (slug: string) => ['projects', 'detail', slug, 'proposals'] as const,
     proposal: (slug: string, id: string) => ['projects', 'detail', slug, 'proposals', id] as const,
+    comments: (slug: string, id: string) =>
+      ['projects', 'detail', slug, 'proposals', id, 'comments'] as const,
   },
   invites: {
     byToken: (token: string) => ['invites', 'by-token', token] as const,

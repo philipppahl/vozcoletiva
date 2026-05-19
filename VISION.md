@@ -146,7 +146,7 @@ draft → discussion (optional) → voting → closed
                                        └ withdrawn
 ```
 
-- Author edits freely in draft. After publishing, edits to substantive fields create a new version; existing votes are flagged "voted on v1" and the voter is prompted to re-confirm.
+- Author edits freely in draft. After publishing, edits to substantive fields **reset the vote tally** and **notify every voter** so they can re-vote on the new version. A version history is kept for the audit trail (each accepted edit becomes a `DocumentVersion`-style snapshot).
 - Author can withdraw before voting closes.
 - Forking is allowed during discussion, and during voting if the parent permits it.
 

@@ -370,3 +370,62 @@ msgstr "A votação está fechada."
 
 msgid "Withdraw proposal"
 msgstr "Retirar proposta"
+
+# --- comments slice ---
+
+msgid "Comments"
+msgstr "Comentários"
+
+msgid "Could not load comments."
+msgstr "Não foi possível carregar os comentários."
+
+msgid "No comments yet. Start the discussion."
+msgstr "Ainda não há comentários. Começa a discussão."
+
+msgid "Write a comment… (Markdown supported)"
+msgstr "Escreve um comentário… (Markdown suportado)"
+
+msgid "Comment cannot be empty."
+msgstr "O comentário não pode estar vazio."
+
+msgid "Comment must be 10000 characters or fewer."
+msgstr "O comentário deve ter no máximo 10000 caracteres."
+
+msgid "Could not save the comment. Please try again."
+msgstr "Não foi possível guardar o comentário. Tenta novamente."
+
+msgid "Post comment"
+msgstr "Publicar comentário"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Edit"
+msgstr "Editar"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "Delete this comment?"
+msgstr "Eliminar este comentário?"
+
+msgid "Comment deleted"
+msgstr "Comentário eliminado"
+
+msgid "(edited)"
+msgstr "(editado)"
+
+msgid "just now"
+msgstr "agora mesmo"
+
+msgid "{minutes}m"
+msgstr "{minutes}m"
+
+msgid "{hours}h"
+msgstr "{hours}h"
+
+msgid "{days}d"
+msgstr "{days}d"

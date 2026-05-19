@@ -92,6 +92,20 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
             handlers::proposals::withdraw(&state, event, slug, id).await
         }
 
+        // Comments
+        ("POST", ["projects", slug, "proposals", id, "comments"]) => {
+            handlers::comments::create(&state, event, slug, id).await
+        }
+        ("GET", ["projects", slug, "proposals", id, "comments"]) => {
+            handlers::comments::list(&state, event, slug, id).await
+        }
+        ("PATCH", ["projects", slug, "proposals", id, "comments", comment_id]) => {
+            handlers::comments::update(&state, event, slug, id, comment_id).await
+        }
+        ("DELETE", ["projects", slug, "proposals", id, "comments", comment_id]) => {
+            handlers::comments::delete(&state, event, slug, id, comment_id).await
+        }
+
         _ => not_found(),
     }
 }

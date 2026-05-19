@@ -1,6 +1,7 @@
 import { Trans } from '@lingui/macro';
 import { createFileRoute, Link } from '@tanstack/react-router';
 
+import { Comments } from '../components/Comments';
 import { Markdown } from '../components/Markdown';
 import { RequireAuth } from '../components/RequireAuth';
 import { StatusBadge } from '../components/StatusBadge';
@@ -148,6 +149,8 @@ function ProposalDetailPage() {
           <Trans>Withdraw proposal</Trans>
         </Button>
       )}
+
+      <Comments slug={slug} proposalId={id} />
     </section>
   );
 }

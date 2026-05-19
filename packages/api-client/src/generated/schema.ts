@@ -227,6 +227,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{slug}/proposals/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List comments on a proposal */
+        get: operations["listComments"];
+        put?: never;
+        /** Add a comment to a proposal */
+        post: operations["createComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{slug}/proposals/{id}/comments/{commentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Soft-delete a comment (author or admin) */
+        delete: operations["deleteComment"];
+        options?: never;
+        head?: never;
+        /** Edit a comment (author only) */
+        patch: operations["updateComment"];
+        trace?: never;
+    };
     "/v1/projects/{slug}/proposals/{id}/vote": {
         parameters: {
             query?: never;
@@ -283,6 +319,26 @@ export interface components {
         };
         /** @enum {string} */
         Choice: "yes" | "no" | "abstain";
+        Comment: {
+            author_display_name: string;
+            author_id: string;
+            body?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            deleted_at?: string | null;
+            deleted_by?: string | null;
+            /** Format: date-time */
+            edited_at?: string | null;
+            id: string;
+            proposal_id: string;
+        };
+        CommentListResponse: {
+            comments: components["schemas"]["Comment"][];
+        };
+        CreateCommentBody: {
+            body: string;
+        };
         CreateProjectBody: {
             name: string;
             slug: string;
@@ -405,6 +461,9 @@ export interface components {
         ProposalStatus: "voting" | "passed" | "rejected" | "quorum_failed" | "withdrawn";
         /** @enum {string} */
         Role: "owner" | "admin" | "moderator" | "member" | "observer";
+        UpdateCommentBody: {
+            body: string;
+        };
         UserProfile: {
             /** Format: date-time */
             created_at: string;
@@ -905,6 +964,126 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listComments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comments (chronological, including soft-deleted with body omitted). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentListResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCommentBody"];
+            };
+        };
+        responses: {
+            /** @description Comment created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comment soft-deleted (idempotent). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCommentBody"];
+            };
+        };
+        responses: {
+            /** @description Comment updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comment"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Comment was deleted or changed. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     castVote: {

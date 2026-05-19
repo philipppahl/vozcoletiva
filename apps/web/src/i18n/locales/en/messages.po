@@ -370,3 +370,62 @@ msgstr "Voting is closed."
 
 msgid "Withdraw proposal"
 msgstr "Withdraw proposal"
+
+# --- comments slice ---
+
+msgid "Comments"
+msgstr "Comments"
+
+msgid "Could not load comments."
+msgstr "Could not load comments."
+
+msgid "No comments yet. Start the discussion."
+msgstr "No comments yet. Start the discussion."
+
+msgid "Write a comment… (Markdown supported)"
+msgstr "Write a comment… (Markdown supported)"
+
+msgid "Comment cannot be empty."
+msgstr "Comment cannot be empty."
+
+msgid "Comment must be 10000 characters or fewer."
+msgstr "Comment must be 10000 characters or fewer."
+
+msgid "Could not save the comment. Please try again."
+msgstr "Could not save the comment. Please try again."
+
+msgid "Post comment"
+msgstr "Post comment"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "Delete"
+msgstr "Delete"
+
+msgid "Delete this comment?"
+msgstr "Delete this comment?"
+
+msgid "Comment deleted"
+msgstr "Comment deleted"
+
+msgid "(edited)"
+msgstr "(edited)"
+
+msgid "just now"
+msgstr "just now"
+
+msgid "{minutes}m"
+msgstr "{minutes}m"
+
+msgid "{hours}h"
+msgstr "{hours}h"
+
+msgid "{days}d"
+msgstr "{days}d"
