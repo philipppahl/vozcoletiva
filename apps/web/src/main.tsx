@@ -5,6 +5,10 @@ import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import '@fontsource-variable/newsreader';
+import '@fontsource-variable/newsreader/opsz-italic.css';
+import '@fontsource-variable/public-sans';
+import '@fontsource-variable/jetbrains-mono';
 import './styles/global.css';
 import { currentLocale, initI18n } from './i18n';
 import { useAuthStore } from './lib/auth/store';

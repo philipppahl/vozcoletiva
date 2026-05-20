@@ -1,10 +1,11 @@
 import { Trans } from '@lingui/macro';
 import { createFileRoute, Link } from '@tanstack/react-router';
-
 import { StatusBadge } from '../components/StatusBadge';
+import { ProjectShell } from '../components/shell/ProjectShell';
 import { TallyBar } from '../components/TallyBar';
 import { TimeRemaining } from '../components/TimeRemaining';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import { useProposals } from '../lib/proposals';
 
 export const Route = createFileRoute('/p/$slug/')({
@@ -13,18 +14,26 @@ export const Route = createFileRoute('/p/$slug/')({
 
 function ProjectOverview() {
   const { slug } = Route.useParams();
+  return (
+    <ProjectShell slug={slug} tab="proposals" pageTitle={<Trans>Proposals</Trans>}>
+      <ProposalsList slug={slug} />
+    </ProjectShell>
+  );
+}
+
+function ProposalsList({ slug }: { slug: string }) {
   const proposals = useProposals(slug);
 
   if (proposals.isLoading) {
     return (
-      <p style={{ color: 'var(--text-muted)' }}>
+      <p className="px-4 pt-4" style={{ color: 'var(--ink-muted)' }}>
         <Trans>Loading…</Trans>
       </p>
     );
   }
   if (proposals.error || !proposals.data) {
     return (
-      <p style={{ color: 'var(--color-danger)' }}>
+      <p className="px-4 pt-4" style={{ color: 'var(--no)' }}>
         <Trans>Could not load proposals.</Trans>
       </p>
     );
@@ -39,20 +48,9 @@ function ProjectOverview() {
     .sort((a, b) => Date.parse(b.ends_at) - Date.parse(a.ends_at));
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">
-          <Trans>Proposals</Trans>
-        </h2>
-        <Link to="/p/$slug/proposals/new" params={{ slug }}>
-          <Button>
-            <Trans>New</Trans>
-          </Button>
-        </Link>
-      </div>
-
+    <section className="flex flex-col gap-3 px-4 pb-24 pt-4">
       {open.length === 0 && closed.length === 0 ? (
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
           <Trans>No proposals yet — be the first.</Trans>
         </p>
       ) : (
@@ -60,27 +58,42 @@ function ProjectOverview() {
           {open.length > 0 && (
             <ul className="flex flex-col gap-3">
               {open.map((p) => (
-                <ProposalCard key={p.id} slug={slug} p={p} />
+                <li key={p.id}>
+                  <ProposalCardLink slug={slug} p={p} />
+                </li>
               ))}
             </ul>
           )}
           {closed.length > 0 && (
             <>
               <h3
-                className="mt-2 text-xs font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--text-muted)' }}
+                className="mt-3 px-1 text-[11px] font-semibold uppercase"
+                style={{ color: 'var(--ink-soft)', letterSpacing: 0.06 }}
               >
                 <Trans>Recently closed</Trans>
               </h3>
               <ul className="flex flex-col gap-3">
                 {closed.map((p) => (
-                  <ProposalCard key={p.id} slug={slug} p={p} />
+                  <li key={p.id}>
+                    <ProposalCardLink slug={slug} p={p} />
+                  </li>
                 ))}
               </ul>
             </>
           )}
         </>
       )}
+
+      <Link
+        to="/p/$slug/proposals/new"
+        params={{ slug }}
+        className="sticky bottom-24 ml-auto inline-flex"
+        style={{ marginTop: 8 }}
+      >
+        <Button variant="primary" size="lg">
+          <Trans>New proposal</Trans>
+        </Button>
+      </Link>
     </section>
   );
 }
@@ -95,25 +108,36 @@ interface ProposalLike {
   tally_abstain: number;
 }
 
-function ProposalCard({ slug, p }: { slug: string; p: ProposalLike }) {
+function ProposalCardLink({ slug, p }: { slug: string; p: ProposalLike }) {
   return (
-    <li
-      className="flex flex-col gap-3 rounded-2xl border p-4 transition-colors"
-      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-    >
-      <Link to="/p/$slug/proposals/$id" params={{ slug, id: p.id }} className="flex flex-col gap-1">
-        <span className="text-base font-semibold">{p.title}</span>
-        <div
-          className="flex flex-wrap items-center gap-2 text-xs"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <StatusBadge
-            status={p.status as 'voting' | 'passed' | 'rejected' | 'quorum_failed' | 'withdrawn'}
-          />
-          {p.status === 'voting' && <TimeRemaining endsAt={p.ends_at} />}
+    <Link to="/p/$slug/proposals/$id" params={{ slug, id: p.id }} className="block">
+      <Card>
+        <div className="flex flex-col gap-3">
+          <div
+            className="flex flex-wrap items-center gap-2 text-xs"
+            style={{ color: 'var(--ink-muted)' }}
+          >
+            <StatusBadge
+              status={p.status as 'voting' | 'passed' | 'rejected' | 'quorum_failed' | 'withdrawn'}
+            />
+            {p.status === 'voting' && <TimeRemaining endsAt={p.ends_at} />}
+          </div>
+          <h3
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 19,
+              fontWeight: 500,
+              color: 'var(--ink)',
+              lineHeight: 1.25,
+              letterSpacing: -0.2,
+              fontVariationSettings: '"opsz" 32',
+            }}
+          >
+            {p.title}
+          </h3>
+          <TallyBar yes={p.tally_yes} no={p.tally_no} abstain={p.tally_abstain} />
         </div>
-      </Link>
-      <TallyBar yes={p.tally_yes} no={p.tally_no} abstain={p.tally_abstain} />
-    </li>
+      </Card>
+    </Link>
   );
 }

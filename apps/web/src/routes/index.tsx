@@ -1,14 +1,14 @@
 import { Trans } from '@lingui/macro';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import type { Theme } from '@vozcoletiva/shared';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { Logo } from '../components/Logo';
 import { RoleBadge } from '../components/RoleBadge';
+import { Avatar } from '../components/shell/Avatar';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import { apiClient } from '../lib/api';
 import { useAuth } from '../lib/auth/hooks';
 import { useProjects } from '../lib/projects';
-import { useThemeStore } from '../lib/theme';
 
 export const Route = createFileRoute('/')({
   component: HomePage,
@@ -16,47 +16,51 @@ export const Route = createFileRoute('/')({
 
 function HomePage() {
   const { status, session } = useAuth();
+  return status === 'signed-in' && session ? <SignedInView /> : <SignedOutView />;
+}
 
+function SignedOutView() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-8 px-6 py-12">
+    <main
+      className="mx-auto flex w-full max-w-md flex-1 flex-col items-center gap-6 px-6 py-12"
+      style={{ background: 'var(--bg)', color: 'var(--ink)' }}
+    >
       <Logo size={64} />
-      <h1 className="text-3xl font-semibold tracking-tight">
+      <h1
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 32,
+          fontWeight: 400,
+          letterSpacing: -0.3,
+          color: 'var(--ink)',
+          fontVariationSettings: '"opsz" 36',
+        }}
+      >
         <Trans>vozcoletiva</Trans>
       </h1>
-      <p className="text-center text-base" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-center text-base" style={{ color: 'var(--ink-soft)' }}>
         <Trans>Structured collective decision-making.</Trans>
       </p>
-
-      {status === 'signed-in' && session ? <SignedInView /> : <SignedOutCtas />}
-
-      <ThemeToggle />
+      <div className="mt-2 flex flex-col items-center gap-3">
+        <Link to="/sign-up">
+          <Button variant="primary" size="lg">
+            <Trans>Create an account</Trans>
+          </Button>
+        </Link>
+        <Link to="/sign-in" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+          <Trans>Sign in</Trans>
+        </Link>
+      </div>
     </main>
   );
 }
 
-function SignedOutCtas() {
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <Link to="/sign-up">
-        <Button>
-          <Trans>Create an account</Trans>
-        </Button>
-      </Link>
-      <Link to="/sign-in" className="text-sm font-semibold" style={{ color: 'var(--brand)' }}>
-        <Trans>Sign in</Trans>
-      </Link>
-    </div>
-  );
-}
-
 function SignedInView() {
-  const { session, signOut } = useAuth();
+  const { session } = useAuth();
+  const navigate = useNavigate();
   const projects = useProjects();
 
-  // First-launch profile seed: hit /v1/me with our local display name so the
-  // user's USER#<sub>/PROFILE row is created with the right name. Without this,
-  // accept_invite and create_project's display-name fallback would seed it as
-  // the Cognito sub. Fires once per mount; the BE call is idempotent.
+  // First-launch profile seed.
   useEffect(() => {
     if (!session) return;
     void apiClient.GET('/v1/me', {
@@ -65,101 +69,94 @@ function SignedInView() {
   }, [session]);
 
   if (!session) return null;
-  const displayName = session.displayName;
 
   const items = projects.data?.projects ?? [];
   const hasProjects = items.length > 0;
 
   return (
-    <div className="flex w-full flex-col items-center gap-6">
-      <p className="text-base">
-        <Trans>Hello, {displayName}</Trans>
-      </p>
+    <main
+      className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6"
+      style={{ background: 'var(--bg)', color: 'var(--ink)' }}
+    >
+      <header className="flex items-center justify-between px-5 pt-8">
+        <Logo size={26} />
+        <button
+          type="button"
+          onClick={() => void navigate({ to: '/preferences' })}
+          aria-label="Open preferences"
+          className="rounded-full"
+          style={{ padding: 0, background: 'transparent', border: 'none', cursor: 'pointer' }}
+        >
+          <Avatar displayName={session.displayName} size={36} ring="var(--surface)" />
+        </button>
+      </header>
 
-      {hasProjects ? (
-        <section className="flex w-full flex-col gap-3">
-          <h2
-            className="text-sm font-semibold uppercase tracking-wide"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            <Trans>Your projects</Trans>
-          </h2>
-          <ul className="flex flex-col gap-2">
-            {items.map((entry) => (
-              <li key={entry.project.id}>
-                <Link
-                  to="/p/$slug"
-                  params={{ slug: entry.project.slug }}
-                  className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 transition-colors"
-                  style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-                >
-                  <div className="flex flex-col">
-                    <span className="font-semibold">{entry.project.name}</span>
-                    <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
-                      /{entry.project.slug}
-                    </span>
-                  </div>
+      <h1
+        className="px-5"
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 32,
+          fontWeight: 400,
+          letterSpacing: -0.4,
+          color: 'var(--ink)',
+          lineHeight: 1.05,
+          fontVariationSettings: '"opsz" 36',
+        }}
+      >
+        <Trans>Your projects</Trans>
+      </h1>
+
+      <section className="flex flex-col gap-3 px-4">
+        {hasProjects ? (
+          items.map((entry) => (
+            <Link
+              key={entry.project.id}
+              to="/p/$slug"
+              params={{ slug: entry.project.slug }}
+              className="block"
+            >
+              <Card>
+                <div className="flex items-baseline justify-between gap-2">
+                  <h2
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 22,
+                      fontWeight: 500,
+                      lineHeight: 1.2,
+                      color: 'var(--ink)',
+                      letterSpacing: -0.3,
+                      fontVariationSettings: '"opsz" 36',
+                    }}
+                  >
+                    {entry.project.name}
+                  </h2>
                   <RoleBadge
                     role={entry.role as 'owner' | 'admin' | 'moderator' | 'member' | 'observer'}
                   />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : (
-        <p className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-          <Trans>You don't have any projects yet.</Trans>
-        </p>
-      )}
+                </div>
+                <div className="mt-1 font-mono text-xs" style={{ color: 'var(--ink-muted)' }}>
+                  /{entry.project.slug}
+                </div>
+              </Card>
+            </Link>
+          ))
+        ) : (
+          <p className="text-center text-sm" style={{ color: 'var(--ink-soft)' }}>
+            <Trans>You don't have any projects yet.</Trans>
+          </p>
+        )}
+      </section>
 
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-3 px-4 pb-12 pt-2">
         <Link to="/projects/new">
-          <Button>
+          <Button variant="primary" size="lg">
             <Trans>Create a project</Trans>
           </Button>
         </Link>
-        <Link to="/join" className="text-sm font-semibold" style={{ color: 'var(--brand)' }}>
+        <Link to="/join" className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
           <Trans>Got an invite code?</Trans>
         </Link>
       </div>
-
-      <Button variant="secondary" onClick={signOut}>
-        <Trans>Sign out</Trans>
-      </Button>
-    </div>
-  );
-}
-
-const THEMES: readonly Theme[] = ['system', 'light', 'dark'] as const;
-
-function ThemeToggle() {
-  const theme = useThemeStore((s) => s.theme);
-  const setTheme = useThemeStore((s) => s.setTheme);
-  return (
-    <div
-      className="flex items-center gap-1 rounded-full border p-1"
-      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-      role="radiogroup"
-      aria-label="Theme"
-    >
-      {THEMES.map((t) => (
-        <button
-          key={t}
-          type="button"
-          onClick={() => setTheme(t)}
-          aria-pressed={theme === t}
-          className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-          style={{
-            background: theme === t ? 'var(--brand)' : 'transparent',
-            color: theme === t ? '#ffffff' : 'var(--text-primary)',
-            minHeight: '44px',
-            minWidth: '44px',
-          }}
-        >
-          {t}
-        </button>
-      ))}
-    </div>
+    </main>
   );
 }

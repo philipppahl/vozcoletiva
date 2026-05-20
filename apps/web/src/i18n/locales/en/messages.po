@@ -6,426 +6,733 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Lingui\n"
 "Language: en\n"
-
-msgid "vozcoletiva"
-msgstr "vozcoletiva"
-
-msgid "Structured collective decision-making."
-msgstr "Structured collective decision-making."
-
-msgid "Sign in"
-msgstr "Sign in"
-
-msgid "Sign up"
-msgstr "Sign up"
-
-msgid "Sign out"
-msgstr "Sign out"
-
-msgid "Create an account"
-msgstr "Create an account"
-
-msgid "Welcome back"
-msgstr "Welcome back"
-
-msgid "Display name"
-msgstr "Display name"
-
-msgid "Email"
-msgstr "Email"
-
-msgid "Password"
-msgstr "Password"
-
-msgid "Verification code"
-msgstr "Verification code"
-
-msgid "Continue"
-msgstr "Continue"
-
-msgid "Verify"
-msgstr "Verify"
-
-msgid "Already have an account?"
-msgstr "Already have an account?"
-
-msgid "Don't have an account?"
-msgstr "Don't have an account?"
-
-msgid "We sent a 6-digit code to {email}. Enter it below to finish creating your account."
-msgstr "We sent a 6-digit code to {email}. Enter it below to finish creating your account."
-
-msgid "Hello, {displayName}"
-msgstr "Hello, {displayName}"
-
-msgid "Password must be at least 12 characters."
-msgstr "Password must be at least 12 characters."
-
-msgid "Please enter a valid email."
-msgstr "Please enter a valid email."
-
-msgid "Please enter a display name."
-msgstr "Please enter a display name."
-
-msgid "Please enter the 6-digit code."
-msgstr "Please enter the 6-digit code."
-
-msgid "Something went wrong. Please try again."
-msgstr "Something went wrong. Please try again."
-
-msgid "Incorrect email or password."
-msgstr "Incorrect email or password."
-
-msgid "An account with this email already exists."
-msgstr "An account with this email already exists."
-
-msgid "That verification code is invalid or has expired."
-msgstr "That verification code is invalid or has expired."
-
-# --- projects slice ---
-
-msgid "Your projects"
-msgstr "Your projects"
-
-msgid "You don't have any projects yet."
-msgstr "You don't have any projects yet."
-
-msgid "Create a project"
-msgstr "Create a project"
-
-msgid "Got an invite code?"
-msgstr "Got an invite code?"
-
-msgid "Create project"
-msgstr "Create project"
-
-msgid "Project name"
-msgstr "Project name"
-
-msgid "Slug"
-msgstr "Slug"
-
-msgid "Used in URLs: vozcoletiva.com/p/<slug>. Lowercase, dashes only."
-msgstr "Used in URLs: vozcoletiva.com/p/<slug>. Lowercase, dashes only."
-
-msgid "Please enter a project name."
-msgstr "Please enter a project name."
-
-msgid "Name must be 80 characters or fewer."
-msgstr "Name must be 80 characters or fewer."
-
-msgid "Slug must be 3 to 32 characters."
-msgstr "Slug must be 3 to 32 characters."
-
-msgid "Slug may only contain a-z, 0-9, and '-'. No leading or trailing dash."
-msgstr "Slug may only contain a-z, 0-9, and '-'. No leading or trailing dash."
-
-msgid "This slug is already taken. Try another."
-msgstr "This slug is already taken. Try another."
-
-msgid "← All projects"
-msgstr "← All projects"
-
-msgid "Overview"
-msgstr "Overview"
-
-msgid "Members"
-msgstr "Members"
-
-msgid "Invites"
-msgstr "Invites"
-
-msgid "Loading…"
-msgstr "Loading…"
-
-msgid "Could not load this project."
-msgstr "Could not load this project."
-
-msgid "Could not load members."
-msgstr "Could not load members."
-
-msgid "Template"
-msgstr "Template"
-
-msgid "Visibility"
-msgstr "Visibility"
-
-msgid "Topics, proposals, comments, and the document library land in upcoming plan-feature cycles. For now: invite people and watch them show up in the Members tab."
-msgstr "Topics, proposals, comments, and the document library land in upcoming plan-feature cycles. For now: invite people and watch them show up in the Members tab."
-
-msgid "Issue a new invite"
-msgstr "Issue a new invite"
-
-msgid "Role"
-msgstr "Role"
-
-msgid "Member"
-msgstr "Member"
-
-msgid "Observer"
-msgstr "Observer"
-
-msgid "Expires in (days)"
-msgstr "Expires in (days)"
-
-msgid "Max uses"
-msgstr "Max uses"
-
-msgid "Issue invite"
-msgstr "Issue invite"
-
-msgid "Only owners and admins can issue invites."
-msgstr "Only owners and admins can issue invites."
-
-msgid "Active invites"
-msgstr "Active invites"
-
-msgid "No invites yet."
-msgstr "No invites yet."
-
-msgid "uses"
-msgstr "uses"
-
-msgid "expires"
-msgstr "expires"
-
-msgid "Copy URL"
-msgstr "Copy URL"
-
-msgid "Copy code"
-msgstr "Copy code"
-
-msgid "Copy"
-msgstr "Copy"
-
-msgid "Copied"
-msgstr "Copied"
-
-msgid "Revoke"
-msgstr "Revoke"
-
-msgid "You're invited"
-msgstr "You're invited"
-
-msgid "You'll join as"
-msgstr "You'll join as"
-
-msgid "This link expires"
-msgstr "This link expires"
-
-msgid "This invite is no longer valid."
-msgstr "This invite is no longer valid."
-
-msgid "That invite link doesn't seem to exist anymore."
-msgstr "That invite link doesn't seem to exist anymore."
-
-msgid "Accept invite"
-msgstr "Accept invite"
-
-msgid "Not now"
-msgstr "Not now"
-
-msgid "Join with a code"
-msgstr "Join with a code"
-
-msgid "Enter the 8-character invite code someone shared with you."
-msgstr "Enter the 8-character invite code someone shared with you."
-
-msgid "Code"
-msgstr "Code"
-
-msgid "Code must be exactly 8 characters."
-msgstr "Code must be exactly 8 characters."
-
-msgid "We couldn't find an invite for that code."
-msgstr "We couldn't find an invite for that code."
-
-msgid "That invite is no longer valid."
-msgstr "That invite is no longer valid."
-
-msgid "Join"
-msgstr "Join"
-
-# --- proposals slice ---
-
-msgid "Proposals"
-msgstr "Proposals"
-
-msgid "New"
-msgstr "New"
-
-msgid "New proposal"
-msgstr "New proposal"
-
-msgid "No proposals yet — be the first."
-msgstr "No proposals yet — be the first."
-
-msgid "Recently closed"
-msgstr "Recently closed"
-
-msgid "Title"
-msgstr "Title"
-
-msgid "Title must be 1-200 characters."
-msgstr "Title must be 1-200 characters."
-
-msgid "Body (Markdown)"
-msgstr "Body (Markdown)"
-
-msgid "Voting rule"
-msgstr "Voting rule"
-
-msgid "Simple majority"
-msgstr "Simple majority"
-
-msgid "Two-thirds"
-msgstr "Two-thirds"
-
-msgid "Runtime"
-msgstr "Runtime"
-
-msgid "2 min (testing)"
-msgstr "2 min (testing)"
-
-msgid "1 hour"
-msgstr "1 hour"
-
-msgid "1 day"
-msgstr "1 day"
-
-msgid "1 week"
-msgstr "1 week"
-
-msgid "Quorum (optional)"
-msgstr "Quorum (optional)"
-
-msgid "e.g. 3"
-msgstr "e.g. 3"
-
-msgid "Minimum number of voters required for the result to count."
-msgstr "Minimum number of voters required for the result to count."
-
-msgid "Quorum must be a whole number."
-msgstr "Quorum must be a whole number."
-
-msgid "Quorum {quorum}"
-msgstr "Quorum {quorum}"
-
-msgid "Create proposal"
-msgstr "Create proposal"
-
-msgid "Could not load proposals."
-msgstr "Could not load proposals."
-
-msgid "Could not load this proposal."
-msgstr "Could not load this proposal."
-
-msgid "← All proposals"
-msgstr "← All proposals"
-
-msgid "Voting"
-msgstr "Voting"
-
-msgid "Passed"
-msgstr "Passed"
-
-msgid "Rejected"
-msgstr "Rejected"
-
-msgid "Quorum failed"
-msgstr "Quorum failed"
-
-msgid "Withdrawn"
-msgstr "Withdrawn"
-
-msgid "Closing now"
-msgstr "Closing now"
-
-msgid "Closes in {minutes} min"
-msgstr "Closes in {minutes} min"
-
-msgid "Closes in {hours} h"
-msgstr "Closes in {hours} h"
-
-msgid "Closes in {days} days"
-msgstr "Closes in {days} days"
-
-msgid "Yes"
-msgstr "Yes"
-
-msgid "No"
-msgstr "No"
-
-msgid "Abstain"
-msgstr "Abstain"
-
-msgid "Your vote"
-msgstr "Your vote"
-
-msgid "Retract"
-msgstr "Retract"
-
-msgid "Voting is closed."
-msgstr "Voting is closed."
-
-msgid "Withdraw proposal"
-msgstr "Withdraw proposal"
-
-# --- comments slice ---
-
-msgid "Comments"
-msgstr "Comments"
-
-msgid "Could not load comments."
-msgstr "Could not load comments."
-
-msgid "No comments yet. Start the discussion."
-msgstr "No comments yet. Start the discussion."
-
-msgid "Write a comment… (Markdown supported)"
-msgstr "Write a comment… (Markdown supported)"
-
-msgid "Comment cannot be empty."
-msgstr "Comment cannot be empty."
-
-msgid "Comment must be 10000 characters or fewer."
-msgstr "Comment must be 10000 characters or fewer."
-
-msgid "Could not save the comment. Please try again."
-msgstr "Could not save the comment. Please try again."
-
-msgid "Post comment"
-msgstr "Post comment"
-
-msgid "Cancel"
-msgstr "Cancel"
-
-msgid "Save"
-msgstr "Save"
-
-msgid "Edit"
-msgstr "Edit"
-
-msgid "Delete"
-msgstr "Delete"
-
-msgid "Delete this comment?"
-msgstr "Delete this comment?"
-
-msgid "Comment deleted"
-msgstr "Comment deleted"
-
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Plural-Forms: \n"
+
+#: src/routes/p.$slug.manage.tsx
+msgid "—"
+msgstr "—"
+
+#: src/components/CommentItem.tsx
 msgid "(edited)"
 msgstr "(edited)"
 
-msgid "just now"
-msgstr "just now"
+#. placeholder {0}: members.data.members.length
+#: src/routes/p.$slug.manage.tsx
+msgid "{0} people"
+msgstr "{0} people"
 
-msgid "{minutes}m"
-msgstr "{minutes}m"
+#: src/components/RelativeTime.tsx
+msgid "{days}d"
+msgstr "{days}d"
 
+#: src/components/RelativeTime.tsx
 msgid "{hours}h"
 msgstr "{hours}h"
 
-msgid "{days}d"
-msgstr "{days}d"
+#: src/components/RelativeTime.tsx
+msgid "{minutes}m"
+msgstr "{minutes}m"
+
+#~ msgid "← All projects"
+#~ msgstr "← All projects"
+
+#~ msgid "← All proposals"
+#~ msgstr "← All proposals"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "1 day"
+msgstr "1 day"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "1 hour"
+msgstr "1 hour"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "1 week"
+msgstr "1 week"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "2 min (testing)"
+msgstr "2 min (testing)"
+
+#: src/components/TallyBar.tsx
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Abstain"
+msgstr "Abstain"
+
+#: src/routes/i_.$token.tsx
+msgid "Accept invite"
+msgstr "Accept invite"
+
+#: src/routes/preferences.tsx
+msgid "Account"
+msgstr "Account"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Active invites"
+msgstr "Active invites"
+
+#: src/components/RoleBadge.tsx
+#: src/components/shell/ProjectTopSheet.tsx
+msgid "Admin"
+msgstr "Admin"
+
+#: src/routes/sign-up.tsx
+msgid "Already have an account?"
+msgstr "Already have an account?"
+
+#: src/routes/sign-up.tsx
+msgid "An account with this email already exists."
+msgstr "An account with this email already exists."
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Body (Markdown)"
+msgstr "Body (Markdown)"
+
+#: src/components/CommentForm.tsx
+msgid "Cancel"
+msgstr "Cancel"
+
+#: src/components/TimeRemaining.tsx
+msgid "Closes in {days} days"
+msgstr "Closes in {days} days"
+
+#: src/components/TimeRemaining.tsx
+msgid "Closes in {hours} h"
+msgstr "Closes in {hours} h"
+
+#: src/components/TimeRemaining.tsx
+msgid "Closes in {minutes} min"
+msgstr "Closes in {minutes} min"
+
+#: src/components/TimeRemaining.tsx
+msgid "Closing now"
+msgstr "Closing now"
+
+#: src/routes/join.tsx
+msgid "Code"
+msgstr "Code"
+
+#: src/routes/join.tsx
+msgid "Code must be exactly 8 characters."
+msgstr "Code must be exactly 8 characters."
+
+#: src/routes/p.$slug.manage.tsx
+msgid "Coming soon"
+msgstr "Coming soon"
+
+#: src/components/CommentForm.tsx
+msgid "Comment cannot be empty."
+msgstr "Comment cannot be empty."
+
+#: src/components/CommentItem.tsx
+msgid "Comment deleted"
+msgstr "Comment deleted"
+
+#: src/components/CommentForm.tsx
+msgid "Comment must be 10000 characters or fewer."
+msgstr "Comment must be 10000 characters or fewer."
+
+# --- comments slice ---
+#: src/components/Comments.tsx
+msgid "Comments"
+msgstr "Comments"
+
+#: src/routes/sign-up.tsx
+msgid "Continue"
+msgstr "Continue"
+
+#: src/components/CopyButton.tsx
+msgid "Copied"
+msgstr "Copied"
+
+#: src/components/CopyButton.tsx
+#: src/components/CopyButton.tsx
+msgid "Copy"
+msgstr "Copy"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Copy code"
+msgstr "Copy code"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Copy URL"
+msgstr "Copy URL"
+
+#: src/components/Comments.tsx
+msgid "Could not load comments."
+msgstr "Could not load comments."
+
+#: src/routes/p.$slug.members.tsx
+msgid "Could not load members."
+msgstr "Could not load members."
+
+#: src/routes/p.$slug.index.tsx
+msgid "Could not load proposals."
+msgstr "Could not load proposals."
+
+#~ msgid "Could not load this project."
+#~ msgstr "Could not load this project."
+
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Could not load this proposal."
+msgstr "Could not load this proposal."
+
+#: src/components/CommentForm.tsx
+msgid "Could not save the comment. Please try again."
+msgstr "Could not save the comment. Please try again."
+
+#: src/routes/index.tsx
+#: src/routes/projects.new.tsx
+msgid "Create a project"
+msgstr "Create a project"
+
+#: src/routes/index.tsx
+#: src/routes/sign-up.tsx
+msgid "Create an account"
+msgstr "Create an account"
+
+#: src/routes/projects.new.tsx
+msgid "Create project"
+msgstr "Create project"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Create proposal"
+msgstr "Create proposal"
+
+#: src/components/shell/ProjectTopSheet.tsx
+msgid "Current project"
+msgstr "Current project"
+
+#: src/routes/preferences.tsx
+msgid "Dark"
+msgstr "Dark"
+
+#: src/components/CommentItem.tsx
+msgid "Delete"
+msgstr "Delete"
+
+#: src/components/CommentItem.tsx
+msgid "Delete this comment?"
+msgstr "Delete this comment?"
+
+#: src/routes/sign-up.tsx
+msgid "Display name"
+msgstr "Display name"
+
+#: src/routes/p.$slug.documents.tsx
+msgid "Document proposals will become versioned canonical texts — statutes, by-laws, policies. Amendments diff against prior versions."
+msgstr "Document proposals will become versioned canonical texts — statutes, by-laws, policies. Amendments diff against prior versions."
+
+#: src/components/shell/TabBar.tsx
+#: src/routes/p.$slug.documents.tsx
+msgid "Documents"
+msgstr "Documents"
+
+#: src/routes/sign-in.tsx
+msgid "Don't have an account?"
+msgstr "Don't have an account?"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "e.g. 3"
+msgstr "e.g. 3"
+
+#: src/components/CommentItem.tsx
+msgid "Edit"
+msgstr "Edit"
+
+#: src/routes/sign-in.tsx
+#: src/routes/sign-up.tsx
+msgid "Email"
+msgstr "Email"
+
+#: src/routes/join.tsx
+msgid "Enter the 8-character invite code someone shared with you."
+msgstr "Enter the 8-character invite code someone shared with you."
+
+#: src/routes/p.$slug.invites.tsx
+msgid "expires"
+msgstr "expires"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Expires in (days)"
+msgstr "Expires in (days)"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Final result"
+msgstr "Final result"
+
+#: src/routes/index.tsx
+msgid "Got an invite code?"
+msgstr "Got an invite code?"
+
+#: src/routes/sign-up_.verify.tsx
+msgid "Hello, {displayName}"
+msgstr "Hello, {displayName}"
+
+#: src/routes/sign-in.tsx
+#: src/routes/sign-up_.verify.tsx
+msgid "Incorrect email or password."
+msgstr "Incorrect email or password."
+
+#: src/routes/p.$slug.invites.tsx
+#: src/routes/p.$slug.manage.tsx
+msgid "Invites"
+msgstr "Invites"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Issue a new invite"
+msgstr "Issue a new invite"
+
+#: src/routes/p.$slug.manage.tsx
+msgid "Issue and revoke invitations"
+msgstr "Issue and revoke invitations"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Issue invite"
+msgstr "Issue invite"
+
+#: src/routes/join.tsx
+msgid "Join"
+msgstr "Join"
+
+#: src/routes/join.tsx
+msgid "Join with a code"
+msgstr "Join with a code"
+
+#: src/components/shell/ProjectTopSheet.tsx
+msgid "Join with code"
+msgstr "Join with code"
+
+#: src/components/RelativeTime.tsx
+msgid "just now"
+msgstr "just now"
+
+#: src/routes/preferences.tsx
+msgid "Language"
+msgstr "Language"
+
+#: src/routes/preferences.tsx
+msgid "Light"
+msgstr "Light"
+
+#: src/components/Comments.tsx
+#: src/routes/i_.$token.tsx
+#: src/routes/p.$slug.index.tsx
+#: src/routes/p.$slug.invites.tsx
+#: src/routes/p.$slug.members.tsx
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Loading…"
+msgstr "Loading…"
+
+#: src/components/shell/ProjectTopSheet.tsx
+#: src/routes/p.$slug.manage.tsx
+msgid "Manage"
+msgstr "Manage"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Max uses"
+msgstr "Max uses"
+
+#: src/components/RoleBadge.tsx
+#: src/components/shell/ProjectTopSheet.tsx
+#: src/routes/p.$slug.invites.tsx
+msgid "Member"
+msgstr "Member"
+
+#: src/routes/p.$slug.manage.tsx
+#: src/routes/p.$slug.members.tsx
+msgid "Members"
+msgstr "Members"
+
+#: src/components/shell/TabBar.tsx
+#: src/routes/p.$slug.messages.tsx
+msgid "Messages"
+msgstr "Messages"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Minimum number of voters required for the result to count."
+msgstr "Minimum number of voters required for the result to count."
+
+#: src/components/RoleBadge.tsx
+#: src/components/shell/ProjectTopSheet.tsx
+msgid "Moderator"
+msgstr "Moderator"
+
+#: src/routes/projects.new.tsx
+msgid "Name must be 80 characters or fewer."
+msgstr "Name must be 80 characters or fewer."
+
+#~ msgid "New"
+#~ msgstr "New"
+
+#: src/components/shell/ProjectTopSheet.tsx
+msgid "New project"
+msgstr "New project"
+
+#: src/routes/p.$slug.index.tsx
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "New proposal"
+msgstr "New proposal"
+
+#: src/components/TallyBar.tsx
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "No"
+msgstr "No"
+
+#: src/components/Comments.tsx
+msgid "No comments yet. Start the discussion."
+msgstr "No comments yet. Start the discussion."
+
+#: src/routes/p.$slug.invites.tsx
+msgid "No invites yet."
+msgstr "No invites yet."
+
+#: src/routes/p.$slug.index.tsx
+msgid "No proposals yet — be the first."
+msgstr "No proposals yet — be the first."
+
+#: src/routes/i_.$token.tsx
+msgid "Not now"
+msgstr "Not now"
+
+#: src/components/RoleBadge.tsx
+#: src/components/shell/ProjectTopSheet.tsx
+#: src/routes/p.$slug.invites.tsx
+msgid "Observer"
+msgstr "Observer"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Only owners and admins can issue invites."
+msgstr "Only owners and admins can issue invites."
+
+#: src/components/shell/ProjectTopSheet.tsx
+msgid "Other projects"
+msgstr "Other projects"
+
+#~ msgid "Overview"
+#~ msgstr "Overview"
+
+#: src/components/RoleBadge.tsx
+#: src/components/shell/ProjectTopSheet.tsx
+msgid "Owner"
+msgstr "Owner"
+
+#: src/components/StatusBadge.tsx
+msgid "Passed"
+msgstr "Passed"
+
+#: src/routes/sign-in.tsx
+#: src/routes/sign-up_.verify.tsx
+#: src/routes/sign-up.tsx
+msgid "Password"
+msgstr "Password"
+
+#: src/routes/sign-in.tsx
+#: src/routes/sign-up_.verify.tsx
+#: src/routes/sign-up.tsx
+msgid "Password must be at least 12 characters."
+msgstr "Password must be at least 12 characters."
+
+#: src/routes/p.$slug.messages.tsx
+msgid "Per-project channels for fast, informal talk. Text, images and voice notes. Not a replacement for deliberation — just lighter chatter alongside it."
+msgstr "Per-project channels for fast, informal talk. Text, images and voice notes. Not a replacement for deliberation — just lighter chatter alongside it."
+
+#: src/routes/sign-up.tsx
+msgid "Please enter a display name."
+msgstr "Please enter a display name."
+
+#: src/routes/projects.new.tsx
+msgid "Please enter a project name."
+msgstr "Please enter a project name."
+
+#: src/routes/sign-in.tsx
+#: src/routes/sign-up.tsx
+msgid "Please enter a valid email."
+msgstr "Please enter a valid email."
+
+#: src/routes/sign-up_.verify.tsx
+#: src/routes/sign-up_.verify.tsx
+msgid "Please enter the 6-digit code."
+msgstr "Please enter the 6-digit code."
+
+#: src/components/CommentForm.tsx
+msgid "Post comment"
+msgstr "Post comment"
+
+#: src/routes/preferences.tsx
+msgid "Preferences"
+msgstr "Preferences"
+
+#: src/routes/projects.new.tsx
+msgid "Project name"
+msgstr "Project name"
+
+#: src/routes/p.$slug.manage.tsx
+msgid "Project settings"
+msgstr "Project settings"
+
+#: src/routes/p.$slug.search.tsx
+msgid "Project-scoped search across proposals, people, and documents. Coming in a later slice."
+msgstr "Project-scoped search across proposals, people, and documents. Coming in a later slice."
+
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Proposal"
+msgstr "Proposal"
+
+# --- proposals slice ---
+#: src/components/shell/TabBar.tsx
+#: src/routes/p.$slug.index.tsx
+msgid "Proposals"
+msgstr "Proposals"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Quorum (optional)"
+msgstr "Quorum (optional)"
+
+#. placeholder {0}: p.quorum
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Quorum {0}"
+msgstr "Quorum {0}"
+
+#~ msgid "Quorum {quorum}"
+#~ msgstr "Quorum {quorum}"
+
+#: src/components/StatusBadge.tsx
+msgid "Quorum failed"
+msgstr "Quorum failed"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Quorum must be a whole number."
+msgstr "Quorum must be a whole number."
+
+#: src/routes/p.$slug.index.tsx
+msgid "Recently closed"
+msgstr "Recently closed"
+
+#: src/components/StatusBadge.tsx
+msgid "Rejected"
+msgstr "Rejected"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Retract"
+msgstr "Retract"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Revoke"
+msgstr "Revoke"
+
+#: src/routes/p.$slug.invites.tsx
+msgid "Role"
+msgstr "Role"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Running tally"
+msgstr "Running tally"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Runtime"
+msgstr "Runtime"
+
+#: src/components/CommentItem.tsx
+msgid "Save"
+msgstr "Save"
+
+#: src/components/shell/TabBar.tsx
+#: src/routes/p.$slug.search.tsx
+msgid "Search"
+msgstr "Search"
+
+#: src/routes/preferences.tsx
+msgid "Settings"
+msgstr "Settings"
+
+#: src/routes/index.tsx
+#: src/routes/sign-in.tsx
+#: src/routes/sign-up.tsx
+msgid "Sign in"
+msgstr "Sign in"
+
+#: src/routes/preferences.tsx
+msgid "Sign out"
+msgstr "Sign out"
+
+#: src/routes/sign-in.tsx
+msgid "Sign up"
+msgstr "Sign up"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Simple majority"
+msgstr "Simple majority"
+
+#: src/routes/projects.new.tsx
+msgid "Slug"
+msgstr "Slug"
+
+#: src/routes/projects.new.tsx
+msgid "Slug may only contain a-z, 0-9, and '-'. No leading or trailing dash."
+msgstr "Slug may only contain a-z, 0-9, and '-'. No leading or trailing dash."
+
+#: src/routes/projects.new.tsx
+#: src/routes/projects.new.tsx
+msgid "Slug must be 3 to 32 characters."
+msgstr "Slug must be 3 to 32 characters."
+
+#: src/routes/join.tsx
+#: src/routes/p.$slug.proposals.new.tsx
+#: src/routes/projects.new.tsx
+#: src/routes/sign-in.tsx
+#: src/routes/sign-up_.verify.tsx
+#: src/routes/sign-up.tsx
+msgid "Something went wrong. Please try again."
+msgstr "Something went wrong. Please try again."
+
+#: src/routes/index.tsx
+msgid "Structured collective decision-making."
+msgstr "Structured collective decision-making."
+
+#: src/components/shell/ProjectTopSheet.tsx
+msgid "Switch project"
+msgstr "Switch project"
+
+#: src/routes/preferences.tsx
+msgid "System"
+msgstr "System"
+
+#~ msgid "Template"
+#~ msgstr "Template"
+
+#: src/routes/join.tsx
+msgid "That invite is no longer valid."
+msgstr "That invite is no longer valid."
+
+#: src/routes/i_.$token.tsx
+msgid "That invite link doesn't seem to exist anymore."
+msgstr "That invite link doesn't seem to exist anymore."
+
+#: src/routes/sign-up_.verify.tsx
+msgid "That verification code is invalid or has expired."
+msgstr "That verification code is invalid or has expired."
+
+#: src/routes/preferences.tsx
+msgid "Theme"
+msgstr "Theme"
+
+#: src/routes/i_.$token.tsx
+msgid "This invite is no longer valid."
+msgstr "This invite is no longer valid."
+
+#: src/routes/i_.$token.tsx
+msgid "This link expires"
+msgstr "This link expires"
+
+#: src/routes/projects.new.tsx
+msgid "This slug is already taken. Try another."
+msgstr "This slug is already taken. Try another."
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Title"
+msgstr "Title"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Title must be 1-200 characters."
+msgstr "Title must be 1-200 characters."
+
+#~ msgid "Topics, proposals, comments, and the document library land in upcoming plan-feature cycles. For now: invite people and watch them show up in the Members tab."
+#~ msgstr "Topics, proposals, comments, and the document library land in upcoming plan-feature cycles. For now: invite people and watch them show up in the Members tab."
+
+#: src/routes/p.$slug.proposals.$id.tsx
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Two-thirds"
+msgstr "Two-thirds"
+
+#: src/routes/projects.new.tsx
+msgid "Used in URLs: vozcoletiva.com/p/<slug>. Lowercase, dashes only."
+msgstr "Used in URLs: vozcoletiva.com/p/<slug>. Lowercase, dashes only."
+
+#: src/routes/p.$slug.invites.tsx
+msgid "uses"
+msgstr "uses"
+
+#: src/routes/sign-up_.verify.tsx
+#: src/routes/sign-up_.verify.tsx
+msgid "Verification code"
+msgstr "Verification code"
+
+#: src/routes/sign-up_.verify.tsx
+msgid "Verify"
+msgstr "Verify"
+
+#~ msgid "Visibility"
+#~ msgstr "Visibility"
+
+#: src/components/StatusBadge.tsx
+msgid "Voting"
+msgstr "Voting"
+
+#~ msgid "Voting is closed."
+#~ msgstr "Voting is closed."
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Voting rule"
+msgstr "Voting rule"
+
+#: src/routes/index.tsx
+msgid "vozcoletiva"
+msgstr "vozcoletiva"
+
+#: src/routes/join.tsx
+msgid "We couldn't find an invite for that code."
+msgstr "We couldn't find an invite for that code."
+
+#: src/routes/sign-up_.verify.tsx
+msgid "We sent a 6-digit code to {email}. Enter it below to finish creating your account."
+msgstr "We sent a 6-digit code to {email}. Enter it below to finish creating your account."
+
+#: src/routes/sign-in.tsx
+msgid "Welcome back"
+msgstr "Welcome back"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Withdraw proposal"
+msgstr "Withdraw proposal"
+
+#: src/components/StatusBadge.tsx
+msgid "Withdrawn"
+msgstr "Withdrawn"
+
+#: src/components/CommentForm.tsx
+msgid "Write a comment… (Markdown supported)"
+msgstr "Write a comment… (Markdown supported)"
+
+#: src/components/TallyBar.tsx
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Yes"
+msgstr "Yes"
+
+#: src/routes/index.tsx
+msgid "You don't have any projects yet."
+msgstr "You don't have any projects yet."
+
+#: src/routes/i_.$token.tsx
+msgid "You'll join as"
+msgstr "You'll join as"
+
+#: src/routes/i_.$token.tsx
+msgid "You're invited"
+msgstr "You're invited"
+
+# --- projects slice ---
+#: src/routes/index.tsx
+msgid "Your projects"
+msgstr "Your projects"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Your vote"
+msgstr "Your vote"

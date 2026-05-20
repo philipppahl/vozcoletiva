@@ -4,15 +4,14 @@ interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string | undefined;
   hint?: ReactNode;
+  large?: boolean;
 }
 
 /**
- * Minimal styled form field. Pairs a label with an input and an inline error
- * slot. Future component-primitives slice will swap the underlying primitive
- * to Radix; for now an accessible <label> + <input> is enough.
+ * Labelled text input with the design's 14 px radius + accent focus ring.
  */
 export const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
-  { label, error, hint, id, ...inputProps },
+  { label, error, hint, id, large, style, ...inputProps },
   ref,
 ) {
   const inputId = id ?? `field-${label.toLowerCase().replace(/\s+/g, '-')}`;
@@ -21,8 +20,8 @@ export const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
     <div className="flex flex-col gap-1.5">
       <label
         htmlFor={inputId}
-        className="text-sm font-medium"
-        style={{ color: 'var(--text-secondary)' }}
+        className="text-xs font-semibold uppercase tracking-wide"
+        style={{ color: 'var(--ink-soft)', letterSpacing: 0.04 }}
       >
         {label}
       </label>
@@ -31,21 +30,43 @@ export const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
         id={inputId}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
-        className="min-h-[44px] rounded-xl border px-3.5 py-2 text-base outline-none transition focus:ring-2"
         style={{
-          background: 'var(--surface)',
-          borderColor: error ? 'var(--color-danger)' : 'var(--border)',
-          color: 'var(--text-primary)',
+          appearance: 'none',
+          width: '100%',
+          boxSizing: 'border-box',
+          background: 'var(--field-bg)',
+          color: 'var(--ink)',
+          border: `1px solid ${error ? 'var(--no)' : 'transparent'}`,
+          borderRadius: 'var(--radius-field)',
+          padding: '0 16px',
+          height: large ? 56 : 48,
+          fontFamily: 'var(--font-sans)',
+          fontSize: large ? 17 : 15,
+          lineHeight: 1.5,
+          outline: 'none',
+          transition: 'border-color .12s ease, box-shadow .12s ease',
+          ...style,
+        }}
+        onFocus={(e) => {
+          if (error) return;
+          e.currentTarget.style.borderColor = 'var(--accent)';
+          e.currentTarget.style.boxShadow =
+            '0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent)';
+        }}
+        onBlur={(e) => {
+          if (error) return;
+          e.currentTarget.style.borderColor = 'transparent';
+          e.currentTarget.style.boxShadow = 'none';
         }}
         {...inputProps}
       />
       {hint && !error && (
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
           {hint}
         </span>
       )}
       {error && (
-        <span id={errorId} className="text-xs" style={{ color: 'var(--color-danger)' }}>
+        <span id={errorId} className="text-xs" style={{ color: 'var(--no)' }}>
           {error}
         </span>
       )}

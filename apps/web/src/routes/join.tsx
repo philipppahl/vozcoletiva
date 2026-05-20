@@ -48,14 +48,25 @@ function JoinByCode() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 px-6 py-12">
-      <Logo />
-      <h1 className="text-2xl font-semibold tracking-tight">
-        <Trans>Join with a code</Trans>
-      </h1>
-      <p className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-        <Trans>Enter the 8-character invite code someone shared with you.</Trans>
-      </p>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 px-6 py-10">
+      <div className="flex flex-col items-center gap-4 pt-6">
+        <Logo size={48} />
+        <h1
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 28,
+            fontWeight: 400,
+            letterSpacing: -0.3,
+            color: 'var(--ink)',
+            fontVariationSettings: '"opsz" 36',
+          }}
+        >
+          <Trans>Join with a code</Trans>
+        </h1>
+        <p className="text-center text-sm" style={{ color: 'var(--ink-soft)' }}>
+          <Trans>Enter the 8-character invite code someone shared with you.</Trans>
+        </p>
+      </div>
 
       <form onSubmit={onSubmit} className="flex w-full flex-col gap-4">
         <Field
@@ -68,7 +79,7 @@ function JoinByCode() {
           maxLength={8}
           error={error ?? undefined}
         />
-        <Button type="submit" disabled={acceptByCode.isPending}>
+        <Button type="submit" variant="primary" size="lg" block disabled={acceptByCode.isPending}>
           <Trans>Join</Trans>
         </Button>
       </form>

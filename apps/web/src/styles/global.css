@@ -1,102 +1,138 @@
 @import "tailwindcss";
 
-/* iOS-native default look & feel. System font stack first so SF Pro Text comes
-   through natively on Apple devices; Inter as the desktop and Android fallback. */
+/* Design tokens — slate + indigo, mirrored from brand/palette.md.
+   Defined in OKLCH; target browsers (iOS 16+ Safari, Chrome 111+, Firefox 113+)
+   support it natively. */
 
 @theme {
-  /* Brand palette — mirrored from brand/palette.md. */
-  --color-primary-50: #ECFAF7;
-  --color-primary-100: #D2F3EA;
-  --color-primary-200: #A7E5D5;
-  --color-primary-300: #76D2BC;
-  --color-primary-400: #4ABEA4;
-  --color-primary-500: #2A8A7B;
-  --color-primary-600: #1F6A60;
-  --color-primary-700: #185349;
-  --color-primary-800: #134139;
-  --color-primary-900: #0E332D;
-
-  --color-accent-50: #FDF2EE;
-  --color-accent-100: #FBE0D6;
-  --color-accent-200: #F6BEAB;
-  --color-accent-300: #EE9779;
-  --color-accent-400: #E5805F;
-  --color-accent-500: #E07856;
-  --color-accent-600: #BD5F3F;
-  --color-accent-700: #964A30;
-  --color-accent-800: #6F3725;
-  --color-accent-900: #4F271A;
-
-  --color-neutral-50: #F7F9FA;
-  --color-neutral-100: #EEF1F4;
-  --color-neutral-200: #DCE2E7;
-  --color-neutral-300: #BCC5CD;
-  --color-neutral-400: #8B96A1;
-  --color-neutral-500: #5E6975;
-  --color-neutral-600: #424B55;
-  --color-neutral-700: #2D353D;
-  --color-neutral-800: #1B2128;
-  --color-neutral-900: #0E1216;
-
-  --color-success: #16A34A;
-  --color-warning: #D97706;
-  --color-danger: #DC2626;
-
-  /* Font stacks. */
+  /* Font stacks (variable fonts via @fontsource-variable/*). */
+  --font-display:
+    'Newsreader Variable', Newsreader, Georgia, 'Times New Roman', serif;
   --font-sans:
-    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
-    Inter, system-ui, sans-serif;
+    'Public Sans Variable', 'Public Sans', system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'JetBrains Mono',
-    monospace;
+    'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace,
+    SFMono-Regular, Menlo, monospace;
 
-  /* iOS-style spring motion default. */
+  /* iOS-style spring motion. */
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Surface tokens that flip with the theme. */
+/* Surface + accent tokens — flip between light and dark. */
 :root {
-  --surface-bg: var(--color-neutral-50);
-  --surface: #ffffff;
-  --surface-raised: var(--color-neutral-100);
-  --border: var(--color-neutral-200);
-  --text-primary: var(--color-neutral-900);
-  --text-secondary: var(--color-neutral-600);
-  --text-muted: var(--color-neutral-500);
-  --brand: var(--color-primary-500);
-  --brand-hover: var(--color-primary-600);
-  --accent: var(--color-accent-500);
-  --focus-ring: var(--color-primary-400);
+  /* slate base, h≈240 */
+  --bg:          oklch(0.978 0.004 240);
+  --surface:     oklch(1.000 0.000 0);
+  --surface-2:   oklch(0.955 0.005 240);
+  --ink:         oklch(0.210 0.012 250);
+  --ink-soft:    oklch(0.460 0.015 250);
+  --ink-muted:   oklch(0.620 0.014 250);
+  --border:      oklch(0.920 0.006 240);
+  --border-hi:   oklch(0.820 0.010 240);
+  --field-bg:    oklch(0.962 0.005 240);
+
+  /* indigo default accent */
+  --accent:      oklch(0.55 0.16 265);
+  --accent-soft: oklch(0.94 0.048 265);
+  --accent-ink:  #fdfcfa;
+
+  /* states */
+  --yes:         oklch(0.52 0.15 155);
+  --no:          oklch(0.55 0.20 25);
+  --abstain:     oklch(0.58 0.010 250);
+  --warn:        oklch(0.66 0.16 75);
+
+  /* shadows (light) */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.07);
+  --shadow-md: 0 1px 2px rgba(15, 23, 42, 0.05), 0 6px 18px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.07), 0 18px 40px rgba(15, 23, 42, 0.10);
+
+  /* radii */
+  --radius-card: 18px;
+  --radius-field: 14px;
+  --radius-button: 12px;
+  --radius-button-sm: 10px;
+  --radius-button-lg: 14px;
+  --radius-pill: 999px;
+
+  /* Backwards-compat aliases used by existing components. Mapped to the new
+     tokens so we can migrate component-by-component without breaking anything. */
+  --surface-bg: var(--bg);
+  --surface-raised: var(--surface-2);
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-soft);
+  --text-muted: var(--ink-muted);
+  --brand: var(--accent);
+  --brand-hover: oklch(0.48 0.18 265);
+  --focus-ring: var(--accent);
+  --color-success: var(--yes);
+  --color-danger: var(--no);
+  --color-warning: var(--warn);
+  --color-neutral-400: oklch(0.72 0.010 240);
+  --color-neutral-500: oklch(0.62 0.014 250);
+  --color-neutral-600: oklch(0.46 0.015 250);
+  --color-primary-500: var(--accent);
+  --color-primary-600: oklch(0.48 0.18 265);
 }
 
-:root[data-theme="dark"] {
-  --surface-bg: var(--color-neutral-900);
-  --surface: var(--color-neutral-800);
-  --surface-raised: var(--color-neutral-700);
-  --border: var(--color-neutral-700);
-  --text-primary: var(--color-neutral-50);
-  --text-secondary: var(--color-neutral-300);
-  --text-muted: var(--color-neutral-400);
-  --brand: var(--color-primary-400);
-  --brand-hover: var(--color-primary-300);
-  --accent: var(--color-accent-400);
-  --focus-ring: var(--color-primary-300);
-}
+/* Dark mode — either via data-theme attribute or via prefers-color-scheme. */
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    --bg:        oklch(0.165 0.012 250);
+    --surface:   oklch(0.205 0.012 250);
+    --surface-2: oklch(0.185 0.012 250);
+    --ink:       oklch(0.965 0.005 240);
+    --ink-soft:  oklch(0.740 0.010 240);
+    --ink-muted: oklch(0.560 0.010 240);
+    --border:    oklch(0.290 0.012 250);
+    --border-hi: oklch(0.420 0.014 250);
+    --field-bg:  oklch(0.225 0.012 250);
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --surface-bg: var(--color-neutral-900);
-    --surface: var(--color-neutral-800);
-    --surface-raised: var(--color-neutral-700);
-    --border: var(--color-neutral-700);
-    --text-primary: var(--color-neutral-50);
-    --text-secondary: var(--color-neutral-300);
-    --text-muted: var(--color-neutral-400);
-    --brand: var(--color-primary-400);
-    --brand-hover: var(--color-primary-300);
-    --accent: var(--color-accent-400);
-    --focus-ring: var(--color-primary-300);
+    --accent:      oklch(0.72 0.16 265);
+    --accent-soft: oklch(0.28 0.048 265);
+    --accent-ink:  oklch(0.165 0.012 250);
+
+    --yes:     oklch(0.74 0.15 155);
+    --no:      oklch(0.74 0.18 25);
+    --abstain: oklch(0.70 0.010 240);
+    --warn:    oklch(0.78 0.15 75);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4), 0 22px 50px rgba(0, 0, 0, 0.5);
+
+    --brand-hover: oklch(0.78 0.18 265);
   }
+}
+
+/* Explicit dark override always wins, regardless of system pref. */
+:root[data-theme="dark"] {
+  --bg:        oklch(0.165 0.012 250);
+  --surface:   oklch(0.205 0.012 250);
+  --surface-2: oklch(0.185 0.012 250);
+  --ink:       oklch(0.965 0.005 240);
+  --ink-soft:  oklch(0.740 0.010 240);
+  --ink-muted: oklch(0.560 0.010 240);
+  --border:    oklch(0.290 0.012 250);
+  --border-hi: oklch(0.420 0.014 250);
+  --field-bg:  oklch(0.225 0.012 250);
+
+  --accent:      oklch(0.72 0.16 265);
+  --accent-soft: oklch(0.28 0.048 265);
+  --accent-ink:  oklch(0.165 0.012 250);
+
+  --yes:     oklch(0.74 0.15 155);
+  --no:      oklch(0.74 0.18 25);
+  --abstain: oklch(0.70 0.010 240);
+  --warn:    oklch(0.78 0.15 75);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4), 0 22px 50px rgba(0, 0, 0, 0.5);
+
+  --brand-hover: oklch(0.78 0.18 265);
 }
 
 html,
@@ -106,14 +142,14 @@ body,
 }
 
 body {
-  background: var(--surface-bg);
-  color: var(--text-primary);
+  background: var(--bg);
+  color: var(--ink);
   font-family: var(--font-sans);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* iOS safe-area & full dynamic viewport. */
+  text-rendering: optimizeLegibility;
   min-height: 100dvh;
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
@@ -121,7 +157,7 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
-/* Honour reduced motion preference. */
+/* Honour reduced motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -131,3 +167,19 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Hidden scrollbars on horizontal scroll strips. */
+.voz-noscroll::-webkit-scrollbar { display: none; }
+.voz-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* Top sheet open/close animations for Radix Dialog. */
+@keyframes voz-sheet-in {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0);    }
+}
+@keyframes voz-sheet-out {
+  from { transform: translateY(0);    }
+  to   { transform: translateY(-100%); }
+}
+@keyframes voz-backdrop-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes voz-backdrop-out { from { opacity: 1; } to { opacity: 0; } }

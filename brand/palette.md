@@ -1,117 +1,128 @@
 # vozcoletiva — brand palette & typography
 
-Civic, warm, modern. Not corporate-blue. The palette has to read confidently in both light and dark mode and stay legible at small mobile sizes.
+Modern, civic, calm. The system reads as one material — neutrals, surfaces, borders and ink all sit on the same cool slate hue (h ≈ 240) at very low chroma. Accents share chroma (≈ 0.16) and orbit the wheel evenly so the four picker options read as siblings rather than competing brands. Indigo is the default — sleek, civic, distinct from corporate blue.
 
 ## Concept
 
-- **Primary — Teal.** Trustworthy and civic without being a SaaS-blue cliché. Carries the "voice" association (cool but alive).
-- **Accent — Warm coral.** Humanity, energy, warmth. Pulls the eye to the one thing that matters on a screen.
-- **Neutrals — Cool slate.** Calm reading surfaces in both themes.
+- **Accent — Indigo.** Default. Modern and contemporary; carries trust without leaning corporate.
+- **Sibling accents — Violet, Teal, Amber.** Same chroma, even spacing. Available for theming if a project wants to lean differently.
+- **Neutrals — Cool slate.** h ≈ 240 at ~0.005–0.015 chroma. Calm reading surfaces in both themes.
+- **States** (yes / no / abstain / warn) share chroma (~0.13–0.16) so they don't pop out of the neutral family.
 
-## Brand colors
+The palette is defined in OKLCH; CSS-variable hex fallbacks are provided for older browsers. Target browsers (iOS 16+ Safari, Chrome 111+, Firefox 113+) all support OKLCH natively.
 
-### Primary — Teal
+## Light mode
 
-| Token | Hex |
-|---|---|
-| primary-50  | `#ECFAF7` |
-| primary-100 | `#D2F3EA` |
-| primary-200 | `#A7E5D5` |
-| primary-300 | `#76D2BC` |
-| primary-400 | `#4ABEA4` |
-| **primary-500 (brand)** | **`#2A8A7B`** |
-| primary-600 | `#1F6A60` |
-| primary-700 | `#185349` |
-| primary-800 | `#134139` |
-| primary-900 | `#0E332D` |
-
-### Accent — Warm coral
-
-| Token | Hex |
-|---|---|
-| accent-50  | `#FDF2EE` |
-| accent-100 | `#FBE0D6` |
-| accent-200 | `#F6BEAB` |
-| accent-300 | `#EE9779` |
-| accent-400 | `#E5805F` |
-| **accent-500 (brand)** | **`#E07856`** |
-| accent-600 | `#BD5F3F` |
-| accent-700 | `#964A30` |
-| accent-800 | `#6F3725` |
-| accent-900 | `#4F271A` |
-
-### Neutral — Cool slate
-
-| Token | Hex |
-|---|---|
-| neutral-50  | `#F7F9FA` |
-| neutral-100 | `#EEF1F4` |
-| neutral-200 | `#DCE2E7` |
-| neutral-300 | `#BCC5CD` |
-| neutral-400 | `#8B96A1` |
-| neutral-500 | `#5E6975` |
-| neutral-600 | `#424B55` |
-| neutral-700 | `#2D353D` |
-| neutral-800 | `#1B2128` |
-| neutral-900 | `#0E1216` |
-
-### Semantic
-
-| Token | Hex | Use |
+| Token | OKLCH | Approx. hex |
 |---|---|---|
-| success | `#16A34A` | proposal passed, action confirmed |
-| warning | `#D97706` | quorum risk, voting closing soon |
-| danger  | `#DC2626` | destructive action, proposal rejected, error |
-| info    | `#2A8A7B` | alias of primary-500 |
+| `bg`         | `oklch(0.978 0.004 240)` | `#F8F9FB` |
+| `surface`    | `oklch(1.000 0.000 0)`   | `#FFFFFF` |
+| `surface-2`  | `oklch(0.955 0.005 240)` | `#F0F2F5` |
+| `ink`        | `oklch(0.210 0.012 250)` | `#171A20` |
+| `ink-soft`   | `oklch(0.460 0.015 250)` | `#54596A` |
+| `ink-muted`  | `oklch(0.620 0.014 250)` | `#7A7F90` |
+| `border`     | `oklch(0.920 0.006 240)` | `#E1E5EB` |
+| `border-hi`  | `oklch(0.820 0.010 240)` | `#C3CAD3` |
+| `field-bg`   | `oklch(0.962 0.005 240)` | `#F3F5F8` |
 
-## Surface tokens (theme mapping)
+## Dark mode
 
-| Role | Light | Dark |
+| Token | OKLCH | Approx. hex |
 |---|---|---|
-| background        | `neutral-50` (#F7F9FA) | `neutral-900` (#0E1216) |
-| surface           | `#FFFFFF`              | `neutral-800` (#1B2128) |
-| surface-raised    | `neutral-100`          | `neutral-700`           |
-| border            | `neutral-200`          | `neutral-700`           |
-| border-strong     | `neutral-300`          | `neutral-600`           |
-| text-primary      | `neutral-900`          | `neutral-50`            |
-| text-secondary    | `neutral-600`          | `neutral-300`           |
-| text-muted        | `neutral-500`          | `neutral-400`           |
-| brand             | `primary-500`          | `primary-400`           |
-| brand-hover       | `primary-600`          | `primary-300`           |
-| accent            | `accent-500`           | `accent-400`            |
-| focus-ring        | `primary-400`          | `primary-300`           |
+| `bg`         | `oklch(0.165 0.012 250)` | `#0F1216` |
+| `surface`    | `oklch(0.205 0.012 250)` | `#15191F` |
+| `surface-2`  | `oklch(0.185 0.012 250)` | `#11151B` |
+| `ink`        | `oklch(0.965 0.005 240)` | `#F1F3F6` |
+| `ink-soft`   | `oklch(0.740 0.010 240)` | `#A6ABB5` |
+| `ink-muted`  | `oklch(0.560 0.010 240)` | `#787E89` |
+| `border`     | `oklch(0.290 0.012 250)` | `#252A33` |
+| `border-hi`  | `oklch(0.420 0.014 250)` | `#3D4250` |
+| `field-bg`   | `oklch(0.225 0.012 250)` | `#191D24` |
 
-Both themes must respect `prefers-color-scheme` with a manual override (system / light / dark).
+## Accents
+
+All accents share chroma `0.16` (teal lower at `0.13` for legibility). Rendered at `L=0.55` on light surfaces and `L=0.72` on dark.
+
+| Token | Hue | Label |
+|---|---|---|
+| **`accent-indigo`** (default) | 265 | Indigo |
+| `accent-violet` | 305 | Violet |
+| `accent-teal`   | 195 | Teal |
+| `accent-amber`  | 70  | Amber |
+
+Soft fills derived from the accent: `L=0.94, C=accent_c*0.3` (light) or `L=0.28, C=accent_c*0.3` (dark).
+
+## States
+
+| Token | OKLCH (light) | OKLCH (dark) | Use |
+|---|---|---|---|
+| `yes`     | `oklch(0.52 0.15 155)` | `oklch(0.74 0.15 155)` | proposal passed; affirmative vote |
+| `no`      | `oklch(0.55 0.20 25)`  | `oklch(0.74 0.18 25)`  | proposal rejected; negative vote; destructive action |
+| `abstain` | `oklch(0.58 0.010 250)` | `oklch(0.70 0.010 240)` | abstain vote; muted |
+| `warn`    | `oklch(0.66 0.16 75)`  | `oklch(0.78 0.15 75)`  | quorum risk; closing soon |
+
+Both themes must respect `prefers-color-scheme` with a manual override (system / light / dark) persisted in `localStorage`.
 
 ## Typography
 
-- **Sans (UI + body):** [Inter](https://rsms.me/inter/), variable. Pragmatic, open source, excellent at small sizes, supports both EN and PT diacritics cleanly.
-- **Mono (code, vote IDs, hashes):** [JetBrains Mono](https://www.jetbrains.com/lp/mono/), variable.
-- Stack: `Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`.
+Three families, each loaded as a single variable font file via `@fontsource-variable/*`. All are open source.
 
-Suggested scale (mobile-first; desktop scales 1× or 1.125×):
+- **Display — Newsreader.** Variable transitional serif with optical sizing. Used for page titles, proposal titles, deliberation headers. Italic available; the wordmark uses italic.
+- **UI — Public Sans.** Variable. Authoritative but friendly. Used everywhere else: labels, body, captions, button text.
+- **Mono — JetBrains Mono.** Variable. Used for invitation codes, IDs, version markers, "PLANNED" eyebrows.
 
-| Token | Size / line-height | Weight |
-|---|---|---|
-| display | 32 / 38 | 700 |
-| h1 | 24 / 30 | 700 |
-| h2 | 20 / 26 | 600 |
-| h3 | 17 / 24 | 600 |
-| body | 16 / 24 | 400 |
-| body-sm | 14 / 20 | 400 |
-| caption | 12 / 16 | 500 |
+Stacks:
 
-Tracking: `-0.01em` on headings, `0` on body, `0.02em` on caption-as-label.
+```
+--font-display: 'Newsreader Variable', Newsreader, Georgia, serif;
+--font-sans:    'Public Sans Variable', 'Public Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+--font-mono:    'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+```
+
+Suggested scale (mobile-first):
+
+| Token | Size / line-height | Weight | Family |
+|---|---|---|---|
+| display | 32 / 38 | 400 | display |
+| h1      | 26 / 32 | 400 | display |
+| h2      | 20 / 26 | 500 | display |
+| h3      | 17 / 22 | 500 | display |
+| body    | 15 / 24 | 400 | sans |
+| body-sm | 13 / 20 | 400 | sans |
+| caption | 11 / 16 | 600 | sans (uppercase, tracking +0.06) |
+| mono-eyebrow | 10 / 14 | 600 | mono (uppercase, tracking +1.2) |
+
+Tracking: `-0.3` on display headings, `-0.005` on body, `+0.04` on captions.
+
+## Surfaces, radii, shadows
+
+| Token | Light | Dark | Notes |
+|---|---|---|---|
+| `--radius-card`  | 18 | 18 | proposal cards, deliberation cards, surface containers |
+| `--radius-field` | 14 | 14 | text inputs, textareas, sheet content |
+| `--radius-button` | 12 | 12 | medium button default; sm = 10, lg = 14 |
+| `--radius-pill` | 999 | 999 | pills, role badges, status pills |
+
+Shadows are multi-layer for soft elevation:
+
+- `--shadow-sm`: `0 1px 2px rgba(15,23,42,0.05)` (dark: `rgba(0,0,0,0.5)`)
+- `--shadow-md`: `0 1px 2px rgba(15,23,42,0.05), 0 6px 18px rgba(15,23,42,0.06)`
+- `--shadow-lg`: `0 4px 12px rgba(15,23,42,0.07), 0 18px 40px rgba(15,23,42,0.10)`
 
 ## Accessibility
 
-- Body text vs background: contrast ≥ 4.5:1 in both themes (use `text-primary` / `background`).
-- Brand on white (`primary-500` on `#FFFFFF`): contrast ≈ 4.6:1 — passes AA for body.
-- Brand on dark (`primary-400` on `neutral-900`): contrast ≈ 5.2:1 — passes AA.
-- Never communicate state by colour alone. Pair with icon or label (passed ✓, rejected ✕, etc.).
+- Body text vs background: contrast ≥ 4.5:1 in both themes.
+- Indigo accent on white (`oklch(0.55 0.16 265)` ≈ `#5B5BE0`): contrast ≈ 4.7:1 — passes AA.
+- Indigo accent on dark bg (`oklch(0.72 0.16 265)` ≈ `#A0A0F2`): contrast ≈ 6.1:1 — passes AA.
+- Never communicate state by colour alone. Pair with icon or label (passed ✓, rejected ✕).
+- Sticky chrome uses `backdrop-filter: blur(20px) saturate(180%)` over a low-opacity bg fill; falls back cleanly when the filter is unsupported.
 
 ## Usage notes
 
-- The accent (coral) is a spotlight, not a wash. Use it for the single most important action on a screen, the proposal type badge, key empty-state CTAs. If everything is coral, nothing is.
-- Borders prefer `border` (subtle); reserve `border-strong` for focus and emphasis.
-- The mark (`logo-mark.svg`) is self-contained (rounded teal square with white V + coral dot) and works on any background. The wordmark (`logo-wordmark.svg`) uses `currentColor` for the text so it adopts the page's text colour automatically.
+- The accent is a spotlight, not a wash. Use it for the single most important action on a screen, the focused-input ring, the unread badge, the "PLANNED" eyebrow. If everything is accent, nothing is.
+- Borders prefer `--border`; reserve `--border-hi` for focused / pressed states.
+- The mark (`logo-mark.svg`) carries the accent dot — when adopting a sibling accent for a project, the dot follows. The wordmark (`logo-wordmark.svg`) uses `currentColor` so it picks up `--ink`.
+
+## Migration note (2026-05-19)
+
+This palette replaces the earlier teal `#2A8A7B` + coral `#E07856` brand. The change was made on the back of the design integration recorded in `docs/decisions/0001-design-integration-2026-05-19.md`. The teal mark remains in `git` history; nothing else preserves it.

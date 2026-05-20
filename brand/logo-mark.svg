@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="vozcoletiva">
   <title>vozcoletiva</title>
-  <rect width="64" height="64" rx="14" ry="14" fill="#2A8A7B"/>
+  <rect width="64" height="64" rx="14" ry="14" fill="#5B5BE0"/>
   <path d="M 16 20 L 30 46 L 48 14"
         fill="none"
         stroke="#FFFFFF"
         stroke-width="6"
         stroke-linecap="round"
         stroke-linejoin="round"/>
-  <circle cx="48" cy="14" r="4" fill="#E07856"/>
+  <circle cx="48" cy="14" r="4" fill="#A78BFA"/>
 </svg>

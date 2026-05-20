@@ -42,7 +42,7 @@ Status: **approved**, 2026-05-18. Canonical reference for FE choices. Mirrored i
 ### Component primitives — Radix UI + custom wrappers *(confirmed)*
 - **Why:** Accessible primitives (dialog, dropdown, popover, tooltip, switch, …) without imposing visuals. Custom wrappers in `src/components/ui/` style them with Tailwind + brand tokens.
 - **Look & feel — iOS-native as the design reference:**
-  - System font stack first: `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif` (Inter as a fallback for desktop and consistency on Android).
+  - **Typography (2026-05-19 design integration):** display headings use **Newsreader Variable** (serif, transitional, optical sizing); UI body uses **Public Sans Variable**; codes / mono-eyebrows use **JetBrains Mono Variable**. All three self-hosted via `@fontsource-variable/*`. Stacks fall back through the system font set so an offline-cold app still renders. Full token list in `brand/palette.md`.
   - Subtle elevation — soft shadows + 1px hairline borders rather than heavy material drop-shadows.
   - **Bottom-sheet** modals on mobile (Radix Dialog wrapped in a slide-up sheet); centered dialog only on larger viewports.
   - **Large-title** navigation header on the main scrollable surfaces (collapses to inline title on scroll, iOS-style).

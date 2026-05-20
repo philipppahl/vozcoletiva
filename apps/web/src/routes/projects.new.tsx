@@ -79,11 +79,22 @@ function NewProjectPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-8 px-6 py-12">
-      <Logo />
-      <h1 className="text-2xl font-semibold tracking-tight">
-        <Trans>Create a project</Trans>
-      </h1>
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-8 px-6 py-10">
+      <div className="flex flex-col items-center gap-4 pt-6">
+        <Logo size={48} />
+        <h1
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontSize: 28,
+            fontWeight: 400,
+            letterSpacing: -0.3,
+            color: 'var(--ink)',
+            fontVariationSettings: '"opsz" 36',
+          }}
+        >
+          <Trans>Create a project</Trans>
+        </h1>
+      </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex w-full flex-col gap-4" noValidate>
         <Field
@@ -106,7 +117,7 @@ function NewProjectPage() {
           </p>
         )}
 
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" variant="primary" size="lg" block disabled={isSubmitting}>
           <Trans>Create project</Trans>
         </Button>
       </form>
