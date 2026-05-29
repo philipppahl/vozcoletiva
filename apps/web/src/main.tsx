@@ -18,7 +18,6 @@ import { routeTree } from './routeTree.gen';
 
 initTheme();
 initI18n();
-useAuthStore.getState().hydrate();
 
 const router = createRouter({
   routeTree,
@@ -32,17 +31,47 @@ declare module '@tanstack/react-router' {
   }
 }
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error('Root element #root not found in index.html');
+/** Start the mock layer (when enabled) before anything makes a request, then
+ *  hydrate auth and render. Wrapped in a function rather than top-level await
+ *  so the production build target (es2020) doesn't choke. */
+async function bootstrap() {
+  if (import.meta.env.VITE_USE_MOCKS === '1') {
+    const { startMocks } = await import('./mocks/browser');
+    await startMocks();
+    // The mock db is the source of truth for "who is signed in" while the app
+    // runs. If a persisted session already exists, restore the mock-side
+    // currentUserId so handlers recognise the caller; otherwise leave both
+    // sides signed-out.
+    const persisted = window.localStorage.getItem('voz.auth.session');
+    if (persisted) {
+      try {
+        const sess = JSON.parse(persisted) as { userId: string };
+        const { getDb } = await import('./mocks/db');
+        if (getDb().users.has(sess.userId)) {
+          getDb().currentUserId = sess.userId;
+        }
+      } catch {
+        // ignore malformed session
+      }
+    }
+  }
+
+  useAuthStore.getState().hydrate();
+
+  const rootElement = document.getElementById('root');
+  if (!rootElement) {
+    throw new Error('Root element #root not found in index.html');
+  }
+
+  createRoot(rootElement).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <I18nProvider i18n={i18n}>
+          <RouterProvider router={router} />
+        </I18nProvider>
+      </QueryClientProvider>
+    </StrictMode>,
+  );
 }
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <I18nProvider i18n={i18n}>
-        <RouterProvider router={router} />
-      </I18nProvider>
-    </QueryClientProvider>
-  </StrictMode>,
-);
+void bootstrap();

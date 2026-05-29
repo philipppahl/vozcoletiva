@@ -8,6 +8,15 @@ import {
   type ISignUpResult,
 } from 'amazon-cognito-identity-js';
 
+import {
+  mockConfirmSignUp,
+  mockRefresh,
+  mockResendCode,
+  mockSignIn,
+  mockSignOutLocal,
+  mockSignUp,
+} from '../../mocks/auth';
+import { isMockMode } from '../../mocks/mode';
 import { env } from '../env';
 
 function pool(): CognitoUserPool {
@@ -22,6 +31,7 @@ export interface SignUpInput {
 }
 
 export async function signUp(input: SignUpInput): Promise<{ userId: string }> {
+  if (isMockMode()) return mockSignUp(input);
   return new Promise((resolve, reject) => {
     const attrs = [
       new CognitoUserAttribute({ Name: 'email', Value: input.email }),
@@ -37,6 +47,7 @@ export async function signUp(input: SignUpInput): Promise<{ userId: string }> {
 }
 
 export async function confirmSignUp(email: string, code: string): Promise<void> {
+  if (isMockMode()) return mockConfirmSignUp(email, code);
   return new Promise((resolve, reject) => {
     const user = new CognitoUser({ Username: email, Pool: pool() });
     user.confirmRegistration(code, true, (err) => {
@@ -47,6 +58,7 @@ export async function confirmSignUp(email: string, code: string): Promise<void> 
 }
 
 export async function resendConfirmationCode(email: string): Promise<void> {
+  if (isMockMode()) return mockResendCode(email);
   return new Promise((resolve, reject) => {
     const user = new CognitoUser({ Username: email, Pool: pool() });
     user.resendConfirmationCode((err) => {
@@ -71,6 +83,7 @@ export interface SignInOutput {
 }
 
 export async function signIn(email: string, password: string): Promise<SignInOutput> {
+  if (isMockMode()) return mockSignIn(email, password);
   return new Promise((resolve, reject) => {
     const user = new CognitoUser({ Username: email, Pool: pool() });
     const details = new AuthenticationDetails({ Username: email, Password: password });
@@ -108,6 +121,7 @@ function sessionToOutput(email: string, session: CognitoUserSession): SignInOutp
  * `refreshSession`. The username must come from somewhere we trust.
  */
 export async function refresh(email: string, refreshToken: string): Promise<Tokens> {
+  if (isMockMode()) return mockRefresh(email, refreshToken);
   return new Promise((resolve, reject) => {
     const user = new CognitoUser({ Username: email, Pool: pool() });
     const rt = new CognitoRefreshToken({ RefreshToken: refreshToken });
@@ -127,6 +141,7 @@ export async function refresh(email: string, refreshToken: string): Promise<Toke
 }
 
 export function signOutLocal(email: string) {
+  if (isMockMode()) return mockSignOutLocal(email);
   const user = new CognitoUser({ Username: email, Pool: pool() });
   user.signOut();
 }

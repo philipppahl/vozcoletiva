@@ -70,6 +70,7 @@ The unit of decision. Carries a **type** that drives its ceremony and the shape 
 - **Fork mode** (set on parent, configurable, default independent):
   - *Independent*: each fork is its own yes/no decision; multiple may pass.
   - *Competing*: forks form a ranked group; one wins via a ranked method (Schulze planned).
+- **User-facing term**: "**Alternative**". `fork` is reserved as a data field name (`parent_id`, `root_id`, `fork_mode`) and in convention docs.
 
 ### Vote
 - Choice: yes | no | abstain. In competing mode: rank or score.

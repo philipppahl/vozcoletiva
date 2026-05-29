@@ -21,10 +21,50 @@ msgstr "—"
 msgid "(edited)"
 msgstr "(editado)"
 
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "(inherited)"
+msgstr "(herdada)"
+
+#. placeholder {0}: item.document_name ?? ''
+#: src/components/inbox/InboxItemRow.tsx
+msgid "{0} has a new version"
+msgstr "{0} tem uma nova versão"
+
+#. placeholder {0}: conversation.member_count
+#: src/components/messages/ConversationHeader.tsx
+msgid "{0} members"
+msgstr "{0} membros"
+
 #. placeholder {0}: members.data.members.length
 #: src/routes/p.$slug.manage.tsx
 msgid "{0} people"
 msgstr "{0} pessoas"
+
+#. placeholder {0}: message.reply_count
+#. placeholder {0}: thread.data.replies.length
+#: src/components/messages/MessageRow.tsx
+#: src/components/messages/ThreadOverlay.tsx
+msgid "{0} replies"
+msgstr "{0} respostas"
+
+#. placeholder {0}: rows.length
+#. placeholder {0}: tree.length
+#: src/components/forks/DeliberationCard.tsx
+#: src/components/forks/VariantTabs.tsx
+msgid "{0} variants"
+msgstr "{0} alternativas"
+
+#: src/components/inbox/InboxItemRow.tsx
+msgid "{actor} commented on your proposal"
+msgstr "{actor} comentou na sua proposta"
+
+#: src/components/inbox/InboxItemRow.tsx
+msgid "{actor} mentioned you"
+msgstr "{actor} mencionou você"
+
+#: src/components/inbox/InboxItemRow.tsx
+msgid "{actor} replied in a thread"
+msgstr "{actor} respondeu numa thread"
 
 #: src/components/RelativeTime.tsx
 msgid "{days}d"
@@ -38,11 +78,28 @@ msgstr "{hours}h"
 msgid "{minutes}m"
 msgstr "{minutes}m"
 
+#: src/components/shell/BellButton.tsx
+msgid "{unread} unread"
+msgstr "{unread} não lidas"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "**bold** *italic* `code` [link](url) — @ to mention"
+msgstr "**negrito** *itálico* `código` [link](url) — @ para mencionar"
+
 #~ msgid "← All projects"
 #~ msgstr "← Todos os projetos"
 
 #~ msgid "← All proposals"
 #~ msgstr "← Todas as propostas"
+
+#: src/components/forks/DeliberationCard.tsx
+msgid "+ {hiddenCount} more"
+msgstr "+ {hiddenCount} mais"
+
+#: src/components/messages/ChannelListSection.tsx
+#: src/components/messages/DmListSection.tsx
+msgid "+ New"
+msgstr "+ Nova"
 
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "1 day"
@@ -52,6 +109,16 @@ msgstr "1 dia"
 msgid "1 hour"
 msgstr "1 hora"
 
+#: src/components/messages/MessageRow.tsx
+#: src/components/messages/ThreadOverlay.tsx
+msgid "1 reply"
+msgstr "1 resposta"
+
+#: src/components/forks/DeliberationCard.tsx
+#: src/components/forks/VariantTabs.tsx
+msgid "1 variant"
+msgstr "1 alternativa"
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "1 week"
 msgstr "1 semana"
@@ -60,8 +127,25 @@ msgstr "1 semana"
 msgid "2 min (testing)"
 msgstr "2 min (teste)"
 
+#: src/components/inbox/InboxItemRow.tsx
+msgid "A deliberation you voted in closed"
+msgstr "Uma deliberação em que você votou foi encerrada"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "A new or amended canonical text."
+msgstr "Um texto canônico novo ou emendado."
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "A stable identifier for this document, e.g. \"House Rules\"."
+msgstr "Um identificador estável para este documento, ex. \"Regras da Casa\"."
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "A vote with a yes/no/alternative outcome."
+msgstr "Uma votação com resultado sim/não/alternativa."
+
 #: src/components/TallyBar.tsx
-#: src/routes/p.$slug.proposals.$id.tsx
+#: src/components/VoteControl.tsx
+#: src/components/VoteControl.tsx
 msgid "Abstain"
 msgstr "Abstenção"
 
@@ -77,26 +161,96 @@ msgstr "Conta"
 msgid "Active invites"
 msgstr "Convites ativos"
 
+#: src/components/categories/CategoryManager.tsx
+msgid "Add"
+msgstr "Adicionar"
+
+#: src/components/categories/CategoryManager.tsx
+#~ msgid "Add a category"
+#~ msgstr "Adicionar uma categoria"
+
+#: src/components/categories/CategoryManager.tsx
+msgid "Add a topic"
+msgstr "Adicionar um tópico"
+
+#: src/components/forks/VariantTabs.tsx
+msgid "Add an alternative"
+msgstr "Adicionar alternativa"
+
 #: src/components/RoleBadge.tsx
 #: src/components/shell/ProjectTopSheet.tsx
 msgid "Admin"
 msgstr "Administrador"
 
+#: src/components/categories/CategoryChips.tsx
+msgid "All"
+msgstr "Todas"
+
+#: src/components/VotingRulePicker.tsx
+msgid "All decisive voters must pick the same option. Silence (abstain) counts as consent."
+msgstr "Todos os votantes decisivos devem escolher a mesma opção. Silêncio (abstenção) conta como consentimento."
+
 #: src/routes/sign-up.tsx
 msgid "Already have an account?"
 msgstr "Já tem uma conta?"
+
+#. placeholder {0}: parent.title
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Alternative to {0}"
+msgstr "Alternativa a {0}"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+#~ msgid "alternatives"
+#~ msgstr "alternativas"
+
+#: src/components/forks/VariantTabs.tsx
+msgid "Alternatives"
+msgstr "Alternativas"
+
+#: src/components/documents/DocumentList.tsx
+#: src/routes/p.$slug.documents_.$name.tsx
+msgid "Amendment in progress"
+msgstr "Emenda em andamento"
 
 #: src/routes/sign-up.tsx
 msgid "An account with this email already exists."
 msgstr "Já existe uma conta com este email."
 
+#: src/components/messages/MessageComposer.tsx
+msgid "Attach image (placeholder)"
+msgstr "Anexar imagem (provisório)"
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Body (Markdown)"
 msgstr "Corpo (Markdown)"
 
+#: src/routes/welcome.tsx
+msgid "Calm-by-design. Notifications only when it's worth your attention."
+msgstr "Desenho calmo. Notificações só quando vale a sua atenção."
+
+#: src/components/categories/CategoryManager.tsx
 #: src/components/CommentForm.tsx
 msgid "Cancel"
 msgstr "Cancelar"
+
+#: src/routes/p.$slug.categories.tsx
+#: src/routes/p.$slug.manage.tsx
+#~ msgid "Categories"
+#~ msgstr "Categorias"
+
+#: src/components/categories/CategoryPicker.tsx
+#: src/routes/p.$slug.proposals.new.tsx
+#~ msgid "Category"
+#~ msgstr "Categoria"
+
+#: src/components/messages/ChannelListSection.tsx
+#: src/components/search/SearchResults.tsx
+msgid "Channels"
+msgstr "Canais"
+
+#: src/components/search/SearchInput.tsx
+msgid "Clear search"
+msgstr "Limpar busca"
 
 #: src/components/TimeRemaining.tsx
 msgid "Closes in {days} days"
@@ -122,9 +276,13 @@ msgstr "Código"
 msgid "Code must be exactly 8 characters."
 msgstr "O código deve ter exatamente 8 caracteres."
 
+#: src/routes/welcome.tsx
+msgid "Collective decisions, kept in the open."
+msgstr "Decisões coletivas, mantidas em aberto."
+
 #: src/routes/p.$slug.manage.tsx
-msgid "Coming soon"
-msgstr "Em breve"
+#~ msgid "Coming soon"
+#~ msgstr "Em breve"
 
 #: src/components/CommentForm.tsx
 msgid "Comment cannot be empty."
@@ -143,9 +301,23 @@ msgstr "O comentário deve ter no máximo 10000 caracteres."
 msgid "Comments"
 msgstr "Comentários"
 
+#: src/components/forks/ForkModeBadge.tsx
+#: src/components/forks/ForkModePicker.tsx
+#~ msgid "Competing"
+#~ msgstr "Concorrente"
+
+#: src/components/VoteControl.tsx
+#: src/components/VotingRulePicker.tsx
+msgid "Consensus"
+msgstr "Consenso"
+
 #: src/routes/sign-up.tsx
 msgid "Continue"
 msgstr "Continuar"
+
+#: src/components/messages/ConversationHeader.tsx
+msgid "Conversation"
+msgstr "Conversa"
 
 #: src/components/CopyButton.tsx
 msgid "Copied"
@@ -183,12 +355,17 @@ msgstr "Não foi possível carregar as propostas."
 msgid "Could not load this proposal."
 msgstr "Não foi possível carregar esta proposta."
 
+#: src/components/messages/ThreadOverlay.tsx
+msgid "Could not load thread."
+msgstr "Não foi possível carregar o tópico."
+
 #: src/components/CommentForm.tsx
 msgid "Could not save the comment. Please try again."
 msgstr "Não foi possível guardar o comentário. Tenta novamente."
 
 #: src/routes/index.tsx
 #: src/routes/projects.new.tsx
+#: src/routes/welcome.tsx
 msgid "Create a project"
 msgstr "Criar um projeto"
 
@@ -206,13 +383,30 @@ msgid "Create proposal"
 msgstr "Criar proposta"
 
 #: src/components/shell/ProjectTopSheet.tsx
-msgid "Current project"
-msgstr "Projeto atual"
+msgid "Current"
+msgstr "Atual"
+
+#: src/components/shell/ProjectTopSheet.tsx
+#~ msgid "Current project"
+#~ msgstr "Projeto atual"
 
 #: src/routes/preferences.tsx
 msgid "Dark"
 msgstr "Escuro"
 
+#: src/routes/welcome.tsx
+msgid "Decide together"
+msgstr "Decidir em conjunto"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Decision"
+msgstr "Decisão"
+
+#: src/components/forks/ForkModePicker.tsx
+#~ msgid "Decision mode"
+#~ msgstr "Modo de decisão"
+
+#: src/components/categories/CategoryManager.tsx
 #: src/components/CommentItem.tsx
 msgid "Delete"
 msgstr "Eliminar"
@@ -221,14 +415,38 @@ msgstr "Eliminar"
 msgid "Delete this comment?"
 msgstr "Eliminar este comentário?"
 
+#: src/components/messages/ConversationHeader.tsx
+msgid "Direct message"
+msgstr "Mensagem direta"
+
+#: src/components/messages/DmListSection.tsx
+#: src/routes/dms.tsx
+msgid "Direct messages"
+msgstr "Mensagens diretas"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Discussion"
+msgstr "Discussão"
+
 #: src/routes/sign-up.tsx
 msgid "Display name"
 msgstr "Nome de exibição"
 
-#: src/routes/p.$slug.documents.tsx
-msgid "Document proposals will become versioned canonical texts — statutes, by-laws, policies. Amendments diff against prior versions."
-msgstr "Propostas do tipo documento se tornarão textos canônicos versionados — estatutos, regimentos, políticas. Emendas comparam-se com versões anteriores."
+#: src/components/forks/DeliberationCard.tsx
+#: src/routes/p.$slug.proposals.$id.tsx
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Document"
+msgstr "Documento"
 
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Document name"
+msgstr "Nome do documento"
+
+#: src/routes/p.$slug.documents.tsx
+#~ msgid "Document proposals will become versioned canonical texts — statutes, by-laws, policies. Amendments diff against prior versions."
+#~ msgstr "Propostas do tipo documento se tornarão textos canônicos versionados — estatutos, regimentos, políticas. Emendas comparam-se com versões anteriores."
+
+#: src/components/search/SearchResults.tsx
 #: src/components/shell/TabBar.tsx
 #: src/routes/p.$slug.documents.tsx
 msgid "Documents"
@@ -242,9 +460,25 @@ msgstr "Ainda não tem conta?"
 msgid "e.g. 3"
 msgstr "ex.: 3"
 
+#: src/components/categories/CategoryManager.tsx
+msgid "e.g. Finance"
+msgstr "ex. Finanças"
+
+#: src/components/forks/ForkModePicker.tsx
+#~ msgid "Each alternative is voted yes / no / abstain on its own. Any number can pass."
+#~ msgstr "Cada alternativa é votada sim / não / abstenção. Várias podem ser aprovadas."
+
 #: src/components/CommentItem.tsx
 msgid "Edit"
 msgstr "Editar"
+
+#: src/components/forks/ForkingFromBanner.tsx
+msgid "Edit the text and parameters. The voting rule is inherited from the original."
+msgstr "Edite o texto e os parâmetros. A regra de votação é herdada do original."
+
+#: src/components/messages/MessageRow.tsx
+msgid "edited"
+msgstr "editado"
 
 #: src/routes/sign-in.tsx
 #: src/routes/sign-up.tsx
@@ -254,6 +488,14 @@ msgstr "Email"
 #: src/routes/join.tsx
 msgid "Enter the 8-character invite code someone shared with you."
 msgstr "Introduz o código de convite de 8 caracteres que te partilharam."
+
+#: src/routes/welcome.tsx
+msgid "Every vote and amendment is recorded. The history is the record."
+msgstr "Cada voto e emenda fica registrado. O histórico é o registro."
+
+#: src/components/categories/CategoryManager.tsx
+msgid "Existing"
+msgstr "Existentes"
 
 #: src/routes/p.$slug.invites.tsx
 msgid "expires"
@@ -275,10 +517,25 @@ msgstr "Tens um código de convite?"
 msgid "Hello, {displayName}"
 msgstr "Olá, {displayName}"
 
+#: src/routes/p.$slug.documents_.$name.tsx
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Hide diff"
+msgstr "Ocultar diferenças"
+
+#: src/components/shell/BellButton.tsx
+#: src/routes/inbox.tsx
+msgid "Inbox"
+msgstr "Caixa de entrada"
+
 #: src/routes/sign-in.tsx
 #: src/routes/sign-up_.verify.tsx
 msgid "Incorrect email or password."
 msgstr "Email ou senha incorretos."
+
+#: src/components/forks/ForkModeBadge.tsx
+#: src/components/forks/ForkModePicker.tsx
+#~ msgid "Independent"
+#~ msgstr "Independente"
 
 #: src/routes/p.$slug.invites.tsx
 #: src/routes/p.$slug.manage.tsx
@@ -306,12 +563,17 @@ msgid "Join with a code"
 msgstr "Juntar-te com um código"
 
 #: src/components/shell/ProjectTopSheet.tsx
+#: src/routes/welcome.tsx
 msgid "Join with code"
 msgstr "Entrar com código"
 
 #: src/components/RelativeTime.tsx
 msgid "just now"
 msgstr "agora mesmo"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Kind"
+msgstr "Tipo"
 
 #: src/routes/preferences.tsx
 msgid "Language"
@@ -321,8 +583,15 @@ msgstr "Idioma"
 msgid "Light"
 msgstr "Claro"
 
+#: src/routes/p.$slug.documents.tsx
+msgid "Loading documents…"
+msgstr "Carregando documentos…"
+
 #: src/components/Comments.tsx
+#: src/components/messages/ThreadOverlay.tsx
 #: src/routes/i_.$token.tsx
+#: src/routes/inbox.tsx
+#: src/routes/p.$slug.documents_.$name.tsx
 #: src/routes/p.$slug.index.tsx
 #: src/routes/p.$slug.invites.tsx
 #: src/routes/p.$slug.members.tsx
@@ -330,10 +599,13 @@ msgstr "Claro"
 msgid "Loading…"
 msgstr "A carregar…"
 
-#: src/components/shell/ProjectTopSheet.tsx
 #: src/routes/p.$slug.manage.tsx
 msgid "Manage"
 msgstr "Gerenciar"
+
+#: src/routes/inbox.tsx
+msgid "Mark all read"
+msgstr "Marcar todas como lidas"
 
 #: src/routes/p.$slug.invites.tsx
 msgid "Max uses"
@@ -345,10 +617,15 @@ msgstr "Utilizações máximas"
 msgid "Member"
 msgstr "Membro"
 
+#: src/components/search/SearchResults.tsx
 #: src/routes/p.$slug.manage.tsx
 #: src/routes/p.$slug.members.tsx
 msgid "Members"
 msgstr "Membros"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Message — @ to mention"
+msgstr "Mensagem — @ para mencionar"
 
 #: src/components/shell/TabBar.tsx
 #: src/routes/p.$slug.messages.tsx
@@ -364,12 +641,25 @@ msgstr "Número mínimo de votantes para o resultado contar."
 msgid "Moderator"
 msgstr "Moderador"
 
+#: src/components/VotingRulePicker.tsx
+msgid "Most votes wins. Ties leave no winner."
+msgstr "Mais votos vence. Empates não geram vencedor."
+
 #: src/routes/projects.new.tsx
 msgid "Name must be 80 characters or fewer."
 msgstr "O nome deve ter no máximo 80 caracteres."
 
-#~ msgid "New"
-#~ msgstr "Nova"
+#: src/components/messages/UnreadDivider.tsx
+msgid "New"
+msgstr "Nova"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "New body (Markdown)"
+msgstr "Novo conteúdo (Markdown)"
+
+#: src/components/messages/MemberPickerSheet.tsx
+msgid "New direct message"
+msgstr "Nova mensagem direta"
 
 #: src/components/shell/ProjectTopSheet.tsx
 msgid "New project"
@@ -381,25 +671,66 @@ msgid "New proposal"
 msgstr "Nova proposta"
 
 #: src/components/TallyBar.tsx
-#: src/routes/p.$slug.proposals.$id.tsx
+#: src/components/VoteControl.tsx
 msgid "No"
 msgstr "Não"
+
+#: src/components/messages/ChannelListSection.tsx
+msgid "No channels yet."
+msgstr "Nenhum canal ainda."
 
 #: src/components/Comments.tsx
 msgid "No comments yet. Start the discussion."
 msgstr "Ainda não há comentários. Começa a discussão."
 
+#: src/components/messages/DmListSection.tsx
+msgid "No direct messages yet."
+msgstr "Nenhuma mensagem direta ainda."
+
+#: src/components/documents/DocumentList.tsx
+msgid "No documents yet. Documents appear here once a Document-type proposal passes."
+msgstr "Ainda não há documentos. Documentos aparecem aqui quando uma proposta do tipo Documento é aprovada."
+
 #: src/routes/p.$slug.invites.tsx
 msgid "No invites yet."
 msgstr "Ainda não há convites."
+
+#: src/components/messages/MemberPickerSheet.tsx
+msgid "No matches."
+msgstr "Sem resultados."
+
+#: src/components/messages/ChannelListSection.tsx
+#: src/components/messages/DmListSection.tsx
+msgid "No messages yet"
+msgstr "Sem mensagens ainda"
+
+#: src/components/messages/MessageList.tsx
+msgid "No messages yet — start the conversation."
+msgstr "Sem mensagens — comece a conversa."
+
+#: src/routes/welcome.tsx
+msgid "No noise, no streaks"
+msgstr "Sem ruído, sem rankings"
 
 #: src/routes/p.$slug.index.tsx
 msgid "No proposals yet — be the first."
 msgstr "Ainda não há propostas — sê o primeiro."
 
+#: src/components/search/SearchResults.tsx
+msgid "No results for \"{trimmed}\"."
+msgstr "Nenhum resultado para \"{trimmed}\"."
+
+#: src/components/VoteControl.tsx
+msgid "None of these"
+msgstr "Nenhuma destas"
+
 #: src/routes/i_.$token.tsx
 msgid "Not now"
 msgstr "Agora não"
+
+#: src/components/inbox/InboxList.tsx
+msgid "Nothing waiting for you. Mentions, replies, comments on your proposals, and deliberation results will land here."
+msgstr "Nada esperando por você. Menções, respostas, comentários nas suas propostas e resultados de deliberações vão aparecer aqui."
 
 #: src/components/RoleBadge.tsx
 #: src/components/shell/ProjectTopSheet.tsx
@@ -411,9 +742,38 @@ msgstr "Observador"
 msgid "Only owners and admins can issue invites."
 msgstr "Apenas proprietários e administradores podem emitir convites."
 
+#: src/routes/p.$slug.categories.tsx
+#~ msgid "Only owners and admins can manage categories."
+#~ msgstr "Apenas proprietários e administradores podem gerenciar categorias."
+
+#: src/routes/p.$slug.categories.tsx
+msgid "Only owners and admins can manage topics."
+msgstr "Apenas proprietários e administradores podem gerenciar tópicos."
+
+#: src/routes/p.$slug.documents_.$name.tsx
+msgid "Open deliberation"
+msgstr "Deliberação em aberto"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+#~ msgid "Open question"
+#~ msgstr "Questão em aberto"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Open this alternative"
+msgstr "Abrir esta alternativa"
+
+#: src/routes/p.$slug.manage.tsx
+msgid "Organise proposals and documents by topic"
+msgstr "Organize propostas e documentos por tópico"
+
+#: src/components/forks/CompetingDecision.tsx
+#: src/routes/p.$slug.proposals.$id.tsx
+#~ msgid "original"
+#~ msgstr "original"
+
 #: src/components/shell/ProjectTopSheet.tsx
-msgid "Other projects"
-msgstr "Outros projetos"
+#~ msgid "Other projects"
+#~ msgstr "Outros projetos"
 
 #~ msgid "Overview"
 #~ msgstr "Visão geral"
@@ -423,9 +783,18 @@ msgstr "Outros projetos"
 msgid "Owner"
 msgstr "Proprietário"
 
+#: src/components/forks/DeliberationCard.tsx
+msgid "passed"
+msgstr "aprovada"
+
 #: src/components/StatusBadge.tsx
 msgid "Passed"
 msgstr "Aprovada"
+
+#. placeholder {0}: new Date(viewingVersion.closed_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', })
+#: src/routes/p.$slug.documents_.$name.tsx
+msgid "Passed {0}"
+msgstr "Aprovado em {0}"
 
 #: src/routes/sign-in.tsx
 #: src/routes/sign-up_.verify.tsx
@@ -440,8 +809,12 @@ msgid "Password must be at least 12 characters."
 msgstr "A senha deve ter pelo menos 12 caracteres."
 
 #: src/routes/p.$slug.messages.tsx
-msgid "Per-project channels for fast, informal talk. Text, images and voice notes. Not a replacement for deliberation — just lighter chatter alongside it."
-msgstr "Canais por projeto para conversas rápidas e informais. Texto, imagens e notas de voz. Não substitui a deliberação — só agiliza o que está ao lado dela."
+#~ msgid "Per-project channels for fast, informal talk. Text, images and voice notes. Not a replacement for deliberation — just lighter chatter alongside it."
+#~ msgstr "Canais por projeto para conversas rápidas e informais. Texto, imagens e notas de voz. Não substitui a deliberação — só agiliza o que está ao lado dela."
+
+#: src/components/messages/VoiceNoteBlock.tsx
+msgid "Planned"
+msgstr "Previsto"
 
 #: src/routes/sign-up.tsx
 msgid "Please enter a display name."
@@ -461,6 +834,11 @@ msgstr "Por favor introduza um email válido."
 msgid "Please enter the 6-digit code."
 msgstr "Por favor introduza o código de 6 dígitos."
 
+#: src/components/VoteControl.tsx
+#: src/components/VotingRulePicker.tsx
+msgid "Plurality"
+msgstr "Pluralidade"
+
 #: src/components/CommentForm.tsx
 msgid "Post comment"
 msgstr "Publicar comentário"
@@ -474,34 +852,63 @@ msgid "Project name"
 msgstr "Nome do projeto"
 
 #: src/routes/p.$slug.manage.tsx
-msgid "Project settings"
-msgstr "Configurações do projeto"
+#~ msgid "Project settings"
+#~ msgstr "Configurações do projeto"
 
 #: src/routes/p.$slug.search.tsx
-msgid "Project-scoped search across proposals, people, and documents. Coming in a later slice."
-msgstr "Busca por propostas, pessoas e documentos do projeto. Disponível em uma etapa futura."
+#~ msgid "Project-scoped search across proposals, people, and documents. Coming in a later slice."
+#~ msgstr "Busca por propostas, pessoas e documentos do projeto. Disponível em uma etapa futura."
 
+#: src/routes/p.$slug.proposals.$id.tsx
 #: src/routes/p.$slug.proposals.$id.tsx
 msgid "Proposal"
 msgstr "Proposta"
 
 # --- proposals slice ---
+#: src/components/search/SearchResults.tsx
 #: src/components/shell/TabBar.tsx
 #: src/routes/p.$slug.index.tsx
 msgid "Proposals"
 msgstr "Propostas"
 
+#: src/routes/p.$slug.documents_.$name.tsx
+msgid "Propose amendment"
+msgstr "Propor emenda"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Propose an alternative"
+msgstr "Propor uma alternativa"
+
+#: src/routes/welcome.tsx
+msgid "Propose, discuss, and vote with the people who share the decision."
+msgstr "Proponha, discuta e vote com as pessoas que compartilham a decisão."
+
+#: src/components/forks/ForkingFromBanner.tsx
+msgid "Proposing an alternative to"
+msgstr "Propondo alternativa a"
+
+#. placeholder {0}: amendedDoc.data.name
+#. placeholder {1}: amendedDoc.data.version_count
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Proposing an amendment to {0} (currently v{1})."
+msgstr "Propondo uma emenda a {0} (atualmente v{1})."
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Quorum (optional)"
 msgstr "Quórum (opcional)"
 
-#. placeholder {0}: p.quorum
 #: src/routes/p.$slug.proposals.$id.tsx
-msgid "Quorum {0}"
-msgstr "Quórum {0}"
+#~ msgid "Quorum {0}"
+#~ msgstr "Quórum {0}"
 
-#~ msgid "Quorum {quorum}"
-#~ msgstr "Quórum {quorum}"
+#: src/components/VoteControl.tsx
+msgid "Quorum {quorum}"
+msgstr "Quórum {quorum}"
+
+#: src/components/forks/DeliberationCard.tsx
+msgid "quorum failed"
+msgstr "quórum não atingido"
 
 #: src/components/StatusBadge.tsx
 msgid "Quorum failed"
@@ -511,15 +918,35 @@ msgstr "Sem quórum"
 msgid "Quorum must be a whole number."
 msgstr "O quórum deve ser um número inteiro."
 
+#: src/routes/p.$slug.proposals.$id.tsx
+#~ msgid "rank to decide"
+#~ msgstr "ordene para decidir"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+#~ msgid "Rank to decide"
+#~ msgstr "Ordenar para decidir"
+
+#: src/components/forks/CompetingDecision.tsx
+#~ msgid "reading now"
+#~ msgstr "lendo agora"
+
 #: src/routes/p.$slug.index.tsx
 msgid "Recently closed"
 msgstr "Recentemente fechadas"
+
+#: src/components/forks/DeliberationCard.tsx
+msgid "rejected"
+msgstr "rejeitada"
 
 #: src/components/StatusBadge.tsx
 msgid "Rejected"
 msgstr "Rejeitada"
 
-#: src/routes/p.$slug.proposals.$id.tsx
+#: src/components/categories/CategoryManager.tsx
+msgid "Rename"
+msgstr "Renomear"
+
+#: src/components/VoteControl.tsx
 msgid "Retract"
 msgstr "Retirar"
 
@@ -532,13 +959,14 @@ msgid "Role"
 msgstr "Função"
 
 #: src/routes/p.$slug.proposals.$id.tsx
-msgid "Running tally"
-msgstr "Apuração parcial"
+#~ msgid "Running tally"
+#~ msgstr "Apuração parcial"
 
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Runtime"
 msgstr "Duração"
 
+#: src/components/categories/CategoryManager.tsx
 #: src/components/CommentItem.tsx
 msgid "Save"
 msgstr "Guardar"
@@ -548,9 +976,37 @@ msgstr "Guardar"
 msgid "Search"
 msgstr "Buscar"
 
+#: src/components/messages/MemberPickerSheet.tsx
+msgid "Search people"
+msgstr "Buscar pessoas"
+
+#: src/components/search/SearchResults.tsx
+msgid "Search proposals, documents, members and channels in this project."
+msgstr "Busque propostas, documentos, membros e canais neste projeto."
+
+#: src/components/search/SearchInput.tsx
+msgid "Search this project…"
+msgstr "Buscar neste projeto…"
+
+#: src/components/search/SearchResults.tsx
+msgid "Searching…"
+msgstr "Buscando…"
+
+#: src/components/search/SearchResults.tsx
+msgid "See all →"
+msgstr "Ver todos →"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Send message"
+msgstr "Enviar mensagem"
+
 #: src/routes/preferences.tsx
 msgid "Settings"
 msgstr "Ajustes"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Show diff against current"
+msgstr "Mostrar diferenças com a versão atual"
 
 #: src/routes/index.tsx
 #: src/routes/sign-in.tsx
@@ -566,10 +1022,14 @@ msgstr "Sair"
 msgid "Sign up"
 msgstr "Criar conta"
 
-#: src/routes/p.$slug.proposals.$id.tsx
-#: src/routes/p.$slug.proposals.new.tsx
+#: src/components/VoteControl.tsx
+#: src/components/VotingRulePicker.tsx
 msgid "Simple majority"
 msgstr "Maioria simples"
+
+#: src/routes/welcome.tsx
+msgid "Skip for now"
+msgstr "Pular por agora"
 
 #: src/routes/projects.new.tsx
 msgid "Slug"
@@ -584,6 +1044,12 @@ msgstr "O slug pode conter apenas a-z, 0-9 e '-'. Sem traços no início ou fim.
 msgid "Slug must be 3 to 32 characters."
 msgstr "O slug deve ter entre 3 e 32 caracteres."
 
+#: src/components/categories/CategoryManager.tsx
+#: src/components/categories/CategoryManager.tsx
+#: src/components/categories/CategoryManager.tsx
+msgid "Something went wrong."
+msgstr "Algo deu errado."
+
 #: src/routes/join.tsx
 #: src/routes/p.$slug.proposals.new.tsx
 #: src/routes/projects.new.tsx
@@ -593,9 +1059,17 @@ msgstr "O slug deve ter entre 3 e 32 caracteres."
 msgid "Something went wrong. Please try again."
 msgstr "Algo correu mal. Por favor, tente novamente."
 
+#: src/routes/welcome.tsx
+msgid "Stay accountable"
+msgstr "Manter responsabilidade"
+
 #: src/routes/index.tsx
 msgid "Structured collective decision-making."
 msgstr "Tomada de decisão coletiva estruturada."
+
+#: src/components/forks/CompetingDecision.tsx
+#~ msgid "Submit ranking"
+#~ msgstr "Enviar ordenação"
 
 #: src/components/shell/ProjectTopSheet.tsx
 msgid "Switch project"
@@ -620,6 +1094,14 @@ msgstr "Esse link de convite parece já não existir."
 msgid "That verification code is invalid or has expired."
 msgstr "Esse código de verificação é inválido ou expirou."
 
+#: src/components/VotingRulePicker.tsx
+msgid "The winning option needs at least two-thirds of the decisive votes."
+msgstr "A opção vencedora precisa de pelo menos dois terços dos votos decisivos."
+
+#: src/components/VotingRulePicker.tsx
+msgid "The winning option needs more than half of the decisive votes."
+msgstr "A opção vencedora precisa de mais da metade dos votos decisivos."
+
 #: src/routes/preferences.tsx
 msgid "Theme"
 msgstr "Tema"
@@ -636,6 +1118,10 @@ msgstr "Este link expira"
 msgid "This slug is already taken. Try another."
 msgstr "Este slug já está em uso. Tenta outro."
 
+#: src/components/messages/ThreadOverlay.tsx
+msgid "Thread"
+msgstr "Tópico"
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Title"
 msgstr "Título"
@@ -644,13 +1130,39 @@ msgstr "Título"
 msgid "Title must be 1-200 characters."
 msgstr "O título deve ter entre 1 e 200 caracteres."
 
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Title of this amendment"
+msgstr "Título desta emenda"
+
+#: src/components/messages/MessageList.tsx
+msgid "Today"
+msgstr "Hoje"
+
+#: src/components/categories/CategoryPicker.tsx
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Topic"
+msgstr "Tópico"
+
+#: src/routes/p.$slug.categories.tsx
+#: src/routes/p.$slug.manage.tsx
+msgid "Topics"
+msgstr "Tópicos"
+
 #~ msgid "Topics, proposals, comments, and the document library land in upcoming plan-feature cycles. For now: invite people and watch them show up in the Members tab."
 #~ msgstr "Tópicos, propostas, comentários e a biblioteca de documentos chegam em ciclos seguintes. Por agora: convida pessoas e vê-as a aparecer na aba Membros."
 
-#: src/routes/p.$slug.proposals.$id.tsx
-#: src/routes/p.$slug.proposals.new.tsx
+#: src/components/forks/VariantTabs.tsx
+#~ msgid "Tree · competing decision"
+#~ msgstr "Árvore · decisão concorrente"
+
+#: src/components/VoteControl.tsx
+#: src/components/VotingRulePicker.tsx
 msgid "Two-thirds"
 msgstr "Dois terços"
+
+#: src/components/search/SearchResults.tsx
+msgid "Type at least 2 characters."
+msgstr "Digite pelo menos 2 caracteres."
 
 #: src/routes/projects.new.tsx
 msgid "Used in URLs: vozcoletiva.com/p/<slug>. Lowercase, dashes only."
@@ -659,6 +1171,11 @@ msgstr "Usado em URLs: vozcoletiva.com/p/<slug>. Apenas minúsculas e traços."
 #: src/routes/p.$slug.invites.tsx
 msgid "uses"
 msgstr "utilizações"
+
+#. placeholder {0}: doc.version_count
+#: src/components/documents/DocumentList.tsx
+msgid "v{0}"
+msgstr "v{0}"
 
 #: src/routes/sign-up_.verify.tsx
 #: src/routes/sign-up_.verify.tsx
@@ -669,8 +1186,28 @@ msgstr "Código de verificação"
 msgid "Verify"
 msgstr "Verificar"
 
+#: src/routes/p.$slug.documents_.$name.tsx
+msgid "Version"
+msgstr "Versão"
+
 #~ msgid "Visibility"
 #~ msgstr "Visibilidade"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Voice note (placeholder)"
+msgstr "Nota de voz (provisório)"
+
+#: src/components/forks/ForkModePicker.tsx
+#~ msgid "Voters rank the alternatives together. One winner; the others rejected."
+#~ msgstr "Os votantes ordenam as alternativas. Apenas uma vence."
+
+#: src/components/forks/CompetingDecision.tsx
+#~ msgid "Voters will rank the alternatives below. One winner; the others rejected. Submit is disabled until the ranked-choice voting ships."
+#~ msgstr "Os votantes ordenarão as alternativas abaixo. Apenas uma vence; as outras são rejeitadas. O envio fica desativado até o voto ordenado estar disponível."
+
+#: src/components/forks/DeliberationCard.tsx
+msgid "voting"
+msgstr "em votação"
 
 #: src/components/StatusBadge.tsx
 msgid "Voting"
@@ -679,9 +1216,17 @@ msgstr "Em votação"
 #~ msgid "Voting is closed."
 #~ msgstr "A votação está fechada."
 
-#: src/routes/p.$slug.proposals.new.tsx
+#: src/components/VotingRulePicker.tsx
 msgid "Voting rule"
 msgstr "Regra de votação"
+
+#: src/routes/p.$slug.proposals.new.tsx
+#~ msgid "Voting rule (inherited)"
+#~ msgstr "Regra de votação (herdada)"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Voting rule, quorum and runtime are inherited from the deliberation."
+msgstr "Regra de votação, quórum e duração são herdados da deliberação."
 
 #: src/routes/index.tsx
 msgid "vozcoletiva"
@@ -699,9 +1244,17 @@ msgstr "Enviámos um código de 6 dígitos para {email}. Introduza-o abaixo para
 msgid "Welcome back"
 msgstr "Bem-vindo de volta"
 
+#: src/routes/welcome.tsx
+msgid "Welcome to vozcoletiva"
+msgstr "Bem-vindo ao vozcoletiva"
+
 #: src/routes/p.$slug.proposals.$id.tsx
 msgid "Withdraw proposal"
 msgstr "Retirar proposta"
+
+#: src/components/forks/DeliberationCard.tsx
+msgid "withdrawn"
+msgstr "retirada"
 
 #: src/components/StatusBadge.tsx
 msgid "Withdrawn"
@@ -712,9 +1265,13 @@ msgid "Write a comment… (Markdown supported)"
 msgstr "Escreve um comentário… (Markdown suportado)"
 
 #: src/components/TallyBar.tsx
-#: src/routes/p.$slug.proposals.$id.tsx
+#: src/components/VoteControl.tsx
 msgid "Yes"
 msgstr "Sim"
+
+#: src/components/messages/MessageList.tsx
+msgid "Yesterday"
+msgstr "Ontem"
 
 #: src/routes/index.tsx
 msgid "You don't have any projects yet."

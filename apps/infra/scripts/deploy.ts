@@ -200,9 +200,34 @@ async function main() {
     writeWebEnvFile(args.env, outputs, root);
   }
 
-  // 3. Build web app.
+  // 3. Build web app — but first guard against shipping mocks.
+  if (args.env === 'prod' && process.env.VITE_USE_MOCKS && process.env.VITE_USE_MOCKS !== '0') {
+    die(
+      'refusing to deploy --env prod with VITE_USE_MOCKS set.\n' +
+        '  The mock layer must not ship to production. Unset the var and re-run.',
+    );
+  }
   console.log('\n• building web app…');
-  run('bun run build', { cwd: resolve(root, 'apps/web') });
+  run('bun run build', {
+    cwd: resolve(root, 'apps/web'),
+    env: args.env === 'prod' ? { VITE_USE_MOCKS: '0' } : {},
+  });
+  // Belt-and-braces: scan the prod bundle for any MSW residue.
+  if (args.env === 'prod') {
+    const distDir = resolve(root, 'apps/web/dist');
+    if (existsSync(distDir)) {
+      const grep = spawnSync(`grep -rEl '(mockServiceWorker|setupWorker|msw/browser)' "${distDir}" || true`, {
+        shell: true,
+        encoding: 'utf8',
+      });
+      const offenders = (grep.stdout || '').split('\n').filter(Boolean);
+      if (offenders.length > 0) {
+        die(
+          `prod build contains MSW residue — refusing to deploy.\n  Offending files:\n    ${offenders.join('\n    ')}`,
+        );
+      }
+    }
+  }
 
   // 4. CDK deploy (or diff).
   const cdkEnv = { VOZ_ENV: args.env };

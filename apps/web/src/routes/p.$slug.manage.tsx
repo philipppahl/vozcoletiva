@@ -81,29 +81,19 @@ function ManagePage() {
           title={<Trans>Invites</Trans>}
           subtitle={<Trans>Issue and revoke invitations</Trans>}
         />
-        <div
-          className="rounded-2xl p-4"
-          style={{
-            background: 'var(--surface)',
-            border: '0.5px solid var(--border)',
-            opacity: 0.5,
-            boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          <div className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
-            <Trans>Project settings</Trans>
-          </div>
-          <div className="mt-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
-            <Trans>Coming soon</Trans>
-          </div>
-        </div>
+        <ManageLink
+          to="/p/$slug/categories"
+          params={{ slug }}
+          title={<Trans>Topics</Trans>}
+          subtitle={<Trans>Organise proposals and documents by topic</Trans>}
+        />
       </nav>
     </div>
   );
 }
 
 interface ManageLinkProps {
-  to: '/p/$slug/members' | '/p/$slug/invites';
+  to: '/p/$slug/members' | '/p/$slug/invites' | '/p/$slug/categories';
   params: { slug: string };
   title: React.ReactNode;
   subtitle: React.ReactNode;

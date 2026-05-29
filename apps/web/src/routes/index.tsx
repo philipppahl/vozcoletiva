@@ -4,10 +4,12 @@ import { useEffect } from 'react';
 import { Logo } from '../components/Logo';
 import { RoleBadge } from '../components/RoleBadge';
 import { Avatar } from '../components/shell/Avatar';
+import { BellButton } from '../components/shell/BellButton';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { apiClient } from '../lib/api';
 import { useAuth } from '../lib/auth/hooks';
+import { isOnboardingComplete } from '../lib/onboarding';
 import { useProjects } from '../lib/projects';
 
 export const Route = createFileRoute('/')({
@@ -68,6 +70,16 @@ function SignedInView() {
     });
   }, [session]);
 
+  // First-launch welcome: signed in, no memberships, never dismissed onboarding.
+  // Gated on the projects query having actually returned (not loading) so we
+  // don't flicker for returning users with projects.
+  useEffect(() => {
+    if (!projects.isSuccess) return;
+    if (projects.data.projects.length > 0) return;
+    if (isOnboardingComplete()) return;
+    void navigate({ to: '/welcome' });
+  }, [projects.isSuccess, projects.data, navigate]);
+
   if (!session) return null;
 
   const items = projects.data?.projects ?? [];
@@ -80,15 +92,18 @@ function SignedInView() {
     >
       <header className="flex items-center justify-between px-5 pt-8">
         <Logo size={26} />
-        <button
-          type="button"
-          onClick={() => void navigate({ to: '/preferences' })}
-          aria-label="Open preferences"
-          className="rounded-full"
-          style={{ padding: 0, background: 'transparent', border: 'none', cursor: 'pointer' }}
-        >
-          <Avatar displayName={session.displayName} size={36} ring="var(--surface)" />
-        </button>
+        <div className="flex items-center gap-1">
+          <BellButton />
+          <button
+            type="button"
+            onClick={() => void navigate({ to: '/preferences' })}
+            aria-label="Open preferences"
+            className="rounded-full"
+            style={{ padding: 0, background: 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <Avatar displayName={session.displayName} size={36} ring="var(--surface)" />
+          </button>
+        </div>
       </header>
 
       <h1

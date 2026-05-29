@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient } from './api';
+import { completeOnboarding } from './onboarding';
 import { qk } from './query';
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
@@ -67,6 +68,7 @@ export function useCreateProject() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: qk.projects.list() });
+      completeOnboarding();
     },
   });
 }

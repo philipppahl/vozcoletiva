@@ -1,27 +1,97 @@
-import { Trans } from '@lingui/macro';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { Trans, t } from '@lingui/macro';
+import { useLingui } from '@lingui/react';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+
+import { CategoryChips } from '../components/categories/CategoryChips';
+import { DeliberationCard } from '../components/forks/DeliberationCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { ProjectShell } from '../components/shell/ProjectShell';
 import { TallyBar } from '../components/TallyBar';
 import { TimeRemaining } from '../components/TimeRemaining';
-import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { useCategories } from '../lib/categories';
 import { useProposals } from '../lib/proposals';
+import type { ExtendedProposal } from '../lib/proposals/types';
+
+interface CategoryFilterSearch {
+  category?: string;
+}
 
 export const Route = createFileRoute('/p/$slug/')({
   component: ProjectOverview,
+  validateSearch: (search): CategoryFilterSearch => ({
+    category: typeof search.category === 'string' ? search.category : undefined,
+  }),
 });
 
 function ProjectOverview() {
   const { slug } = Route.useParams();
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const categories = useCategories(slug);
   return (
-    <ProjectShell slug={slug} tab="proposals" pageTitle={<Trans>Proposals</Trans>}>
-      <ProposalsList slug={slug} />
+    <ProjectShell
+      slug={slug}
+      tab="proposals"
+      pageTitle={<Trans>Proposals</Trans>}
+      subsection={
+        categories.data ? (
+          <CategoryChips
+            categories={categories.data.categories}
+            selected={search.category ?? null}
+            onChange={(id) =>
+              void navigate({
+                to: '/p/$slug',
+                params: { slug },
+                search: id ? { category: id } : {},
+              })
+            }
+          />
+        ) : undefined
+      }
+    >
+      <ProposalsList slug={slug} categoryFilter={search.category ?? null} />
     </ProjectShell>
   );
 }
 
-function ProposalsList({ slug }: { slug: string }) {
+interface Deliberation {
+  root: ExtendedProposal;
+  tree: ExtendedProposal[];
+  /** Earliest still-voting endsAt across the tree, for sort. */
+  nextClose: number;
+  /** Has any voting node in the tree. */
+  isVoting: boolean;
+}
+
+function buildDeliberations(all: ExtendedProposal[]): Deliberation[] {
+  const byRoot = new Map<string, ExtendedProposal[]>();
+  for (const p of all) {
+    const key = p.root_id;
+    const bucket = byRoot.get(key);
+    if (bucket) bucket.push(p);
+    else byRoot.set(key, [p]);
+  }
+  const out: Deliberation[] = [];
+  for (const [rootId, tree] of byRoot) {
+    const root = tree.find((p) => p.id === rootId) ?? tree[0]!;
+    const isVoting = tree.some((p) => p.status === 'voting');
+    const opens = tree.filter((p) => p.status === 'voting').map((p) => Date.parse(p.ends_at));
+    const nextClose = opens.length > 0 ? Math.min(...opens) : Number.MAX_SAFE_INTEGER;
+    out.push({ root, tree, nextClose, isVoting });
+  }
+  // Voting first; within each group, soonest-closing or most-recent first.
+  out.sort((a, b) => {
+    if (a.isVoting !== b.isVoting) return a.isVoting ? -1 : 1;
+    if (a.isVoting) return a.nextClose - b.nextClose;
+    return Date.parse(b.root.ends_at) - Date.parse(a.root.ends_at);
+  });
+  return out;
+}
+
+function ProposalsList({ slug, categoryFilter }: { slug: string; categoryFilter: string | null }) {
+  const { _ } = useLingui();
+  const newProposalLabel = _(t`New proposal`);
   const proposals = useProposals(slug);
 
   if (proposals.isLoading) {
@@ -39,17 +109,16 @@ function ProposalsList({ slug }: { slug: string }) {
     );
   }
 
-  const items = proposals.data.proposals;
-  const open = items
-    .filter((p) => p.status === 'voting')
-    .sort((a, b) => Date.parse(a.ends_at) - Date.parse(b.ends_at));
-  const closed = items
-    .filter((p) => p.status !== 'voting')
-    .sort((a, b) => Date.parse(b.ends_at) - Date.parse(a.ends_at));
+  const filtered = categoryFilter
+    ? proposals.data.proposals.filter((p) => p.category_id === categoryFilter)
+    : proposals.data.proposals;
+  const deliberations = buildDeliberations(filtered);
+  const open = deliberations.filter((d) => d.isVoting);
+  const closed = deliberations.filter((d) => !d.isVoting);
 
   return (
     <section className="flex flex-col gap-3 px-4 pb-24 pt-4">
-      {open.length === 0 && closed.length === 0 ? (
+      {deliberations.length === 0 ? (
         <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>
           <Trans>No proposals yet — be the first.</Trans>
         </p>
@@ -57,9 +126,9 @@ function ProposalsList({ slug }: { slug: string }) {
         <>
           {open.length > 0 && (
             <ul className="flex flex-col gap-3">
-              {open.map((p) => (
-                <li key={p.id}>
-                  <ProposalCardLink slug={slug} p={p} />
+              {open.map((d) => (
+                <li key={d.root.id}>
+                  <DeliberationOrSolo slug={slug} deliberation={d} />
                 </li>
               ))}
             </ul>
@@ -73,9 +142,9 @@ function ProposalsList({ slug }: { slug: string }) {
                 <Trans>Recently closed</Trans>
               </h3>
               <ul className="flex flex-col gap-3">
-                {closed.map((p) => (
-                  <li key={p.id}>
-                    <ProposalCardLink slug={slug} p={p} />
+                {closed.map((d) => (
+                  <li key={d.root.id}>
+                    <DeliberationOrSolo slug={slug} deliberation={d} />
                   </li>
                 ))}
               </ul>
@@ -87,28 +156,37 @@ function ProposalsList({ slug }: { slug: string }) {
       <Link
         to="/p/$slug/proposals/new"
         params={{ slug }}
-        className="sticky bottom-24 ml-auto inline-flex"
-        style={{ marginTop: 8 }}
+        aria-label={newProposalLabel}
+        title={newProposalLabel}
+        className="fixed right-5 bottom-[max(env(safe-area-inset-bottom),18px)] z-10 inline-flex h-14 w-14 items-center justify-center rounded-full"
+        style={{
+          marginBottom: 64,
+          background: 'var(--accent)',
+          color: 'var(--accent-ink)',
+          boxShadow: 'var(--shadow-lg)',
+        }}
       >
-        <Button variant="primary" size="lg">
-          <Trans>New proposal</Trans>
-        </Button>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M12 5v14M5 12h14"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+        </svg>
       </Link>
     </section>
   );
 }
 
-interface ProposalLike {
-  id: string;
-  title: string;
-  status: string;
-  ends_at: string;
-  tally_yes: number;
-  tally_no: number;
-  tally_abstain: number;
+function DeliberationOrSolo({ slug, deliberation }: { slug: string; deliberation: Deliberation }) {
+  if (deliberation.tree.length === 1) {
+    return <ProposalCardLink slug={slug} p={deliberation.root} />;
+  }
+  return <DeliberationCard root={deliberation.root} all={deliberation.tree} slug={slug} />;
 }
 
-function ProposalCardLink({ slug, p }: { slug: string; p: ProposalLike }) {
+function ProposalCardLink({ slug, p }: { slug: string; p: ExtendedProposal }) {
   return (
     <Link to="/p/$slug/proposals/$id" params={{ slug, id: p.id }} className="block">
       <Card>

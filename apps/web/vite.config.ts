@@ -18,6 +18,13 @@ export default defineConfig({
     tailwind(),
     VitePWA({
       registerType: 'autoUpdate',
+      // In a mock build, MSW's service worker must be the sole controller of
+      // scope `/` — otherwise Workbox's sw.js wins and MSW never intercepts,
+      // so the app calls the (absent) real API. `selfDestroying` ships a SW
+      // that unregisters itself + any previously-installed Workbox SW, so
+      // returning visitors aren't stuck on a stale precache worker. MSW's own
+      // worker remains and satisfies PWA installability.
+      selfDestroying: process.env.VITE_USE_MOCKS === '1',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
         name: 'vozcoletiva',
@@ -42,7 +49,9 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globIgnores: ['**/mockServiceWorker.js'],
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/mockServiceWorker\.js$/],
       },
     }),
   ],

@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/macro';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import type { Locale, Theme } from '@vozcoletiva/shared';
 import { useEffect, useState } from 'react';
 import { RequireAuth } from '../components/RequireAuth';
@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { setLocale } from '../i18n';
 import { useAuth } from '../lib/auth/hooks';
 import { useThemeStore } from '../lib/theme';
+import { ScenarioPicker } from '../mocks/ScenarioPicker';
 
 export const Route = createFileRoute('/preferences')({
   component: () => (
@@ -23,6 +24,7 @@ const LOCALES: readonly Locale[] = ['en', 'pt'] as const;
 
 function PreferencesPage() {
   const navigate = useNavigate();
+  const router = useRouter();
   const { session, signOut } = useAuth();
   const theme = useThemeStore((s) => s.theme);
   const setTheme = useThemeStore((s) => s.setTheme);
@@ -44,7 +46,10 @@ function PreferencesPage() {
       className="flex min-h-dvh flex-col"
       style={{ background: 'var(--bg)', color: 'var(--ink)' }}
     >
-      <TopBar title={<Trans>Preferences</Trans>} onBack={() => void navigate({ to: '/' })} />
+      <TopBar
+        title={<Trans>Preferences</Trans>}
+        onBack={() => (router.history.canGoBack() ? router.history.back() : navigate({ to: '/' }))}
+      />
 
       <section className="flex flex-col items-center px-6 pt-6 pb-4 text-center">
         <Avatar displayName={session?.displayName ?? '?'} size={84} ring="var(--surface)" />
@@ -96,6 +101,8 @@ function PreferencesPage() {
           </PrefRow>
         </PrefCard>
       </section>
+
+      <ScenarioPicker />
 
       <section className="px-4 pt-6">
         <PrefHeading>

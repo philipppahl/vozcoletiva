@@ -23,6 +23,7 @@ When relevant to the work at hand:
 - `docs/conventions/ci.md` — CI stages, caching, deploy gates, branch protection.
 - `docs/frontend-stack.md` — locked-in FE picks; the canonical reference for FE choices.
 - `docs/data-model.md` — DynamoDB single-table schema sketch and mapped access patterns.
+- `docs/conventions/mocks.md` — dev mock layer (MSW). On by default in `bun run dev`; never ships to prod.
 
 (More to come as conventions land: logging, API style, error taxonomy, observability.)
 
@@ -63,6 +64,7 @@ A change is done when:
 - **Never deploy to prod from a developer machine.** Prod deploys land via the GitHub Actions workflow only (see `docs/conventions/ci.md`). Break-glass via `VOZ_FORCE_PROD_DEPLOY=1` is logged and announced; not a routine path.
 - **Never amend or rebase** commits that have been pushed.
 - **Never reach behind the public API.** The webapp is a thin client over the same typed, versioned API external integrations will call. No backdoor "internal" endpoints.
+- **Never ship the mock layer to production.** `VITE_USE_MOCKS=1` is for dev only. The deploy script refuses `--env prod` with the var set and grep-scans the prod bundle for MSW residue.
 
 ## Project-specific norms
 

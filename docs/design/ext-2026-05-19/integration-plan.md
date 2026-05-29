@@ -146,3 +146,37 @@ These are decisions the designer made that I want to flag because they affect th
 ## Next step
 
 After D1 / D2 / D3 are answered, start with **Slice 1** via the `plan-feature` skill. Slices 2 and 3 follow independently.
+
+---
+
+## Slice ledger (mock-first phase)
+
+| Slice | Title | Status |
+|---|---|---|
+| 1 | Shell IA + visual refresh | ✓ shipped |
+| 1b | Auth screens restyle | deferred |
+| 2 | Profile picture upload | deferred (real BE needed) |
+| 3 | Forking — independent + competing-PLANNED | ✓ shipped (M1) |
+| M0 | MSW mock layer foundation | ✓ shipped |
+| M2 | Messages — channels + DMs + threads | ✓ shipped |
+| M2-polish | Message reactions / edit / delete / pin | future |
+| M2-admin | Channel admin (create / rename / archive) | future |
+| M2-group-dms | Group DMs (3–8 participants) | future |
+| M2-real-ws | Real WebSocket (lands with BE wire-up) | future |
+| M3 | Onboarding — first-launch welcome | ✓ shipped |
+| M4 | Voting reshape + Documents (mock UI, see 0004 + 0005) | ✓ shipped |
+| M5 | Inbox (mock UI, see 0006) | ✓ shipped |
+| M6 | Search (mock UI) | ✓ shipped |
+| M7 | Categories (mock UI, see 0007) | ✓ shipped |
+| M7-recategorise | Bulk re-categorise + drag-reorder | future |
+| M8 | Shell v2: dynamic header/footer, topics-in-header, switcher redesign, Proposal/Discussion pager (see 0008) | ✓ shipped |
+| 6 | Inbox (cross-project) | future |
+| 7 | Comment threading + mentions + reactions | future |
+| 8 | Other proposal types (Election, Poll, Petition) | future |
+| 9 | Delegation | future |
+| 10 | Pseudonymous voting | future |
+| 11 | Public discoverable projects | future |
+| 12 | Project templates + onboarding | future |
+| 13 | Proposal edit → vote reset flow | future |
+| BE-wire | Real OpenAPI + Rust handlers + DDB | future (after mock UI is signed off) |
+

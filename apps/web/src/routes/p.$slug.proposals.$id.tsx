@@ -1,18 +1,28 @@
 import { Trans } from '@lingui/macro';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router';
+import { useState } from 'react';
 
 import { Comments } from '../components/Comments';
+import { VariantTabs } from '../components/forks/VariantTabs';
 import { Markdown } from '../components/Markdown';
 import { RequireAuth } from '../components/RequireAuth';
 import { StatusBadge } from '../components/StatusBadge';
-import { TopBar } from '../components/shell/TopBar';
-import { TallyBar } from '../components/TallyBar';
+import { ProjectShell } from '../components/shell/ProjectShell';
 import { TimeRemaining } from '../components/TimeRemaining';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Segmented } from '../components/ui/Segmented';
+import { SwipePager } from '../components/ui/SwipePager';
+import { VoteControl } from '../components/VoteControl';
 import { useAuth } from '../lib/auth/hooks';
-import { useProject } from '../lib/projects';
-import { useCastVote, useProposal, useRetractVote, useWithdrawProposal } from '../lib/proposals';
+import {
+  useCastVote,
+  useProposal,
+  useProposalTree,
+  useRetractVote,
+  useWithdrawProposal,
+} from '../lib/proposals';
+import type { ExtendedProposal } from '../lib/proposals/types';
 
 export const Route = createFileRoute('/p/$slug/proposals/$id')({
   component: () => (
@@ -22,111 +32,182 @@ export const Route = createFileRoute('/p/$slug/proposals/$id')({
   ),
 });
 
+type Pane = 'proposal' | 'discussion';
+
 function ProposalDetailPage() {
   const { slug, id } = Route.useParams();
   const navigate = useNavigate();
-  const project = useProject(slug);
+  const router = useRouter();
   const proposal = useProposal(slug, id);
+  const tree = useProposalTree(slug, id);
   const castVote = useCastVote(slug, id);
   const retractVote = useRetractVote(slug, id);
   const withdraw = useWithdrawProposal(slug, id);
   const { session } = useAuth();
+  const [pane, setPane] = useState<Pane>('proposal');
+
+  const treeList = tree.data?.proposals ?? (proposal.data ? [proposal.data] : []);
+  const p = proposal.data;
+
+  const onBack = () =>
+    router.history.canGoBack()
+      ? router.history.back()
+      : navigate({ to: '/p/$slug', params: { slug } });
+
+  const subsection = p ? (
+    <Segmented<Pane>
+      value={pane}
+      onChange={setPane}
+      options={[
+        { value: 'proposal', label: <Trans>Proposal</Trans> },
+        { value: 'discussion', label: <Trans>Discussion</Trans> },
+      ]}
+    />
+  ) : undefined;
 
   return (
-    <div
-      className="flex min-h-dvh flex-col"
-      style={{ background: 'var(--bg)', color: 'var(--ink)' }}
+    <ProjectShell
+      slug={slug}
+      tab="proposals"
+      pageTitle={p?.title ?? <Trans>Proposal</Trans>}
+      subsection={subsection}
+      onBack={onBack}
     >
-      <TopBar
-        title={proposal.data?.title ?? <Trans>Proposal</Trans>}
-        eyebrow={project.data?.project.name ?? slug}
-        onBack={() => void navigate({ to: '/p/$slug', params: { slug } })}
-      />
-
       {proposal.isLoading ? (
         <p className="px-4 pt-4" style={{ color: 'var(--ink-muted)' }}>
           <Trans>Loading…</Trans>
         </p>
-      ) : proposal.error || !proposal.data ? (
+      ) : proposal.error || !p ? (
         <p className="px-4 pt-4" style={{ color: 'var(--no)' }}>
           <Trans>Could not load this proposal.</Trans>
         </p>
       ) : (
-        <Body
-          slug={slug}
-          proposal={proposal.data}
-          isAuthor={session?.userId === proposal.data.author_id}
-          onVote={(c) => castVote.mutate(c)}
-          onRetract={() => retractVote.mutate()}
-          onWithdraw={() => withdraw.mutate()}
-          voteBusy={castVote.isPending || retractVote.isPending}
-          withdrawBusy={withdraw.isPending}
+        <SwipePager
+          index={pane === 'proposal' ? 0 : 1}
+          onIndexChange={(i) => setPane(i === 0 ? 'proposal' : 'discussion')}
+          panes={[
+            <ProposalPane
+              key="proposal"
+              slug={slug}
+              proposal={p}
+              tree={treeList}
+              isAuthor={session?.userId === p.author_id}
+              onVote={(c) => castVote.mutate(c)}
+              onRetract={() => retractVote.mutate()}
+              onWithdraw={() => withdraw.mutate()}
+              voteBusy={castVote.isPending || retractVote.isPending}
+              withdrawBusy={withdraw.isPending}
+              onOpenVariant={(targetId) =>
+                void navigate({ to: '/p/$slug/proposals/$id', params: { slug, id: targetId } })
+              }
+              onFork={(parentId) =>
+                void navigate({
+                  to: '/p/$slug/proposals/new',
+                  params: { slug },
+                  search: { fork: parentId },
+                })
+              }
+            />,
+            <section key="discussion" className="px-4 pt-5 pb-28">
+              <Comments slug={slug} proposalId={p.id} />
+            </section>,
+          ]}
         />
       )}
-    </div>
+    </ProjectShell>
   );
 }
 
-interface ProposalShape {
-  id: string;
-  title: string;
-  body: string;
-  status: string;
-  ends_at: string;
-  voting_mode: string;
-  quorum?: number | null;
-  tally_yes: number;
-  tally_no: number;
-  tally_abstain: number;
-  your_choice?: 'yes' | 'no' | 'abstain';
-  author_id: string;
-}
-
-interface BodyProps {
+interface ProposalPaneProps {
   slug: string;
-  proposal: ProposalShape;
+  proposal: ExtendedProposal;
+  tree: ExtendedProposal[];
   isAuthor: boolean;
-  onVote: (choice: 'yes' | 'no' | 'abstain') => void;
+  onVote: (choice: string) => void;
   onRetract: () => void;
   onWithdraw: () => void;
   voteBusy: boolean;
   withdrawBusy: boolean;
+  onOpenVariant: (proposalId: string) => void;
+  onFork: (parentId: string) => void;
 }
 
-function Body({
+function ProposalPane({
   slug,
   proposal,
+  tree,
   isAuthor,
   onVote,
   onRetract,
   onWithdraw,
   voteBusy,
   withdrawBusy,
-}: BodyProps) {
+  onOpenVariant,
+  onFork,
+}: ProposalPaneProps) {
   const p = proposal;
   const isOpen = p.status === 'voting';
+  const root = tree.find((x) => x.id === p.root_id) ?? p;
+  const inThread = tree.length > 1;
+  const parent = p.parent_id ? tree.find((x) => x.id === p.parent_id) : null;
+  const votingRule = root.voting_rule ?? 'simple_majority';
 
   return (
-    <section className="flex flex-col gap-5 px-4 pt-5 pb-10">
+    <section className="flex flex-col gap-5 px-4 pt-4 pb-28">
+      {(inThread || isOpen) && (
+        <div
+          className="-mx-4 border-b"
+          style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
+        >
+          <VariantTabs
+            proposal={p}
+            all={tree}
+            embedded
+            showAdd={isOpen}
+            onOpen={onOpenVariant}
+            onAddAlternative={() => onFork(p.id)}
+          />
+        </div>
+      )}
+      {parent && (
+        <Link
+          to="/p/$slug/proposals/$id"
+          params={{ slug, id: parent.id }}
+          className="-mt-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase"
+          style={{ color: 'var(--accent)', letterSpacing: 0.06 }}
+        >
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
+            <path
+              d="M3 2v6a3 3 0 003 3h4"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <Trans>Alternative to {parent.title}</Trans>
+        </Link>
+      )}
+
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge
             status={p.status as 'voting' | 'passed' | 'rejected' | 'quorum_failed' | 'withdrawn'}
           />
-          {isOpen && <TimeRemaining endsAt={p.ends_at} />}
-          <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-            ·{' '}
-            {p.voting_mode === 'simple_majority' ? (
-              <Trans>Simple majority</Trans>
-            ) : (
-              <Trans>Two-thirds</Trans>
-            )}
-          </span>
-          {p.quorum != null && (
-            <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-              · <Trans>Quorum {p.quorum}</Trans>
+          {root.proposal_kind === 'document' && (
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+              style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+            >
+              <Trans>Document</Trans>
+              {root.document_name && (
+                <span className="ml-1" style={{ opacity: 0.85 }}>
+                  · {root.document_name}
+                </span>
+              )}
             </span>
           )}
+          {isOpen && <TimeRemaining endsAt={p.ends_at} />}
         </div>
         <h1
           style={{
@@ -149,78 +230,41 @@ function Body({
             className="text-xs font-semibold uppercase"
             style={{ color: 'var(--ink-soft)', letterSpacing: 0.06 }}
           >
-            {isOpen ? <Trans>Running tally</Trans> : <Trans>Final result</Trans>}
+            {isOpen ? <Trans>Your vote</Trans> : <Trans>Final result</Trans>}
           </div>
-          <TallyBar yes={p.tally_yes} no={p.tally_no} abstain={p.tally_abstain} />
+          <VoteControl
+            tree={tree}
+            viewing={p}
+            myChoice={root.your_root_choice ?? null}
+            votingRule={votingRule}
+            quorum={p.quorum}
+            busy={voteBusy}
+            onVote={onVote}
+            onRetract={onRetract}
+          />
           {isOpen && (
-            <>
-              <div className="h-px" style={{ background: 'var(--border)' }} />
-              <div>
-                <div
-                  className="mb-2 text-xs font-semibold uppercase"
-                  style={{ color: 'var(--ink-soft)', letterSpacing: 0.06 }}
-                >
-                  <Trans>Your vote</Trans>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant={p.your_choice === 'yes' ? 'yes' : 'secondary'}
-                    size="lg"
-                    onClick={() => onVote('yes')}
-                    disabled={voteBusy}
-                  >
-                    <Trans>Yes</Trans>
-                  </Button>
-                  <Button
-                    variant={p.your_choice === 'no' ? 'no' : 'secondary'}
-                    size="lg"
-                    onClick={() => onVote('no')}
-                    disabled={voteBusy}
-                  >
-                    <Trans>No</Trans>
-                  </Button>
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={() => onVote('abstain')}
-                    disabled={voteBusy}
-                    className="text-sm font-medium underline"
-                    style={{
-                      color: p.your_choice === 'abstain' ? 'var(--ink)' : 'var(--ink-soft)',
-                      textUnderlineOffset: 4,
-                      textDecorationColor:
-                        p.your_choice === 'abstain' ? 'var(--ink)' : 'var(--border)',
-                      background: 'transparent',
-                      border: 'none',
-                      padding: 6,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {p.your_choice === 'abstain' ? '✓ ' : ''}
-                    <Trans>Abstain</Trans>
-                  </button>
-                  {p.your_choice && (
-                    <button
-                      type="button"
-                      onClick={onRetract}
-                      disabled={voteBusy}
-                      className="text-xs underline"
-                      style={{
-                        color: 'var(--ink-muted)',
-                        textUnderlineOffset: 3,
-                        background: 'transparent',
-                        border: 'none',
-                        padding: 6,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Trans>Retract</Trans>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </>
+            <button
+              type="button"
+              onClick={() => onFork(p.id)}
+              className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium"
+              style={{
+                background: 'transparent',
+                border: '1px dashed var(--border-hi)',
+                color: 'var(--ink)',
+                cursor: 'pointer',
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                <path
+                  d="M3 2v6a3 3 0 003 3h4M9 8l2 3-3 2"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <Trans>Propose an alternative</Trans>
+            </button>
           )}
         </div>
       </Card>
@@ -234,8 +278,6 @@ function Body({
           <Trans>Withdraw proposal</Trans>
         </Button>
       )}
-
-      <Comments slug={slug} proposalId={p.id} />
     </section>
   );
 }

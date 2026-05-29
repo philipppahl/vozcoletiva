@@ -2,11 +2,15 @@ import { Trans } from '@lingui/macro';
 import { Link } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
+import { useChannels, useDms } from '../../lib/messages';
+
 export type Tab = 'proposals' | 'documents' | 'messages' | 'search';
 
 interface TabBarProps {
   slug: string;
   current: Tab;
+  /** Translate the bar down out of view (driven by scroll). */
+  hidden?: boolean;
 }
 
 interface TabDef {
@@ -47,30 +51,59 @@ const TABS: TabDef[] = [
  * Sticky bottom tab bar for project-scoped routes. Four equal-width tabs.
  * Active tab uses ink colour; inactive uses muted ink.
  */
-export function TabBar({ slug, current }: TabBarProps) {
+export function TabBar({ slug, current, hidden }: TabBarProps) {
+  const channels = useChannels(slug);
+  const dms = useDms();
+  const messagesUnread =
+    (channels.data?.channels.reduce((sum, c) => sum + c.unread_count, 0) ?? 0) +
+    (dms.data?.dms.reduce((sum, d) => sum + d.unread_count, 0) ?? 0);
+
   return (
     <nav
       aria-label="Project sections"
-      className="sticky bottom-0 z-10 grid grid-cols-4 gap-1 border-t px-3 pb-[max(env(safe-area-inset-bottom),18px)] pt-2"
+      className="sticky bottom-0 z-20 grid grid-cols-4 gap-1 border-t px-3 pb-[max(env(safe-area-inset-bottom),18px)] pt-2"
       style={{
         background: 'color-mix(in oklab, var(--surface) 92%, transparent)',
         backdropFilter: 'saturate(180%) blur(20px)',
         WebkitBackdropFilter: 'saturate(180%) blur(20px)',
         borderColor: 'var(--border)',
+        transform: hidden ? 'translateY(100%)' : 'translateY(0)',
+        transition: 'transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)',
+        willChange: 'transform',
       }}
     >
       {TABS.map((tab) => {
         const active = current === tab.id;
         const colour = active ? 'var(--ink)' : 'var(--ink-muted)';
+        const badge = tab.id === 'messages' && messagesUnread > 0 ? messagesUnread : 0;
         return (
           <Link
             key={tab.id}
             to={tab.to}
             params={{ slug }}
-            className="flex flex-col items-center gap-1 rounded-xl px-1 py-2"
+            className="relative flex flex-col items-center gap-1 rounded-xl px-1 py-2"
             style={{ color: colour }}
           >
-            {tab.icon(colour)}
+            <span className="relative">
+              {tab.icon(colour)}
+              {badge > 0 && (
+                <span
+                  role="status"
+                  aria-label={`${badge} unread`}
+                  className="absolute inline-flex h-[14px] min-w-[14px] items-center justify-center rounded-full px-1 text-[9px] font-bold"
+                  style={{
+                    top: -4,
+                    right: -8,
+                    background: 'var(--accent)',
+                    color: 'var(--accent-ink)',
+                    border: '1.5px solid var(--surface)',
+                    lineHeight: 1,
+                  }}
+                >
+                  {badge > 99 ? '99+' : badge}
+                </span>
+              )}
+            </span>
             <span
               style={{
                 fontFamily: 'var(--font-sans)',
