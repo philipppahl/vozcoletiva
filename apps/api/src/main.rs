@@ -23,7 +23,10 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
     let method = event.method().clone();
     // API Gateway may include the stage prefix in the forwarded path
     // ("/v1/hello") or strip it ("/hello") depending on the integration shape.
-    let path = raw_path.strip_prefix("/v1").unwrap_or(&raw_path).to_string();
+    let path = raw_path
+        .strip_prefix("/v1")
+        .unwrap_or(&raw_path)
+        .to_string();
 
     tracing::info!(?method, %raw_path, %path, "request_received");
 
@@ -81,6 +84,9 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
         }
         ("GET", ["projects", slug, "proposals", id]) => {
             handlers::proposals::get(&state, event, slug, id).await
+        }
+        ("GET", ["projects", slug, "proposals", id, "tree"]) => {
+            handlers::proposals::tree(&state, event, slug, id).await
         }
         ("POST", ["projects", slug, "proposals", id, "vote"]) => {
             handlers::votes::cast(&state, event, slug, id).await

@@ -202,7 +202,7 @@ export interface paths {
         /** List proposals in a project */
         get: operations["listProposals"];
         put?: never;
-        /** Create a proposal (Decision) */
+        /** Create a proposal (Decision), or a fork via parent_id */
         post: operations["createProposal"];
         delete?: never;
         options?: never;
@@ -261,6 +261,23 @@ export interface paths {
         head?: never;
         /** Edit a comment (author only) */
         patch: operations["updateComment"];
+        trace?: never;
+    };
+    "/v1/projects/{slug}/proposals/{id}/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the deliberation tree (root + forks) */
+        get: operations["getProposalTree"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/projects/{slug}/proposals/{id}/vote": {
@@ -350,11 +367,17 @@ export interface components {
         };
         CreateProposalBody: {
             body: string;
-            /** Format: date-time */
-            ends_at: string;
+            /**
+             * Format: date-time
+             * @description Required for a root; inherited for a fork.
+             */
+            ends_at?: string;
+            /** @description When set, creates a fork under this parent's deliberation. */
+            parent_id?: string | null;
             quorum?: number | null;
             title: string;
-            voting_rule: components["schemas"]["VotingRule"];
+            /** @description Required for a root; inherited from the root for a fork. */
+            voting_rule?: components["schemas"]["VotingRule"];
         };
         Hello: {
             /** @constant */
@@ -443,6 +466,8 @@ export interface components {
             /** Format: date-time */
             ends_at: string;
             id: string;
+            /** @description Parent proposal id for a fork; null for a root. */
+            parent_id?: string | null;
             project_id: string;
             quorum?: number | null;
             /** @description Root of this proposal's deliberation; equals `id` for a root. */
@@ -937,7 +962,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Proposal created and scheduled to close. */
+            /** @description Proposal (or fork) created. */
             201: {
                 headers: {
                     [name: string]: unknown;
@@ -948,6 +973,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
+            /** @description Cannot fork a closed deliberation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     getProposal: {
@@ -1093,6 +1127,31 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+        };
+    };
+    getProposalTree: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flat deliberation tree, created-ordered. Each node carries the deliberation (root) tally; the client rebuilds nesting from `parent_id`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalListResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     castVote: {

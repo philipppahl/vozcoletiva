@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use aws_sdk_dynamodb::types::AttributeValue;
+use aws_sdk_dynamodb::types::{AttributeValue, TransactWriteItem, Update};
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use ulid::Ulid;
@@ -16,8 +16,10 @@ pub struct Proposal {
     pub id: String,
     pub project_id: String,
     /// Root of this proposal's deliberation. Equals `id` for a root; set to the
-    /// root's id for forks/options (slice B). Votes key on `DELIB#<root_id>`.
+    /// root's id for forks/options. Votes key on `DELIB#<root_id>`.
     pub root_id: String,
+    /// `None` for a root; the parent proposal's id for a fork/alternative.
+    pub parent_id: Option<String>,
     pub author_id: String,
     pub title: String,
     pub body: String,
@@ -48,6 +50,7 @@ pub async fn create(
         id: id.clone(),
         project_id: project_id.to_string(),
         root_id: id.clone(),
+        parent_id: None,
         author_id: author.user_id.clone(),
         title,
         body,
@@ -86,6 +89,13 @@ pub async fn create(
         .item("tallyNone", AttributeValue::N("0".into()))
         .item("tallyAbstain", AttributeValue::N("0".into()))
         .item("createdAt", AttributeValue::S(now.to_rfc3339()))
+        // Deliberation tree lives on GSI2 (`DELIB#<root>` → created-ordered),
+        // so the root appears in its own tree alongside any forks.
+        .item("GSI2PK", AttributeValue::S(format!("DELIB#{id}")))
+        .item(
+            "GSI2SK",
+            AttributeValue::S(format!("PROPOSAL#{}#{id}", now.to_rfc3339())),
+        )
         // Closing-soon window lives on GSI3 (`PROJECT#p#VOTING` → endsAt), per
         // docs/data-model.md. Sparse: only roots in `voting` carry the GSI3 keys.
         .item(
@@ -101,6 +111,97 @@ pub async fn create(
 
     put.send().await?;
     Ok(proposal)
+}
+
+/// Create a fork (alternative) under an existing deliberation. The fork is a
+/// child proposal that inherits the root's voting rule / quorum / ends_at and
+/// joins the tree via GSI2. It carries **no** tally or closing-soon keys — those
+/// live on the root head; the whole deliberation closes on the root's schedule.
+pub async fn create_fork(
+    state: &AppState,
+    project_id: &str,
+    author: &AuthenticatedUser,
+    title: String,
+    body: String,
+    parent_id: &str,
+    root: &Proposal,
+) -> Result<Proposal, AppError> {
+    let id = Ulid::new().to_string();
+    let now = Utc::now();
+    let proposal = Proposal {
+        id: id.clone(),
+        project_id: project_id.to_string(),
+        root_id: root.id.clone(),
+        parent_id: Some(parent_id.to_string()),
+        author_id: author.user_id.clone(),
+        title,
+        body,
+        voting_rule: root.voting_rule,
+        quorum: root.quorum,
+        ends_at: root.ends_at,
+        status: ProposalStatus::Voting,
+        tally: Tally::default(),
+        created_at: now,
+        closed_at: None,
+        schedule_arn: None,
+    };
+
+    let mut put = state
+        .ddb
+        .put_item()
+        .table_name(&state.table_name)
+        .item("PK", AttributeValue::S(format!("PROJECT#{project_id}")))
+        .item("SK", AttributeValue::S(format!("PROPOSAL#{id}")))
+        .item("type", AttributeValue::S("Proposal".into()))
+        .item("proposalId", AttributeValue::S(proposal.id.clone()))
+        .item("projectId", AttributeValue::S(proposal.project_id.clone()))
+        .item("authorId", AttributeValue::S(proposal.author_id.clone()))
+        .item("title", AttributeValue::S(proposal.title.clone()))
+        .item("body", AttributeValue::S(proposal.body.clone()))
+        .item("rootId", AttributeValue::S(proposal.root_id.clone()))
+        .item("parentId", AttributeValue::S(parent_id.to_string()))
+        .item(
+            "votingRule",
+            AttributeValue::S(root.voting_rule.as_str().into()),
+        )
+        .item("endsAt", AttributeValue::S(root.ends_at.to_rfc3339()))
+        .item(
+            "status",
+            AttributeValue::S(ProposalStatus::Voting.as_str().into()),
+        )
+        .item("createdAt", AttributeValue::S(now.to_rfc3339()))
+        .item("GSI2PK", AttributeValue::S(format!("DELIB#{}", root.id)))
+        .item(
+            "GSI2SK",
+            AttributeValue::S(format!("PROPOSAL#{}#{id}", now.to_rfc3339())),
+        )
+        .condition_expression("attribute_not_exists(PK)");
+
+    if let Some(q) = root.quorum {
+        put = put.item("quorum", AttributeValue::N(q.to_string()));
+    }
+
+    put.send().await?;
+    Ok(proposal)
+}
+
+/// The flat deliberation tree (root + all forks), created-ordered. The client
+/// rebuilds nesting from `parent_id`.
+pub async fn tree(state: &AppState, root_id: &str) -> Result<Vec<Proposal>, AppError> {
+    let q = state
+        .ddb
+        .query()
+        .table_name(&state.table_name)
+        .index_name("GSI2")
+        .key_condition_expression("GSI2PK = :pk")
+        .expression_attribute_values(":pk", AttributeValue::S(format!("DELIB#{root_id}")))
+        .send()
+        .await?;
+    let mut out = Vec::new();
+    for item in q.items.unwrap_or_default() {
+        out.push(proposal_from_item(&item)?);
+    }
+    Ok(out)
 }
 
 pub async fn get(
@@ -212,6 +313,48 @@ pub async fn transition_to_terminal(
     }
 }
 
+/// Atomically transition a set of (already-`voting`) tree nodes to terminal
+/// statuses in one transaction. Each update is guarded `status = voting` (so a
+/// concurrently-withdrawn node fails the transaction rather than being
+/// silently overwritten). Empty input is a no-op. Bounded by DynamoDB's
+/// 100-item transaction limit — deliberation trees are far smaller.
+pub async fn transition_tree_to_terminal(
+    state: &AppState,
+    project_id: &str,
+    transitions: &[(String, ProposalStatus)],
+) -> Result<(), AppError> {
+    if transitions.is_empty() {
+        return Ok(());
+    }
+    let now = Utc::now().to_rfc3339();
+    let mut items = Vec::with_capacity(transitions.len());
+    for (proposal_id, new_status) in transitions {
+        let update = Update::builder()
+            .table_name(&state.table_name)
+            .key("PK", AttributeValue::S(format!("PROJECT#{project_id}")))
+            .key("SK", AttributeValue::S(format!("PROPOSAL#{proposal_id}")))
+            .update_expression("SET #s = :new, closedAt = :ts REMOVE GSI3PK, GSI3SK")
+            .expression_attribute_names("#s", "status")
+            .expression_attribute_values(":new", AttributeValue::S(new_status.as_str().into()))
+            .expression_attribute_values(":ts", AttributeValue::S(now.clone()))
+            .expression_attribute_values(
+                ":voting",
+                AttributeValue::S(ProposalStatus::Voting.as_str().into()),
+            )
+            .condition_expression("#s = :voting")
+            .build()
+            .map_err(|e| AppError::Internal(Box::new(e)))?;
+        items.push(TransactWriteItem::builder().update(update).build());
+    }
+    state
+        .ddb
+        .transact_write_items()
+        .set_transact_items(Some(items))
+        .send()
+        .await?;
+    Ok(())
+}
+
 pub fn proposal_from_item(item: &HashMap<String, AttributeValue>) -> Result<Proposal, AppError> {
     fn s<'a>(item: &'a HashMap<String, AttributeValue>, key: &str) -> Result<&'a str, AppError> {
         item.get(key)
@@ -275,6 +418,7 @@ pub fn proposal_from_item(item: &HashMap<String, AttributeValue>) -> Result<Prop
         root_id: s_opt(item, "rootId")
             .map(String::from)
             .unwrap_or(proposal_id),
+        parent_id: s_opt(item, "parentId").map(String::from),
         author_id: s(item, "authorId")?.to_string(),
         title: s(item, "title")?.to_string(),
         body: s(item, "body")?.to_string(),

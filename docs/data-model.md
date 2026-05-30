@@ -126,6 +126,13 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
   count, initialised `{}`), `tallyNone`, `tallyAbstain`. One write item then
   doubles as the vote guard (`status = voting AND endsAt > now`) + the tally
   adjustment — see Vote.
+- **Root-only vs fork.** Only the root carries the tally map, the GSI3
+  closing-soon keys, and the close schedule. A fork carries `parentId` (its
+  immediate parent), `rootId`, inherited `votingRule`/`quorum`/`endsAt`, its own
+  `status`, and GSI2 — but no tally/GSI3/schedule. The whole deliberation tallies
+  on the root and closes on the root's schedule; **close transitions every
+  still-`voting` node in one transaction** (winner → `passed`, others →
+  `rejected`, all → `quorum_failed`).
 - **GSI2PK** `DELIB#<rootId>` · **GSI2SK** `PROPOSAL#<createdAt>#<id>` —
   the deliberation tree (root + forks + options), sibling-ordered
 - **GSI3PK** `PROJECT#<projectId>#VOTING` · **GSI3SK** `<endsAt>` —

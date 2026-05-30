@@ -32,13 +32,21 @@ pub async fn cast(
                 return Err(AppError::Conflict("voting is closed".into()));
             }
 
-            // Slice A: the only candidate in a deliberation is its root. Reject a
-            // pick for any other id (forks/options arrive in slice B). "None of
-            // these" and "abstain" are always valid.
+            // A pick must be a node in this deliberation (the root or any of its
+            // forks). "None of these" and "abstain" are always valid.
             if let Some(id) = choice.picked_id() {
-                if id != prop.root_id {
+                let picked = match proposal::get(state, &auth.project.id, id).await {
+                    Ok(p) => p,
+                    Err(AppError::NotFound) => {
+                        return Err(AppError::BadRequest(
+                            "choice is not a proposal in this project".into(),
+                        ))
+                    }
+                    Err(e) => return Err(e),
+                };
+                if picked.root_id != prop.root_id {
                     return Err(AppError::BadRequest(
-                        "choice must be the proposal, '__none__', or '__abstain__'".into(),
+                        "choice must be an alternative in this deliberation".into(),
                     ));
                 }
             }
