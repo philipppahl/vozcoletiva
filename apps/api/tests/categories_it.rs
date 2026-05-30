@@ -12,6 +12,7 @@ mod support;
 use chrono::{Duration, Utc};
 use support::{docker_available, LocalDdb};
 use voz_api::auth::AuthenticatedUser;
+use voz_api::domain::proposal::ProposalKind;
 use voz_api::domain::slug::Slug;
 use voz_api::domain::voting_rule::VotingRule;
 use voz_api::repo::{category, project, proposal};
@@ -106,6 +107,8 @@ async fn count_referencing_drives_the_delete_guard() {
         None,
         Utc::now() + Duration::hours(1),
         used.id.clone(),
+        ProposalKind::Decision,
+        None,
     )
     .await
     .unwrap();
@@ -153,6 +156,8 @@ async fn proposal_and_fork_carry_the_category() {
         None,
         Utc::now() + Duration::hours(1),
         cat.id.clone(),
+        ProposalKind::Decision,
+        None,
     )
     .await
     .unwrap();

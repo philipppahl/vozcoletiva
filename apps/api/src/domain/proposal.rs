@@ -4,6 +4,37 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
 
+/// What a proposal produces. A `Document` proposal, when passed, becomes a
+/// version of the document named by `document_name` (decision 0004).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProposalKind {
+    Decision,
+    Document,
+}
+
+impl ProposalKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Decision => "decision",
+            Self::Document => "document",
+        }
+    }
+}
+
+impl std::str::FromStr for ProposalKind {
+    type Err = AppError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "decision" => Ok(Self::Decision),
+            "document" => Ok(Self::Document),
+            other => Err(AppError::BadRequest(format!(
+                "unknown proposal kind: {other}"
+            ))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProposalStatus {
@@ -66,5 +97,19 @@ impl Tally {
     /// Everyone who cast a vote, including abstainers.
     pub fn total(&self) -> i64 {
         self.decisive() + self.abstain
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn proposal_kind_round_trip() {
+        for k in [ProposalKind::Decision, ProposalKind::Document] {
+            assert_eq!(ProposalKind::from_str(k.as_str()).unwrap(), k);
+        }
+        assert!(ProposalKind::from_str("petition").is_err());
     }
 }

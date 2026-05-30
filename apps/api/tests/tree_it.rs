@@ -11,6 +11,7 @@ mod support;
 use chrono::{Duration, Utc};
 use support::{docker_available, LocalDdb};
 use voz_api::auth::AuthenticatedUser;
+use voz_api::domain::proposal::ProposalKind;
 use voz_api::domain::vote::Choice;
 use voz_api::domain::voting_rule::VotingRule;
 use voz_api::jobs::close_proposal;
@@ -44,6 +45,8 @@ async fn root(ddb: &LocalDdb, project: &str, rule: VotingRule, quorum: Option<i6
         quorum,
         Utc::now() + Duration::hours(1),
         "cat-test".to_string(),
+        ProposalKind::Decision,
+        None,
     )
     .await
     .expect("create root")

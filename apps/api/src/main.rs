@@ -64,6 +64,14 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
             handlers::categories::delete(&state, event, slug, id).await
         }
 
+        // Documents (derived view over Document-kind proposals)
+        ("GET", ["projects", slug, "documents"]) => {
+            handlers::documents::list(&state, event, slug).await
+        }
+        ("GET", ["projects", slug, "documents", "by-name", name]) => {
+            handlers::documents::by_name(&state, event, slug, name).await
+        }
+
         // Invites — project-scoped
         ("POST", ["projects", slug, "invites"]) => {
             handlers::invites::issue(&state, event, slug).await

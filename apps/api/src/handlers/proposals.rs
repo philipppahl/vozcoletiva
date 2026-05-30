@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::auth::{bearer_token, perms, AuthenticatedUser};
-use crate::domain::proposal::{ProposalStatus, Tally};
+use crate::domain::proposal::{ProposalKind, ProposalStatus, Tally};
 use crate::domain::voting_rule::VotingRule;
 use crate::error::AppError;
-use crate::repo::{category, proposal, vote};
+use crate::repo::{category, document, proposal, vote};
 use crate::scheduler::{cancel_close, schedule_close};
 use crate::state::AppState;
 
@@ -29,15 +29,22 @@ struct CreateProposalBody {
     /// Category (topic) for a root; defaults to the project's first. Ignored for
     /// a fork (inherited from the root).
     category_id: Option<String>,
+    /// `decision` (default) or `document`. Root only; forks inherit.
+    proposal_kind: Option<String>,
+    /// Required for a `document` root — the stable document name this proposal
+    /// is a version of.
+    document_name: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
-struct ProposalView {
+pub(crate) struct ProposalView {
     id: String,
     project_id: String,
     root_id: String,
     parent_id: Option<String>,
     category_id: String,
+    proposal_kind: String,
+    document_name: Option<String>,
     author_id: String,
     title: String,
     body: String,
@@ -132,19 +139,60 @@ pub async fn create(state: &AppState, req: Request, slug: &str) -> Result<Respon
                     ));
                 }
 
-                // Resolve the category: a named one (validated to belong to the
-                // project) or the project's default.
-                let category_id = match body.category_id.as_deref() {
-                    Some(cid) => match category::get(state, &auth.project.id, cid).await {
-                        Ok(c) => c.id,
-                        Err(AppError::NotFound) => {
-                            return Err(AppError::BadRequest(
-                                "category_id is not a category in this project".into(),
-                            ))
-                        }
-                        Err(e) => return Err(e),
-                    },
-                    None => category::default_for(state, &auth.project.id).await?.id,
+                let proposal_kind: ProposalKind =
+                    body.proposal_kind.as_deref().unwrap_or("decision").parse()?;
+
+                // Document root: a `document_name` is required, and at most one
+                // deliberation per document may be open at a time.
+                let document_name = if proposal_kind == ProposalKind::Document {
+                    let name = body
+                        .document_name
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .ok_or_else(|| {
+                            AppError::BadRequest("document_name is required for a document".into())
+                        })?
+                        .to_string();
+                    if document::active_for_name(state, &auth.project.id, &name)
+                        .await?
+                        .is_some()
+                    {
+                        return Err(AppError::Conflict(format!(
+                            "an active deliberation already exists for \"{name}\""
+                        )));
+                    }
+                    Some(name)
+                } else {
+                    None
+                };
+
+                // The current version of this document (if any) — an amendment.
+                let current_version = match &document_name {
+                    Some(name) => document::versions_for_name(state, &auth.project.id, name)
+                        .await?
+                        .into_iter()
+                        .next(),
+                    None => None,
+                };
+
+                // Category: an amendment inherits the document's current-version
+                // category; otherwise a named one (validated) or the default.
+                let category_id = if let Some(current) = &current_version {
+                    current.category_id.clone()
+                } else {
+                    match body.category_id.as_deref() {
+                        Some(cid) => match category::get(state, &auth.project.id, cid).await {
+                            Ok(c) => c.id,
+                            Err(AppError::NotFound) => {
+                                return Err(AppError::BadRequest(
+                                    "category_id is not a category in this project".into(),
+                                ))
+                            }
+                            Err(e) => return Err(e),
+                        },
+                        None => category::default_for(state, &auth.project.id).await?.id,
+                    }
                 };
 
                 let prop = proposal::create(
@@ -157,8 +205,22 @@ pub async fn create(state: &AppState, req: Request, slug: &str) -> Result<Respon
                     body.quorum,
                     ends_at,
                     category_id,
+                    proposal_kind,
+                    document_name.clone(),
                 )
                 .await?;
+
+                if current_version.is_some() {
+                    if let Some(name) = &document_name {
+                        tracing::info!(
+                            event = "document_amendment_proposed",
+                            project_id = %auth.project.id,
+                            document_name = %name,
+                            proposal_id = %prop.id,
+                            by_user = %user.user_id,
+                        );
+                    }
+                }
 
                 // Schedule the close (roots only — forks ride the root's
                 // schedule). If Scheduler isn't configured (local dev/worker),
@@ -339,7 +401,7 @@ fn view_from(p: &proposal::Proposal, your_choice: Option<String>) -> ProposalVie
 
 /// Build a DTO using an explicit tally (the deliberation/root tally), since
 /// forks carry no tally of their own.
-fn view_with_tally(
+pub(crate) fn view_with_tally(
     p: &proposal::Proposal,
     your_choice: Option<String>,
     tally: &Tally,
@@ -350,6 +412,8 @@ fn view_with_tally(
         root_id: p.root_id.clone(),
         parent_id: p.parent_id.clone(),
         category_id: p.category_id.clone(),
+        proposal_kind: p.proposal_kind.as_str().to_string(),
+        document_name: p.document_name.clone(),
         author_id: p.author_id.clone(),
         title: p.title.clone(),
         body: p.body.clone(),

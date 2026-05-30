@@ -142,7 +142,11 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
 - **GSI3PK** `PROJECT#<projectId>#VOTING` · **GSI3SK** `<endsAt>` —
   *sparse, roots in `voting` only* — closing-soon reminders + dashboard ordering
 - **GSI3PK** `PROJECT#<projectId>#DOC` · **GSI3SK** `<documentName>#<closedAt>` —
-  *sparse, passed Document proposals only* — derived document library, grouped by name
+  *sparse, passed Document proposals only* — derived document library, grouped by name.
+  **Set at close** (the same transaction that marks the node `passed`), replacing
+  the VOTING keys it carried as a root; a rejected node just removes them. The
+  active-amendment lookup is a filtered query of the project's proposals
+  (`proposalKind=document AND status=voting AND no parentId`).
 
 ### Vote (materialised, per deliberation)
 - **PK** `DELIB#<rootId>` · **SK** `VOTE#<userId>`

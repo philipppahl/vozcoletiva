@@ -176,6 +176,40 @@ export interface paths {
         patch: operations["renameCategory"];
         trace?: never;
     };
+    "/v1/projects/{slug}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List documents (derived from passed Document proposals) */
+        get: operations["listDocuments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{slug}/documents/by-name/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a document by name (versions + current + active amendment) */
+        get: operations["getDocumentByName"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{slug}/invites": {
         parameters: {
             query?: never;
@@ -416,6 +450,8 @@ export interface components {
             body: string;
             /** @description Category (topic) for a root; defaults to the project's first. Ignored for a fork. */
             category_id?: string | null;
+            /** @description Required for a `document` root — the stable document name. */
+            document_name?: string | null;
             /**
              * Format: date-time
              * @description Required for a root; inherited for a fork.
@@ -423,10 +459,28 @@ export interface components {
             ends_at?: string;
             /** @description When set, creates a fork under this parent's deliberation. */
             parent_id?: string | null;
+            /** @description `decision` (default) or `document`. Root only; forks inherit. */
+            proposal_kind?: components["schemas"]["ProposalKind"];
             quorum?: number | null;
             title: string;
             /** @description Required for a root; inherited from the root for a fork. */
             voting_rule?: components["schemas"]["VotingRule"];
+        };
+        DocumentDetail: {
+            active_amendment?: components["schemas"]["Proposal"] | null;
+            current_version: components["schemas"]["Proposal"];
+            name: string;
+            version_count: number;
+            versions: components["schemas"]["Proposal"][];
+        };
+        DocumentListResponse: {
+            documents: components["schemas"]["DocumentSummary"][];
+        };
+        DocumentSummary: {
+            active_amendment?: components["schemas"]["Proposal"] | null;
+            current_version?: components["schemas"]["Proposal"] | null;
+            name: string;
+            version_count: number;
         };
         Hello: {
             /** @constant */
@@ -514,12 +568,15 @@ export interface components {
             closed_at?: string | null;
             /** Format: date-time */
             created_at: string;
+            /** @description Set on Document-kind proposals — the document this is a version of. */
+            document_name?: string | null;
             /** Format: date-time */
             ends_at: string;
             id: string;
             /** @description Parent proposal id for a fork; null for a root. */
             parent_id?: string | null;
             project_id: string;
+            proposal_kind: components["schemas"]["ProposalKind"];
             quorum?: number | null;
             /** @description Root of this proposal's deliberation; equals `id` for a root. */
             root_id: string;
@@ -539,6 +596,8 @@ export interface components {
             voting_rule: components["schemas"]["VotingRule"];
             your_choice?: components["schemas"]["Choice"];
         };
+        /** @enum {string} */
+        ProposalKind: "decision" | "document";
         ProposalListResponse: {
             proposals: components["schemas"]["Proposal"][];
         };
@@ -593,6 +652,8 @@ export interface components {
     };
     parameters: {
         CategoryId: string;
+        /** @description Document name (percent-encoded). */
+        DocumentName: string;
         ProposalId: string;
         Slug: string;
     };
@@ -1010,6 +1071,56 @@ export interface operations {
             };
         };
     };
+    listDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Documents with their current version + active amendment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentListResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getDocumentByName: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Document name (percent-encoded). */
+                name: components["parameters"]["DocumentName"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Document detail. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentDetail"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listInvites: {
         parameters: {
             query?: never;
@@ -1159,7 +1270,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             403: components["responses"]["Forbidden"];
-            /** @description Cannot fork a closed deliberation. */
+            /** @description Cannot fork a closed deliberation, or a document already has an active deliberation. */
             409: {
                 headers: {
                     [name: string]: unknown;

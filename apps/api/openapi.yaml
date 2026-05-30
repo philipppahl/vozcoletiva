@@ -230,6 +230,41 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  /v1/projects/{slug}/documents:
+    get:
+      summary: List documents (derived from passed Document proposals)
+      operationId: listDocuments
+      tags: [documents]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Documents with their current version + active amendment.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/projects/{slug}/documents/by-name/{name}:
+    get:
+      summary: Get a document by name (versions + current + active amendment)
+      operationId: getDocumentByName
+      tags: [documents]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/DocumentName'
+      responses:
+        '200':
+          description: Document detail.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DocumentDetail' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/projects/{slug}/invites:
     get:
       summary: List a project's invites
@@ -362,7 +397,7 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '409':
-          description: Cannot fork a closed deliberation.
+          description: Cannot fork a closed deliberation, or a document already has an active deliberation.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
@@ -642,6 +677,13 @@ components:
       required: true
       schema: { type: string }
 
+    DocumentName:
+      in: path
+      name: name
+      required: true
+      description: Document name (percent-encoded).
+      schema: { type: string }
+
   responses:
     Forbidden:
       description: Forbidden.
@@ -792,6 +834,44 @@ components:
       properties:
         name: { type: string, minLength: 1, maxLength: 30 }
 
+    DocumentSummary:
+      type: object
+      required: [name, version_count]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        version_count: { type: integer }
+        current_version:
+          oneOf: [{ $ref: '#/components/schemas/Proposal' }]
+          nullable: true
+        active_amendment:
+          oneOf: [{ $ref: '#/components/schemas/Proposal' }]
+          nullable: true
+
+    DocumentListResponse:
+      type: object
+      required: [documents]
+      additionalProperties: false
+      properties:
+        documents:
+          type: array
+          items: { $ref: '#/components/schemas/DocumentSummary' }
+
+    DocumentDetail:
+      type: object
+      required: [name, version_count, current_version, versions]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        version_count: { type: integer }
+        current_version: { $ref: '#/components/schemas/Proposal' }
+        versions:
+          type: array
+          items: { $ref: '#/components/schemas/Proposal' }
+        active_amendment:
+          oneOf: [{ $ref: '#/components/schemas/Proposal' }]
+          nullable: true
+
     IssueInviteBody:
       type: object
       required: [role]
@@ -848,6 +928,10 @@ components:
       type: string
       enum: [plurality, simple_majority, two_thirds, consensus]
 
+    ProposalKind:
+      type: string
+      enum: [decision, document]
+
     Choice:
       type: string
       description: >
@@ -881,6 +965,13 @@ components:
           type: string
           nullable: true
           description: Category (topic) for a root; defaults to the project's first. Ignored for a fork.
+        proposal_kind:
+          allOf: [{ $ref: '#/components/schemas/ProposalKind' }]
+          description: '`decision` (default) or `document`. Root only; forks inherit.'
+        document_name:
+          type: string
+          nullable: true
+          description: Required for a `document` root — the stable document name.
 
     CastVoteBody:
       type: object
@@ -896,6 +987,7 @@ components:
         - project_id
         - root_id
         - category_id
+        - proposal_kind
         - author_id
         - title
         - body
@@ -922,6 +1014,11 @@ components:
         category_id:
           type: string
           description: Project-scoped category (topic) id.
+        proposal_kind: { $ref: '#/components/schemas/ProposalKind' }
+        document_name:
+          type: string
+          nullable: true
+          description: Set on Document-kind proposals — the document this is a version of.
         author_id: { type: string }
         title: { type: string }
         body: { type: string }

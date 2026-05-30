@@ -6,7 +6,7 @@ use serde::Serialize;
 use ulid::Ulid;
 
 use crate::auth::AuthenticatedUser;
-use crate::domain::proposal::{ProposalStatus, Tally};
+use crate::domain::proposal::{ProposalKind, ProposalStatus, Tally};
 use crate::domain::voting_rule::VotingRule;
 use crate::error::AppError;
 use crate::state::AppState;
@@ -23,6 +23,11 @@ pub struct Proposal {
     /// Project-scoped category (topic). Roots set it from the request or the
     /// default; forks inherit the root's.
     pub category_id: String,
+    /// Decision (default) or Document. Forks inherit the root's.
+    pub proposal_kind: ProposalKind,
+    /// Set only on Document-kind proposals — the stable document name this
+    /// proposal is a version of. Forks inherit the root's.
+    pub document_name: Option<String>,
     pub author_id: String,
     pub title: String,
     pub body: String,
@@ -47,6 +52,8 @@ pub async fn create(
     quorum: Option<i64>,
     ends_at: DateTime<Utc>,
     category_id: String,
+    proposal_kind: ProposalKind,
+    document_name: Option<String>,
 ) -> Result<Proposal, AppError> {
     let id = Ulid::new().to_string();
     let now = Utc::now();
@@ -56,6 +63,8 @@ pub async fn create(
         root_id: id.clone(),
         parent_id: None,
         category_id,
+        proposal_kind,
+        document_name,
         author_id: author.user_id.clone(),
         title,
         body,
@@ -85,6 +94,10 @@ pub async fn create(
         .item(
             "categoryId",
             AttributeValue::S(proposal.category_id.clone()),
+        )
+        .item(
+            "proposalKind",
+            AttributeValue::S(proposal.proposal_kind.as_str().into()),
         )
         .item("votingRule", AttributeValue::S(voting_rule.as_str().into()))
         .item("endsAt", AttributeValue::S(ends_at.to_rfc3339()))
@@ -117,6 +130,9 @@ pub async fn create(
     if let Some(q) = quorum {
         put = put.item("quorum", AttributeValue::N(q.to_string()));
     }
+    if let Some(name) = &proposal.document_name {
+        put = put.item("documentName", AttributeValue::S(name.clone()));
+    }
 
     put.send().await?;
     Ok(proposal)
@@ -143,6 +159,8 @@ pub async fn create_fork(
         root_id: root.id.clone(),
         parent_id: Some(parent_id.to_string()),
         category_id: root.category_id.clone(),
+        proposal_kind: root.proposal_kind,
+        document_name: root.document_name.clone(),
         author_id: author.user_id.clone(),
         title,
         body,
@@ -172,6 +190,10 @@ pub async fn create_fork(
         .item("parentId", AttributeValue::S(parent_id.to_string()))
         .item("categoryId", AttributeValue::S(root.category_id.clone()))
         .item(
+            "proposalKind",
+            AttributeValue::S(root.proposal_kind.as_str().into()),
+        )
+        .item(
             "votingRule",
             AttributeValue::S(root.voting_rule.as_str().into()),
         )
@@ -190,6 +212,9 @@ pub async fn create_fork(
 
     if let Some(q) = root.quorum {
         put = put.item("quorum", AttributeValue::N(q.to_string()));
+    }
+    if let Some(name) = &root.document_name {
+        put = put.item("documentName", AttributeValue::S(name.clone()));
     }
 
     put.send().await?;
@@ -324,6 +349,16 @@ pub async fn transition_to_terminal(
     }
 }
 
+/// One node's terminal transition. `doc_index` is `Some(documentName)` only for
+/// a **passed Document** node — it moves the item's GSI3 keys to the DOC
+/// partition (`PROJECT#p#DOC` / `name#closedAt`) so it surfaces as a document
+/// version; otherwise the GSI3 (closing-soon) keys are removed.
+pub struct TreeTransition {
+    pub proposal_id: String,
+    pub status: ProposalStatus,
+    pub doc_index: Option<String>,
+}
+
 /// Atomically transition a set of (already-`voting`) tree nodes to terminal
 /// statuses in one transaction. Each update is guarded `status = voting` (so a
 /// concurrently-withdrawn node fails the transaction rather than being
@@ -332,27 +367,44 @@ pub async fn transition_to_terminal(
 pub async fn transition_tree_to_terminal(
     state: &AppState,
     project_id: &str,
-    transitions: &[(String, ProposalStatus)],
+    transitions: &[TreeTransition],
 ) -> Result<(), AppError> {
     if transitions.is_empty() {
         return Ok(());
     }
     let now = Utc::now().to_rfc3339();
     let mut items = Vec::with_capacity(transitions.len());
-    for (proposal_id, new_status) in transitions {
-        let update = Update::builder()
+    for t in transitions {
+        let mut update = Update::builder()
             .table_name(&state.table_name)
             .key("PK", AttributeValue::S(format!("PROJECT#{project_id}")))
-            .key("SK", AttributeValue::S(format!("PROPOSAL#{proposal_id}")))
-            .update_expression("SET #s = :new, closedAt = :ts REMOVE GSI3PK, GSI3SK")
+            .key(
+                "SK",
+                AttributeValue::S(format!("PROPOSAL#{}", t.proposal_id)),
+            )
             .expression_attribute_names("#s", "status")
-            .expression_attribute_values(":new", AttributeValue::S(new_status.as_str().into()))
+            .expression_attribute_values(":new", AttributeValue::S(t.status.as_str().into()))
             .expression_attribute_values(":ts", AttributeValue::S(now.clone()))
             .expression_attribute_values(
                 ":voting",
                 AttributeValue::S(ProposalStatus::Voting.as_str().into()),
             )
-            .condition_expression("#s = :voting")
+            .condition_expression("#s = :voting");
+
+        update = match &t.doc_index {
+            // Passed document version → index it on the DOC partition.
+            Some(name) => update
+                .update_expression("SET #s = :new, closedAt = :ts, GSI3PK = :dpk, GSI3SK = :dsk")
+                .expression_attribute_values(
+                    ":dpk",
+                    AttributeValue::S(format!("PROJECT#{project_id}#DOC")),
+                )
+                .expression_attribute_values(":dsk", AttributeValue::S(format!("{name}#{now}"))),
+            // Everything else → drop the closing-soon keys.
+            None => update.update_expression("SET #s = :new, closedAt = :ts REMOVE GSI3PK, GSI3SK"),
+        };
+
+        let update = update
             .build()
             .map_err(|e| AppError::Internal(Box::new(e)))?;
         items.push(TransactWriteItem::builder().update(update).build());
@@ -431,6 +483,11 @@ pub fn proposal_from_item(item: &HashMap<String, AttributeValue>) -> Result<Prop
             .unwrap_or(proposal_id),
         parent_id: s_opt(item, "parentId").map(String::from),
         category_id: s_opt(item, "categoryId").unwrap_or("").to_string(),
+        proposal_kind: s_opt(item, "proposalKind")
+            .map(|k| k.parse())
+            .transpose()?
+            .unwrap_or(ProposalKind::Decision),
+        document_name: s_opt(item, "documentName").map(String::from),
         author_id: s(item, "authorId")?.to_string(),
         title: s(item, "title")?.to_string(),
         body: s(item, "body")?.to_string(),

@@ -5,6 +5,7 @@ use crate::error::AppError;
 
 pub mod categories;
 pub mod comments;
+pub mod documents;
 pub mod hello;
 pub mod invites;
 pub mod me;

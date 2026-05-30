@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
 use crate::domain::outcome::{decide_outcome, OutcomeStatus};
-use crate::domain::proposal::ProposalStatus;
+use crate::domain::proposal::{ProposalKind, ProposalStatus};
 use crate::error::AppError;
-use crate::repo::proposal;
+use crate::repo::proposal::{self, TreeTransition};
 use crate::state::AppState;
 
 /// Close a deliberation: read the whole tree, decide the outcome from the root's
@@ -41,8 +41,9 @@ pub async fn close(
     let outcome = decide_outcome(&valid_ids, &root.tally, root.voting_rule, root.quorum);
 
     // Per-node terminal status. Only still-`voting` nodes are transitioned;
-    // already-terminal nodes (e.g. a withdrawn fork) keep their status.
-    let transitions: Vec<(String, ProposalStatus)> = nodes
+    // already-terminal nodes (e.g. a withdrawn fork) keep their status. A passed
+    // Document node carries its name so it's indexed as a document version.
+    let transitions: Vec<TreeTransition> = nodes
         .iter()
         .filter(|n| !n.status.is_terminal())
         .map(|n| {
@@ -53,13 +54,36 @@ pub async fn close(
                 }
                 OutcomeStatus::HasWinner | OutcomeStatus::NoWinner => ProposalStatus::Rejected,
             };
-            (n.id.clone(), status)
+            let doc_index =
+                if status == ProposalStatus::Passed && n.proposal_kind == ProposalKind::Document {
+                    n.document_name.clone()
+                } else {
+                    None
+                };
+            TreeTransition {
+                proposal_id: n.id.clone(),
+                status,
+                doc_index,
+            }
         })
         .collect();
 
     if transitions.is_empty() {
         return Ok(false);
     }
+
+    // Audit: a passed Document node publishes a new version.
+    for t in &transitions {
+        if let Some(name) = &t.doc_index {
+            tracing::info!(
+                event = "document_version_published",
+                project_id = %prop.project_id,
+                document_name = %name,
+                proposal_id = %t.proposal_id,
+            );
+        }
+    }
+
     proposal::transition_tree_to_terminal(state, &prop.project_id, &transitions).await?;
 
     // Counts only — never the per-user choice (PII).

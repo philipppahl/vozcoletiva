@@ -1,5 +1,6 @@
 pub mod category;
 pub mod comment;
+pub mod document;
 pub mod invite;
 pub mod membership;
 pub mod project;

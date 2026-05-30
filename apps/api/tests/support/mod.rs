@@ -47,27 +47,39 @@ impl LocalDdb {
     /// Start a container, wait for readiness, and create the table. Panics on
     /// any setup failure (the caller should gate on [`docker_available`]).
     pub async fn start() -> Self {
-        let port = free_port();
-        let container = format!("voz-ddb-test-{port}");
-
-        let run = Command::new("docker")
-            .args([
-                "run",
-                "-d",
-                "--rm",
-                "-p",
-                &format!("{port}:8000"),
-                "--name",
-                &container,
-                "amazon/dynamodb-local",
-            ])
-            .output()
-            .expect("docker run");
-        assert!(
-            run.status.success(),
-            "docker run failed: {}",
-            String::from_utf8_lossy(&run.stderr)
-        );
+        // Retry the container launch a few times with a fresh port each attempt —
+        // a port/resource race can fail one `docker run` when many containers
+        // start at once (parallel test suites).
+        let mut port = free_port();
+        let mut container = format!("voz-ddb-test-{port}");
+        let mut last_err = String::new();
+        let mut launched = false;
+        for attempt in 0..3 {
+            if attempt > 0 {
+                port = free_port();
+                container = format!("voz-ddb-test-{port}");
+                std::thread::sleep(std::time::Duration::from_millis(300));
+            }
+            let run = Command::new("docker")
+                .args([
+                    "run",
+                    "-d",
+                    "--rm",
+                    "-p",
+                    &format!("{port}:8000"),
+                    "--name",
+                    &container,
+                    "amazon/dynamodb-local",
+                ])
+                .output()
+                .expect("docker run");
+            if run.status.success() {
+                launched = true;
+                break;
+            }
+            last_err = String::from_utf8_lossy(&run.stderr).into_owned();
+        }
+        assert!(launched, "docker run failed after retries: {last_err}");
 
         let conf = aws_sdk_dynamodb::config::Builder::default()
             .behavior_version(BehaviorVersion::latest())
