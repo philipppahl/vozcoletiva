@@ -213,7 +213,11 @@ function ProposalCardLink({ slug, p }: { slug: string; p: ExtendedProposal }) {
           >
             {p.title}
           </h3>
-          <TallyBar yes={p.tally_yes} no={p.tally_no} abstain={p.tally_abstain} />
+          <TallyBar
+            yes={p.tally_by_choice?.[p.id] ?? 0}
+            no={(p.tally_decisive ?? 0) - (p.tally_by_choice?.[p.id] ?? 0)}
+            abstain={p.tally_abstain ?? 0}
+          />
         </div>
       </Card>
     </Link>

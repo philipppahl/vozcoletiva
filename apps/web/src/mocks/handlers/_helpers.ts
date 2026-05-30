@@ -18,8 +18,6 @@ import {
   repliesTo,
   treeFlat,
   userVote,
-  VOTE_ABSTAIN,
-  VOTE_NONE,
 } from '../db';
 import { emitDeliberationClosed } from '../inboxEmit';
 import { decideOutcome } from '../outcome';
@@ -39,53 +37,29 @@ export function toProposalDto(p: MockProposal, viewerId: string | null): Proposa
   return {
     id: p.id,
     project_id: p.projectId,
+    root_id: p.rootId,
+    parent_id: p.parentId ?? null,
+    category_id: p.categoryId,
+    proposal_kind: p.proposalKind,
+    document_name: p.documentName ?? null,
+    is_question: p.isQuestion ?? false,
     author_id: p.authorId,
     title: p.title,
     body: p.body,
-    // Wire-compat: legacy 'voting_mode' field — for now we map plurality/consensus
-    // onto the closest legacy enum so older consumers don't crash; the FE shim
-    // reads the new `voting_rule` field instead.
-    voting_mode: p.votingRule === 'two_thirds' ? 'qualified_two_thirds' : 'simple_majority',
+    voting_rule: p.votingRule,
     quorum: p.quorum ?? null,
     status: p.status,
     created_at: p.createdAt,
     ends_at: p.endsAt,
     closed_at: p.closedAt ?? null,
-    // Per-deliberation tally encoded as tally_yes = votes for THIS alternative,
-    // tally_no = votes for any OTHER alternative + "none of these",
-    // tally_abstain = abstain. Keeps the legacy schema usable but the FE
-    // reads the new fields below for the real picture.
-    tally_yes: t.byChoice[p.id] ?? 0,
-    tally_no:
-      Object.entries(t.byChoice).reduce((sum, [id, n]) => (id === p.id ? sum : sum + n), 0) +
-      t.none,
-    tally_abstain: t.abstain,
-    voter_count: t.total,
-    ...(mine && {
-      your_choice:
-        mine.choice === VOTE_ABSTAIN
-          ? 'abstain'
-          : mine.choice === VOTE_NONE
-            ? undefined
-            : mine.choice === p.id
-              ? 'yes'
-              : 'no',
-    }),
-    // Fork-tree + kind + new voting rule + per-alternative tally — extending
-    // the wire shape locally for the mock-first slice.
-    parent_id: p.parentId ?? null,
-    root_id: p.rootId,
-    proposal_kind: p.proposalKind,
-    document_name: p.documentName ?? null,
-    category_id: p.categoryId,
-    is_question: p.isQuestion ?? false,
-    voting_rule: p.votingRule,
-    /** Map of alternative-proposal-id → vote count for the whole deliberation. */
+    // Per-deliberation tally (matches the real API DTO).
     tally_by_choice: t.byChoice,
     tally_none: t.none,
+    tally_abstain: t.abstain,
     tally_decisive: t.decisive,
-    /** Caller's actual choice — proposal id, VOTE_NONE, or VOTE_ABSTAIN. */
-    your_root_choice: mine?.choice ?? null,
+    tally_total: t.total,
+    // The caller's raw choice: a proposal id, VOTE_NONE, VOTE_ABSTAIN, or null.
+    your_choice: mine?.choice ?? null,
   } as Proposal;
 }
 

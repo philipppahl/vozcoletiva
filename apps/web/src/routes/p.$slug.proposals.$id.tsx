@@ -254,7 +254,7 @@ function ProposalPane({
           <VoteControl
             tree={tree}
             viewing={p}
-            myChoice={root.your_root_choice ?? null}
+            myChoice={root.your_choice ?? null}
             votingRule={votingRule}
             quorum={p.quorum}
             busy={voteBusy}

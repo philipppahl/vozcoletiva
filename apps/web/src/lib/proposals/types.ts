@@ -14,28 +14,13 @@ export type ProposalKind = 'decision' | 'document';
 export const VOTE_NONE = '__none__';
 export const VOTE_ABSTAIN = '__abstain__';
 
-export type ExtendedProposal = components['schemas']['Proposal'] & {
-  parent_id?: string | null;
-  root_id: string;
-  proposal_kind?: ProposalKind | null;
-  document_name?: string | null;
-  voting_rule?: VotingRule | null;
-  /** Per-alternative vote count for the whole deliberation. Key = alternative
-   *  proposal id; value = number of voters who picked it. */
-  tally_by_choice?: Record<string, number>;
-  /** Votes for "none of these". */
-  tally_none?: number;
-  /** Total decisive (= alternative or "none of these") votes. */
-  tally_decisive?: number;
-  /** Caller's actual root-level choice. Proposal id, VOTE_NONE, VOTE_ABSTAIN,
-   *  or null if not voted yet. */
-  your_root_choice?: string | null;
-  /** Project-scoped category this proposal belongs to. */
-  category_id?: string | null;
-  /** True on the root of a multi-option decision — frames the question but is
-   *  not itself a votable choice. */
-  is_question?: boolean | null;
-};
+/**
+ * The wire-level Proposal. The OpenAPI spec now carries every field the FE
+ * needs (root_id, parent_id, proposal_kind, document_name, voting_rule,
+ * tally_by_choice/none/abstain/decisive/total, is_question, category_id,
+ * your_choice), so this is a straight alias kept for import stability.
+ */
+export type ExtendedProposal = components['schemas']['Proposal'];
 
 export interface ExtendedProposalListResponse {
   proposals: ExtendedProposal[];

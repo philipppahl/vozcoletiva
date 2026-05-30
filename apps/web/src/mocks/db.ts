@@ -8,7 +8,6 @@ import type { components } from '@vozcoletiva/api-client';
 export type Role = components['schemas']['Role'];
 export type Choice = components['schemas']['Choice'];
 export type ProposalStatus = components['schemas']['ProposalStatus'];
-export type VotingMode = components['schemas']['VotingMode'];
 
 export interface MockUser {
   userId: string;
