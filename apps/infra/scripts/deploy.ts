@@ -214,7 +214,10 @@ async function main() {
   console.log('\n• building web app…');
   run('bun run build', {
     cwd: resolve(root, 'apps/web'),
-    env: args.env === 'prod' ? { VITE_USE_MOCKS: '0' } : {},
+    // Dev ships the comms-hybrid: VITE_MOCK_COMMS must be in the *process* env
+    // so vite.config (Node) sees it for `selfDestroying`, and in the client
+    // bundle so `main.tsx` starts the comms mocks. Prod ships no mocks.
+    env: args.env === 'prod' ? { VITE_USE_MOCKS: '0' } : { VITE_MOCK_COMMS: '1' },
   });
   // Belt-and-braces: scan the prod bundle for any MSW residue.
   if (args.env === 'prod') {
