@@ -15,7 +15,7 @@ describe('VozStack (dev)', () => {
     return Template.fromStack(stack);
   }
 
-  it('creates the single DynamoDB table with PK/SK and two GSIs', () => {
+  it('creates the single DynamoDB table with PK/SK and three GSIs', () => {
     const t = synth();
 
     t.hasResourceProperties('AWS::DynamoDB::Table', {
@@ -28,6 +28,7 @@ describe('VozStack (dev)', () => {
       GlobalSecondaryIndexes: Match.arrayWith([
         Match.objectLike({ IndexName: 'GSI1' }),
         Match.objectLike({ IndexName: 'GSI2' }),
+        Match.objectLike({ IndexName: 'GSI3' }),
       ]),
     });
   });

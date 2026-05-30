@@ -79,11 +79,13 @@ pub async fn create(
         .item("tallyNo", AttributeValue::N("0".into()))
         .item("tallyAbstain", AttributeValue::N("0".into()))
         .item("createdAt", AttributeValue::S(now.to_rfc3339()))
+        // Closing-soon window lives on GSI3 (`PROJECT#p#VOTING` → endsAt), per
+        // docs/data-model.md. Sparse: only roots in `voting` carry the GSI3 keys.
         .item(
-            "GSI1PK",
-            AttributeValue::S(format!("PROJECT#{project_id}#STATUS#voting")),
+            "GSI3PK",
+            AttributeValue::S(format!("PROJECT#{project_id}#VOTING")),
         )
-        .item("GSI1SK", AttributeValue::S(ends_at.to_rfc3339()))
+        .item("GSI3SK", AttributeValue::S(ends_at.to_rfc3339()))
         .condition_expression("attribute_not_exists(PK)");
 
     if let Some(q) = quorum {
@@ -157,7 +159,7 @@ pub async fn set_schedule_arn(
 }
 
 /// Transition a proposal to a terminal state. Idempotent: succeeds only if the
-/// proposal is currently `voting`. Also drops it off GSI1's `STATUS#voting`
+/// proposal is currently `voting`. Also drops it off GSI3's `VOTING`
 /// partition so the "closing soon" view no longer surfaces it.
 pub async fn transition_to_terminal(
     state: &AppState,
@@ -179,7 +181,7 @@ pub async fn transition_to_terminal(
         .key("SK", AttributeValue::S(format!("PROPOSAL#{proposal_id}")))
         .update_expression(
             "SET #s = :new, closedAt = :ts \
-             REMOVE GSI1PK, GSI1SK",
+             REMOVE GSI3PK, GSI3SK",
         )
         .expression_attribute_names("#s", "status")
         .expression_attribute_values(

@@ -1,199 +1,264 @@
-# Data model — DynamoDB single-table sketch
+# Data model — DynamoDB single-table design
 
-Status: initial sketch, 2026-05-17. Expected to evolve as the model is implemented; revisions land here directly until it stabilises into a frozen spec.
+Status: reconciled against the implemented mock surface, 2026-05-30. Supersedes
+the 2026-05-17 sketch. Revisions land here directly until the model freezes into
+a versioned spec. Architectural deltas are captured in
+`docs/decisions/0010-single-table-design.md`.
+
+> This revision was reconciled against the **actual mock API** (`apps/web/src/mocks`):
+> 26 routes, 42 endpoints, and the entity shapes in `mocks/db.ts`. The mock
+> handlers are the authoritative access-pattern catalogue — every endpoint here
+> maps to a real query below.
 
 ## Principles
 
-- **One DynamoDB table** holds all entities. Table name: `vozcoletiva-<env>` (e.g. `vozcoletiva-dev`, `vozcoletiva-prod`).
-- **Overloaded keys**: `PK` / `SK` shapes differ per entity type; key prefixes name the entity.
-- **GSI budget**: 3 GSIs at MVP. Add a 4th only with a written reason.
-- **Hot-partition aware**: prefer per-project partitions over global ones. Sharding suffix added only if a real hot partition shows up under load.
-- **Append-only event log** (vote events, audit events) lives in the same table under namespaced SKs. The materialised current state lives alongside.
-- **ULIDs** for ids — lexicographically sortable, so timestamp-prefixed SKs sort naturally.
-- **No PII in keys**. Email never appears in `PK` / `SK` / GSI keys.
+- **One DynamoDB table** holds all entities. Table name: `vozcoletiva-<env>`
+  (e.g. `vozcoletiva-dev`, `vozcoletiva-prod`).
+- **Overloaded keys**: `PK` / `SK` shapes differ per entity; key prefixes name
+  the entity. A `type` attribute on every item aids client discrimination and
+  analytics filters.
+- **GSI budget: 3 GSIs at MVP.** A 4th needs a written reason. The current
+  design fits the whole surface in 3 by overloading each GSI with disjoint,
+  sparse key-spaces (see § GSIs).
+- **ULIDs for ids** — lexicographically time-sortable. Because the id sorts by
+  time, the SK is just `PREFIX#<ulid>` (no separate timestamp segment), and
+  "mark item X read" is a point `UpdateItem` since the id *is* the SK suffix.
+- **Hot-partition aware**: per-project partitions over global ones. Vote storms
+  land on `DELIB#<root>` and chat bursts on `CONV#<id>` — both isolated from
+  `PROJECT#<pid>`, so neither starves project reads. Shard suffix only if a hot
+  partition is measured.
+- **Event-sourced where it matters**: vote events and audit events are
+  append-only under namespaced SKs; current state (vote, tally, proposal head)
+  is materialised alongside.
+- **No PII in keys.** Email never appears in `PK` / `SK` / GSI keys; it lives in
+  Cognito only.
 
 ## Naming conventions
 
-- Entity ids are ULIDs unless otherwise noted (`userId` = Cognito `sub`).
-- Key parts uppercase, `#`-separated: `PROJECT#01HXXX...`, `USER#01HYYY...`.
-- Timestamps in keys: ISO-8601 UTC, lexicographically sortable.
-- GSI attribute names: `GSI1PK`, `GSI1SK`, `GSI2PK`, `GSI2SK`, …
-- Every item has a `type` attribute for client-side discrimination and analytics filters.
+- Entity ids are ULIDs unless noted; `userId` = Cognito `sub`.
+- Key parts uppercase, `#`-separated: `PROJECT#01HXXX…`, `USER#01HYYY…`.
+- GSI attribute names: `GSI1PK`, `GSI1SK`, `GSI2PK`, `GSI2SK`, `GSI3PK`, `GSI3SK`.
+- Every item carries `type` (e.g. `proposal`, `vote`, `message`).
+
+## Domain shape (what the keys must serve)
+
+Reconciled from `mocks/db.ts`. Four facts drive the whole design:
+
+1. **Votes are per-deliberation, not per-proposal.** A vote belongs to a *root*
+   proposal (`rootId`); `choice` is the picked alternative's **proposal id**, or
+   `__none__` / `__abstain__`. The tally is over the root's child proposals.
+2. **Documents are derived, not stored.** A "document" is the set of *passed*
+   `proposalKind:'document'` proposals sharing a `documentName`; the current
+   version is the most-recently-closed one. There is no Document entity.
+3. **Conversations are unified** — a `Conversation` is either a project
+   **channel** or a user-pair **DM**. Messages carry `parentMessageId` (threads).
+   Two read-marker kinds exist: per-conversation and per-thread.
+4. **Forks and multi-option labels are child proposals** linked by
+   `parentId` / `rootId`. `isQuestion` marks a non-votable multi-option root.
 
 ## Entity catalog
 
 For each entity: `PK` / `SK` / notable attrs / GSI mappings.
 
-### User
-- **PK**: `USER#<userId>` (`userId` = Cognito `sub`)
-- **SK**: `PROFILE`
+### User profile
+- **PK** `USER#<userId>` · **SK** `PROFILE`
 - attrs: `displayName`, `locale`, `theme`, `notificationDefaults`, `createdAt`
-- (Email stays in Cognito only — not duplicated here.)
+- Email stays in Cognito — never duplicated here.
 
-### Project (metadata)
-- **PK**: `PROJECT#<projectId>`
-- **SK**: `METADATA`
-- attrs: `name`, `slug`, `visibility`, `template`, `defaults` (votingMode, runtime, quorum), `language`, `codeOfConduct`, `ownerId`, `createdAt`
-- **GSI1PK**: `PROJECTSLUG#<slug>` / **GSI1SK**: `METADATA` — slug → project lookup
-
-### Membership
-- **PK**: `PROJECT#<projectId>`
-- **SK**: `MEMBER#<userId>`
-- attrs: `role` (owner / admin / moderator / member / observer), `joinedAt`, `nickname` (optional), `invitedBy`
-- **GSI1PK**: `USER#<userId>` / **GSI1SK**: `MEMBER#<projectId>` — list a user's projects
-
-### Topic
-- **PK**: `PROJECT#<projectId>`
-- **SK**: `TOPIC#<topicId>`
-- attrs: `name`, `slug`, `position`, `createdAt`
-
-### Channel
-- **PK**: `PROJECT#<projectId>`
-- **SK**: `CHANNEL#<channelId>`
-- attrs: `name`, `isDefault`, `createdAt`
-
-### Proposal (head / current state)
-- **PK**: `PROJECT#<projectId>`
-- **SK**: `PROPOSAL#<proposalId>`
-- attrs: `type` (decision / document / election / poll / petition), `title`, `body` (current version), `status` (draft / discussion / voting / passed / rejected / quorum_failed / withdrawn), `votingMode`, `endsAt`, `quorum`, `authorId`, `topicId`, `forkOf`, `forkMode`, `currentVersion`, `tallyYes`, `tallyNo`, `tallyAbstain`, `voterCount`, `createdAt`
-- **GSI1PK**: `PROJECT#<projectId>#STATUS#<status>` / **GSI1SK**: `<endsAt>` — closing-soon + scheduler queries
-
-### Proposal version (edit history)
-- **PK**: `PROPOSAL#<proposalId>`
-- **SK**: `VERSION#<n>` (zero-padded monotonic int)
-- attrs: `title`, `body`, `editedBy`, `editedAt`, `isSubstantive`
-
-### Vote (current materialised state)
-- **PK**: `PROPOSAL#<proposalId>`
-- **SK**: `VOTE#<userId>`
-- attrs: `choice` (yes / no / abstain / rank), `votedAt`, `basedOnVersion`
-- **GSI2PK**: `USER#<userId>` / **GSI2SK**: `VOTE#<projectId>#<proposalId>` — user's vote history
-
-### Vote event (append-only audit)
-- **PK**: `PROPOSAL#<proposalId>`
-- **SK**: `VOTEEVENT#<isoTs>#<userId>`
-- attrs: `choice` (or `null` for retraction), `previousChoice`, `source` (web / api), `tokenId` (if via API token)
-
-### Comment
-- **PK**: `PROPOSAL#<proposalId>`
-- **SK**: `COMMENT#<isoTs>#<commentId>`
-- attrs: `authorId`, `parentCommentId` (nullable, for threading), `body`, `editedAt`, `deletedAt`
-- Thread tree reconstructed in the app from `parentCommentId`; SK sorts chronologically for reading.
-
-### Message (chat)
-- **PK**: `CHANNEL#<channelId>`
-- **SK**: `MESSAGE#<isoTs>#<messageId>`
-- attrs: `authorId`, `body`, `attachments` (S3 keys for image / voice note), `replyToMessageId`, `editedAt`, `deletedAt`
-
-### Last-read marker (chat read state)
-- **PK**: `USER#<userId>`
-- **SK**: `LASTREAD#<channelId>`
-- attrs: `lastReadAt`
-
-### Reaction
-- **PK**: `<targetPK>` (`PROPOSAL#...` for comment reactions, `CHANNEL#...` for message reactions)
-- **SK**: `REACTION#<targetId>#<emoji>#<userId>`
-- attrs: `createdAt`
-- (Per-emoji counters can be denormalised onto the target if reaction reads become hot.)
-
-### Invite
-- **PK**: `PROJECT#<projectId>`
-- **SK**: `INVITE#<token>`
-- attrs: `code` (short typeable), `role`, `expiresAt`, `maxUses`, `useCount`, `note`, `issuedBy`, `issuedAt`, `revokedAt`
-- **GSI1PK**: `INVITETOKEN#<token>` / **GSI1SK**: `INVITE` — URL token → invite
-- **GSI2PK**: `INVITECODE#<code>` / **GSI2SK**: `INVITE` — short code → invite
-
-### Document (canonical artefact)
-- **PK**: `PROJECT#<projectId>`
-- **SK**: `DOC#<documentId>`
-- attrs: `title`, `currentVersion`, `originProposalId`, `createdAt`
-- **GSI1PK**: `DOCSLUG#<projectId>#<slug>` / **GSI1SK**: `DOC` — slug → document
-
-### Document version
-- **PK**: `DOC#<documentId>`
-- **SK**: `DOCVER#<n>`
-- attrs: `body`, `summary`, `basedOnVersion`, `acceptedFromProposalId`, `acceptedAt`
-
-### Notification preference
-- **PK**: `USER#<userId>`
-- **SK**: `NOTIFPREF#<projectId>#<eventType>`
-- attrs: `channels` (push / email), `muted`, `quietHours`
-
-### Push subscription
-- **PK**: `USER#<userId>`
-- **SK**: `PUSHSUB#<endpointHash>`
-- attrs: `endpoint`, `p256dh`, `auth`, `userAgent`, `createdAt`
-
-### Audit event
-- **PK**: `PROJECT#<projectId>`
-- **SK**: `AUDIT#<isoTs>#<eventId>`
-- attrs: `actorId`, `tokenId` (if via API), `action`, `targetType`, `targetId`, `before`, `after`
+### Push subscription / notification preference
+- **PK** `USER#<userId>` · **SK** `PUSHSUB#<endpointHash>` — `endpoint`, `p256dh`, `auth`, `userAgent`
+- **PK** `USER#<userId>` · **SK** `NOTIFPREF#<projectId>#<eventType>` — `channels`, `muted`, `quietHours`
 
 ### Inbox item (denormalised "this needs you")
-- **PK**: `USER#<userId>`
-- **SK**: `INBOX#<isoTs>#<itemId>`
-- attrs: `kind` (vote-closing / mention / reply / result), `projectId`, `ref` (e.g. `proposalId`), `readAt`
-- Written by the same write path that creates the source event (mention, vote-open, …) — **fan-out on write**.
+- **PK** `USER#<userId>` · **SK** `INBOX#<ulid>`
+- attrs: `kind` (`mention` / `reply` / `comment-on-yours` / `proposal-closed` /
+  `document-amended`), `projectId`, `actorId` (`system` for closes),
+  `proposalId?` / `commentId?` / `conversationId?` / `messageId?` /
+  `documentName?` (kind-dependent), `preview` (≤120 chars), `readAt?`
+- **Fan-out on write**: the write path that creates the source event pushes one
+  `INBOX#` item per interested recipient.
 
-## GSI summary
+### Conversation-read / thread-read markers
+- **PK** `USER#<userId>` · **SK** `CONVREAD#<conversationId>` — `lastReadMessageId`, `at`
+- **PK** `USER#<userId>` · **SK** `THREADREAD#<parentMessageId>` — `lastReadMessageId`, `at`
 
-| GSI | Purpose | Examples |
+### DM pointer (one per participant)
+- **PK** `USER#<userId>` · **SK** `DM#<conversationId>`
+- Lets a user list their DMs with a single `Query`. The conversation body lives
+  under `CONV#<conversationId>`.
+
+### Project (metadata)
+- **PK** `PROJECT#<projectId>` · **SK** `META`
+- attrs: `name`, `slug`, `ownerId`, `template`, `visibility` (`private`/`public`),
+  `defaults` (votingRule, runtime, quorum), `language`, `createdAt`
+- **GSI1PK** `SLUG#<slug>` · **GSI1SK** `PROJECT` — slug → project
+
+### Membership
+- **PK** `PROJECT#<projectId>` · **SK** `MEMBER#<userId>`
+- attrs: `role` (owner / admin / moderator / member / observer), `joinedAt`, `invitedBy`
+- **GSI1PK** `USER#<userId>` · **GSI1SK** `MEMBER#<projectId>` — list a user's projects
+
+### Topic (category — `category_id` in the entity, "topic" in the UI)
+- **PK** `PROJECT#<projectId>` · **SK** `TOPIC#<topicId>`
+- attrs: `name`, `position`, `createdAt`, `proposalCount` (denormalised; gates
+  delete — see Open questions)
+
+### Invite
+- **PK** `PROJECT#<projectId>` · **SK** `INVITE#<inviteId>`
+- attrs: `code` (short typeable), `token` (URL), `role`, `expiresAt?`,
+  `maxUses?`, `useCount`, `revokedAt?`, `note?`, `issuedBy`, `issuedAt`
+- **GSI1PK** `INVITETOKEN#<token>` · **GSI1SK** `INVITE` — URL token → invite
+- **GSI1PK** `INVITECODE#<code>` · **GSI1SK** `INVITE` — short code → invite
+- (Both projected onto GSI1 via duplicated attrs on the single item, or via
+  two thin pointer items — pick at implementation; pointer items keep the GSI
+  partitions clean.)
+
+### Proposal (deliberation node — root, fork, or option)
+- **PK** `PROJECT#<projectId>` · **SK** `PROPOSAL#<proposalId>`
+- attrs: `authorId`, `title`, `body`, `proposalKind` (`decision` / `document`),
+  `status` (`voting` / `passed` / `rejected` / `quorum_failed` / `withdrawn` …),
+  `categoryId`, `createdAt`, `closedAt?`,
+  `parentId?` (null on root), `rootId` (= `id` on root),
+  `votingRule` / `quorum` / `endsAt` (set on root, inherited by forks),
+  `documentName?` (Document kind only), `isQuestion?` (root of a multi-option
+  decision — frames the question, not itself a choice)
+- **GSI2PK** `DELIB#<rootId>` · **GSI2SK** `PROPOSAL#<createdAt>#<id>` —
+  the deliberation tree (root + forks + options), sibling-ordered
+- **GSI3PK** `PROJECT#<projectId>#VOTING` · **GSI3SK** `<endsAt>` —
+  *sparse, roots in `voting` only* — closing-soon reminders + dashboard ordering
+- **GSI3PK** `PROJECT#<projectId>#DOC` · **GSI3SK** `<documentName>#<closedAt>` —
+  *sparse, passed Document proposals only* — derived document library, grouped by name
+
+### Vote (materialised, per deliberation)
+- **PK** `DELIB#<rootId>` · **SK** `VOTE#<userId>`
+- attrs: `choice` (alternative's proposalId / `__none__` / `__abstain__`), `at`
+- **GSI2PK** `USER#<userId>` · **GSI2SK** `VOTE#<ulid>` — a user's vote history
+
+### Vote event (append-only audit)
+- **PK** `DELIB#<rootId>` · **SK** `VOTEEVENT#<ulid>`
+- attrs: `userId`, `choice` (or `null` for retraction), `previousChoice`,
+  `source` (web / api), `tokenId?`
+
+### Tally (materialised)
+- **PK** `DELIB#<rootId>` · **SK** `TALLY`
+- attrs: `byChoice` (map proposalId → count), `none`, `abstain`, `decisive`,
+  `total`. Updated transactionally with each vote.
+
+### Comment (flat, soft-deletable)
+- **PK** `PROPOSAL#<proposalId>` · **SK** `COMMENT#<ulid>`
+- attrs: `authorId`, `body` (null when soft-deleted), `createdAt`, `editedAt?`,
+  `deletedAt?`, `deletedBy?`
+- SK sorts chronologically; comments are flat (no threading) per the comments slice.
+
+### Conversation (channel | DM)
+- **PK** `CONV#<conversationId>` · **SK** `META`
+- channel attrs: `kind:'channel'`, `projectId`, `name`, `description?`, `createdAt`
+- dm attrs: `kind:'dm'`, `participantIds:[lo,hi]` (sorted), `createdAt`
+- **Channel pointer** for project listing: **PK** `PROJECT#<projectId>` ·
+  **SK** `CONV#<conversationId>` — `name`, `isDefault`
+- **DM id is deterministic** from the sorted participant pair, so find-or-create
+  is a `GetItem` — no lookup index needed.
+
+### Message (channel message or thread reply)
+- **PK** `CONV#<conversationId>` · **SK** `MSG#<ulid>`
+- attrs: `authorId`, `body`, `attachments[]` (S3 keys for image / voice),
+  `parentMessageId?` (set on thread replies), `createdAt`, `editedAt?`
+- **GSI3PK** `THREAD#<parentMessageId>` · **GSI3SK** `<ulid>` —
+  *sparse, replies only* — a thread's replies without scanning the conversation
+
+### Audit event
+- **PK** `PROJECT#<projectId>` · **SK** `AUDIT#<ulid>`
+- attrs: `actorId`, `tokenId?`, `action`, `targetType`, `targetId`, `before`, `after`
+
+## GSIs
+
+Three, each overloaded with **disjoint, sparse** key-spaces:
+
+| GSI | PK / SK shapes | Serves |
 |---|---|---|
-| **GSI1** | Mixed reverse-lookup | Project slug → project; user → projects; proposals by status + endsAt; invite token → invite; document slug → document |
-| **GSI2** | User-centric history + secondary lookups | User → votes; invite short code → invite |
-| **GSI3** *(reserved, post-MVP)* | TBD | Public-project discovery; full-text doc index pointers; etc. |
+| **GSI1** — secondary-id lookups | `SLUG#<slug>`/`PROJECT` · `USER#<uid>`/`MEMBER#<pid>` · `INVITETOKEN#<t>`/`INVITE` · `INVITECODE#<c>`/`INVITE` | slug→project; my projects (switcher); invite token→invite; short code→invite |
+| **GSI2** — by root / by user | `DELIB#<rootId>`/`PROPOSAL#<created>#<id>` · `USER#<uid>`/`VOTE#<ulid>` | deliberation tree; a user's vote history |
+| **GSI3** — time/status windows | `PROJECT#<pid>#VOTING`/`<endsAt>` · `PROJECT#<pid>#DOC`/`<name>#<closedAt>` · `THREAD#<parentMsgId>`/`<ulid>` | closing-soon roots; document library by name; thread replies |
 
-## Access patterns covered (MVP)
+## Access patterns covered (all 42 endpoints)
 
-| # | Pattern | Approach |
-|---|---|---|
-| 1 | Get user profile | `GetItem(USER#u, PROFILE)` |
-| 2 | List user's projects (for switcher) | `Query GSI1 (USER#u, MEMBER#)` |
-| 3 | Get project by id | `GetItem(PROJECT#p, METADATA)` |
-| 4 | Get project by slug | `Query GSI1 (PROJECTSLUG#s)` |
-| 5 | List members of project | `Query (PROJECT#p, MEMBER#)` |
-| 6 | Get user's role in project (auth) | `GetItem(PROJECT#p, MEMBER#u)` |
-| 7 | List topics in project | `Query (PROJECT#p, TOPIC#)` |
-| 8 | List channels in project | `Query (PROJECT#p, CHANNEL#)` |
-| 9 | List proposals in project | `Query (PROJECT#p, PROPOSAL#)` |
-| 10 | List proposals closing soon | `Query GSI1 (PROJECT#p#STATUS#voting, SK ≤ now+window)` |
-| 11 | Get proposal head | `GetItem(PROJECT#p, PROPOSAL#prop)` |
-| 12 | List proposal versions | `Query (PROPOSAL#prop, VERSION#)` |
-| 13 | Get user's vote on proposal | `GetItem(PROPOSAL#prop, VOTE#u)` |
-| 14 | List all votes on proposal | `Query (PROPOSAL#prop, VOTE#)` |
-| 15 | List user's votes (history) | `Query GSI2 (USER#u, VOTE#)` |
-| 16 | Cast / change vote | Transaction: append `VOTEEVENT`, upsert `VOTE`, update tally on proposal head |
-| 17 | List vote events on proposal | `Query (PROPOSAL#prop, VOTEEVENT#)` |
-| 18 | List comments on proposal | `Query (PROPOSAL#prop, COMMENT#)` |
-| 19 | List recent messages in channel | `Query (CHANNEL#c, MESSAGE#, scan-forward=false, limit=N)` |
-| 20 | Last-read marker for channel | `GetItem(USER#u, LASTREAD#c)` |
-| 21 | List project's invites | `Query (PROJECT#p, INVITE#)` |
-| 22 | Resolve invite token → invite | `Query GSI1 (INVITETOKEN#t)` |
-| 23 | Resolve short code → invite | `Query GSI2 (INVITECODE#c)` |
-| 24 | List documents in project | `Query (PROJECT#p, DOC#)` |
-| 25 | Get document head | `GetItem(PROJECT#p, DOC#d)` |
-| 26 | List document versions | `Query (DOC#d, DOCVER#)` |
-| 27 | List notification prefs for user | `Query (USER#u, NOTIFPREF#)` |
-| 28 | List push subscriptions for user | `Query (USER#u, PUSHSUB#)` |
-| 29 | Append audit event | `PutItem (PROJECT#p, AUDIT#ts#id)` |
-| 30 | List project audit events | `Query (PROJECT#p, AUDIT#)` (paginated) |
-| 31 | List user's inbox (home screen) | `Query (USER#u, INBOX#, scan-forward=false, limit=N)` |
+| Endpoint | Approach |
+|---|---|
+| `GET /me` | `GetItem(USER#u, PROFILE)` |
+| `GET /me/inbox` | `Query(USER#u, INBOX#)` desc, limit N |
+| `POST /me/inbox/:id/read` | `UpdateItem(USER#u, INBOX#<id>)` set `readAt` |
+| `POST /me/inbox/read-all` | `Query(USER#u, INBOX#)` unread → batch `UpdateItem` |
+| `GET /projects` | `Query GSI1(USER#u, MEMBER#)` → `BatchGetItem(PROJECT#p, META)` |
+| `POST /projects` | Tx: `META` + owner `MEMBER#` + default `TOPIC#` + default `CONV#` |
+| `GET /projects/:slug` | `Query GSI1(SLUG#s)` |
+| `GET /projects/:slug/members` | `Query(PROJECT#p, MEMBER#)` |
+| `GET /projects/:slug/categories` | `Query(PROJECT#p, TOPIC#)` |
+| `POST/PATCH/DELETE …/categories[/:id]` | CRUD `PROJECT#p / TOPIC#id` (delete gated by `proposalCount`) |
+| `GET /projects/:slug/channels` | `Query(PROJECT#p, CONV#)` |
+| `GET /projects/:slug/invites` | `Query(PROJECT#p, INVITE#)` |
+| `POST /projects/:slug/invites` | put `INVITE#` + GSI1 token + GSI1 code |
+| `DELETE …/invites/:inviteId` | `UpdateItem(PROJECT#p, INVITE#id)` set `revokedAt` |
+| `GET /projects/:slug/proposals` | `Query(PROJECT#p, PROPOSAL#)` → group into deliberations in app |
+| `GET …/proposals/:id` | `GetItem(PROJECT#p, PROPOSAL#id)` |
+| `GET …/proposals/:id/tree` | resolve `rootId` → `Query GSI2(DELIB#root)` |
+| `POST …/proposals` | put root (+ option children if `options[]`) |
+| `POST …/proposals/:id/withdraw` | `UpdateItem` status → `withdrawn` |
+| `GET …/proposals/:id/comments` | `Query(PROPOSAL#id, COMMENT#)` |
+| `POST …/proposals/:id/comments` | `PutItem(PROPOSAL#id, COMMENT#<ulid>)` |
+| `DELETE …/comments/:commentId` | `UpdateItem` soft-delete (`body=null`, `deletedAt`) |
+| `POST …/proposals/:id/vote` | Tx on `DELIB#root`: upsert `VOTE#u`, append `VOTEEVENT`, update `TALLY` |
+| `DELETE …/proposals/:id/vote` | Tx: delete `VOTE#u`, append retraction `VOTEEVENT`, update `TALLY` |
+| `GET /projects/:slug/documents` | `Query GSI3(PROJECT#p#DOC)` → group by `documentName` |
+| `GET …/documents/by-name/:name` | `Query GSI3(PROJECT#p#DOC, begins_with name#)` |
+| `GET /projects/:slug/search` | `Query(PROJECT#p)` + in-Lambda substring filter (MVP — see Open questions) |
+| `GET /conversations/:id` | `GetItem(CONV#id, META)` |
+| `GET /conversations/:id/messages` | `Query(CONV#id, MSG#)` desc + `before`, filter top-level |
+| `POST /conversations/:id/messages` | put `CONV#id / MSG#<ulid>` (+ GSI3 `THREAD#` row if reply) |
+| `POST /conversations/:id/read` | upsert `USER#u / CONVREAD#id` |
+| `GET /messages/:id/thread` | `Query GSI3(THREAD#parentId)` |
+| `POST /messages/:parentId/thread/read` | upsert `USER#u / THREADREAD#parentId` |
+| `GET /dms` | `Query(USER#u, DM#)` → `BatchGetItem(CONV#id, META)` |
+| `POST /dms` | derive deterministic id from sorted pair → `GetItem` or create (+ `DM#` pointer per participant) |
+| `GET /invites/:token` | `Query GSI1(INVITETOKEN#t)` |
+| `GET /invites/by-code/:code` | `Query GSI1(INVITECODE#c)` |
+| `POST /invites/:token/accept` · `…/by-code/:code/accept` | resolve → Tx: put `MEMBER#` + GSI1 user-membership + bump `useCount` |
+| `GET /hello` | health — no table read |
 
 ## Open design questions
 
-- **Reactions counters.** Per-(target × emoji × user) items as sketched (full audit), or denormalised counters on the target with separate "who reacted" items? Decide when reactions are implemented.
-- **Comment threading.** Tree reconstruction in app code (current) vs. materialised path keys (`PATH#root.id1.id2`) for very deep threads. Defer until comment loads become a hotspot.
-- **Inbox writes.** Fan-out on write (push an `INBOX` item per interested user when a proposal enters voting) vs. compute on read. Sketch leans on fan-out-on-write. Reconsider for very large projects.
-- **Hot-partition risk on `PROJECT#p`** for high-traffic projects (vote storms, chat bursts). Possible sharding suffix (`PROJECT#p#shard<n>`) for `MESSAGE` and `VOTE` under that project. Defer until measured.
-- **TTL.** DynamoDB TTL on invites with `expiresAt`, on `INBOX` items past a retention window, on ephemeral chat? Pick TTL semantics per entity.
-- **Vote-tally consistency.** Atomic transaction updating tally + vote + event together (sketch) vs. eventually-consistent recompute. Transaction at write time scales fine until very large per-proposal QPS; revisit then.
-- **Document full-text search.** DynamoDB does not search. Post-MVP, mirror `DocumentVersion` bodies to OpenSearch Serverless or use `CONTAINS` filter expressions for small libraries. Decide before launching search.
-- **Identity for the audit `tokenId`.** Pre-MVP all writes are session-authed (no tokens); the attribute exists but is null. Tokens come post-MVP with scoped API tokens.
+- **Search (decided for MVP: scan-and-filter).** DynamoDB cannot substring-match.
+  MVP serves `GET …/search` by querying the `PROJECT#p` partition and filtering
+  the four sections (proposals / documents / members / channels) in the Lambda.
+  Acceptable for small projects; **migrate to OpenSearch Serverless** (mirror
+  proposal/document bodies) when project size makes the scan hurt. Threshold TBD
+  under load.
+- **Topic delete guard.** "Can't delete a topic with proposals" uses a
+  denormalised `proposalCount` on the topic, incremented/decremented in the
+  proposal write path, rather than scanning proposals on every delete. Confirm
+  the counter stays consistent under the vote/withdraw transitions.
+- **Tally consistency.** `TALLY` is updated transactionally with each vote. Fine
+  until very high per-deliberation QPS; fall back to recompute-from-`VOTEEVENT`
+  if a vote storm is measured.
+- **Inbox writes.** Fan-out-on-write (one `INBOX#` per recipient). Reconsider
+  compute-on-read for very large projects where a single event fans out to
+  thousands.
+- **Hot partitions.** `CONV#<id>` (busy channel) and `DELIB#<root>` (vote storm).
+  Both isolated from `PROJECT#<pid>`. Shard suffix (`…#shard<n>`) only if measured.
+- **TTL.** DynamoDB TTL candidates: invites past `expiresAt`, `INBOX#` items past
+  a retention window. Pick per-entity TTL semantics before launch.
+- **Audit `tokenId`.** Pre-MVP all writes are session-authed; the attribute
+  exists but is null. Scoped API tokens (and the MCP server) populate it post-MVP.
 
 ## Out of MVP
 
-- **ApiToken**, **Webhook**, **Collection**, **Delegation** entities — defer schema until those features are scheduled. Each is additive (new key prefix) under the same single-table model; no migration of existing items required.
+- **ApiToken**, **Webhook**, **Reaction**, **Delegation**, **Collection** — each
+  is additive (new key prefix) under the same single table; no migration of
+  existing items required when scheduled.
+- **Reactions**, when added: `PK` = target (`PROPOSAL#…` / `CONV#…`), `SK` =
+  `REACTION#<targetId>#<emoji>#<userId>`, with optional denormalised counters on
+  the target if reaction reads get hot.
 
 ---
 
-*Sketch authored 2026-05-17. Update directly as patterns evolve; large changes deserve their own entry in `docs/decisions/` once that directory exists.*
+*Reconciled 2026-05-30 against the implemented mock surface. Update directly as
+patterns evolve; architectural shifts get a `docs/decisions/` entry.*
