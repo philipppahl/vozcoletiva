@@ -7,7 +7,7 @@ use ulid::Ulid;
 
 use crate::auth::AuthenticatedUser;
 use crate::domain::proposal::{ProposalStatus, Tally};
-use crate::domain::voting_mode::VotingMode;
+use crate::domain::voting_rule::VotingRule;
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -15,10 +15,13 @@ use crate::state::AppState;
 pub struct Proposal {
     pub id: String,
     pub project_id: String,
+    /// Root of this proposal's deliberation. Equals `id` for a root; set to the
+    /// root's id for forks/options (slice B). Votes key on `DELIB#<root_id>`.
+    pub root_id: String,
     pub author_id: String,
     pub title: String,
     pub body: String,
-    pub voting_mode: VotingMode,
+    pub voting_rule: VotingRule,
     pub quorum: Option<i64>,
     pub ends_at: DateTime<Utc>,
     pub status: ProposalStatus,
@@ -35,7 +38,7 @@ pub async fn create(
     author: &AuthenticatedUser,
     title: String,
     body: String,
-    voting_mode: VotingMode,
+    voting_rule: VotingRule,
     quorum: Option<i64>,
     ends_at: DateTime<Utc>,
 ) -> Result<Proposal, AppError> {
@@ -44,10 +47,11 @@ pub async fn create(
     let proposal = Proposal {
         id: id.clone(),
         project_id: project_id.to_string(),
+        root_id: id.clone(),
         author_id: author.user_id.clone(),
         title,
         body,
-        voting_mode,
+        voting_rule,
         quorum,
         ends_at,
         status: ProposalStatus::Voting,
@@ -69,14 +73,17 @@ pub async fn create(
         .item("authorId", AttributeValue::S(proposal.author_id.clone()))
         .item("title", AttributeValue::S(proposal.title.clone()))
         .item("body", AttributeValue::S(proposal.body.clone()))
-        .item(
-            "votingMode",
-            AttributeValue::S(voting_mode.as_str().into()),
-        )
+        .item("rootId", AttributeValue::S(proposal.root_id.clone()))
+        .item("votingRule", AttributeValue::S(voting_rule.as_str().into()))
         .item("endsAt", AttributeValue::S(ends_at.to_rfc3339()))
-        .item("status", AttributeValue::S(ProposalStatus::Voting.as_str().into()))
-        .item("tallyYes", AttributeValue::N("0".into()))
-        .item("tallyNo", AttributeValue::N("0".into()))
+        .item(
+            "status",
+            AttributeValue::S(ProposalStatus::Voting.as_str().into()),
+        )
+        // Per-deliberation tally, materialised on the root head. `tallyByChoice`
+        // starts as an empty map so vote writes can `ADD tallyByChoice.<id>`.
+        .item("tallyByChoice", AttributeValue::M(HashMap::new()))
+        .item("tallyNone", AttributeValue::N("0".into()))
         .item("tallyAbstain", AttributeValue::N("0".into()))
         .item("createdAt", AttributeValue::S(now.to_rfc3339()))
         // Closing-soon window lives on GSI3 (`PROJECT#p#VOTING` → endsAt), per
@@ -121,10 +128,7 @@ pub async fn list_for_project(
         .query()
         .table_name(&state.table_name)
         .key_condition_expression("PK = :pk AND begins_with(SK, :sk)")
-        .expression_attribute_values(
-            ":pk",
-            AttributeValue::S(format!("PROJECT#{project_id}")),
-        )
+        .expression_attribute_values(":pk", AttributeValue::S(format!("PROJECT#{project_id}")))
         .expression_attribute_values(":sk", AttributeValue::S("PROPOSAL#".into()))
         .send()
         .await?;
@@ -184,10 +188,7 @@ pub async fn transition_to_terminal(
              REMOVE GSI3PK, GSI3SK",
         )
         .expression_attribute_names("#s", "status")
-        .expression_attribute_values(
-            ":new",
-            AttributeValue::S(new_status.as_str().into()),
-        )
+        .expression_attribute_values(":new", AttributeValue::S(new_status.as_str().into()))
         .expression_attribute_values(":ts", AttributeValue::S(now.to_rfc3339()))
         .expression_attribute_values(
             ":voting",
@@ -211,9 +212,7 @@ pub async fn transition_to_terminal(
     }
 }
 
-pub fn proposal_from_item(
-    item: &HashMap<String, AttributeValue>,
-) -> Result<Proposal, AppError> {
+pub fn proposal_from_item(item: &HashMap<String, AttributeValue>) -> Result<Proposal, AppError> {
     fn s<'a>(item: &'a HashMap<String, AttributeValue>, key: &str) -> Result<&'a str, AppError> {
         item.get(key)
             .and_then(|v| v.as_s().ok())
@@ -230,11 +229,29 @@ pub fn proposal_from_item(
             .and_then(|s| s.parse::<i64>().ok())
     }
     fn s_opt<'a>(item: &'a HashMap<String, AttributeValue>, key: &str) -> Option<&'a str> {
-        item.get(key).and_then(|v| v.as_s().ok()).map(String::as_str)
+        item.get(key)
+            .and_then(|v| v.as_s().ok())
+            .map(String::as_str)
+    }
+
+    fn tally_map(item: &HashMap<String, AttributeValue>, key: &str) -> HashMap<String, i64> {
+        item.get(key)
+            .and_then(|v| v.as_m().ok())
+            .map(|m| {
+                m.iter()
+                    .filter_map(|(k, v)| {
+                        v.as_n()
+                            .ok()
+                            .and_then(|s| s.parse::<i64>().ok())
+                            .map(|n| (k.clone(), n))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     let status: ProposalStatus = s(item, "status")?.parse()?;
-    let voting_mode: VotingMode = s(item, "votingMode")?.parse()?;
+    let voting_rule: VotingRule = s(item, "votingRule")?.parse()?;
     let ends_at = chrono::DateTime::parse_from_rfc3339(s(item, "endsAt")?)
         .map_err(|e| AppError::Internal(Box::new(e)))?
         .with_timezone(&Utc);
@@ -249,19 +266,25 @@ pub fn proposal_from_item(
         })
         .transpose()?;
 
+    let proposal_id = s(item, "proposalId")?.to_string();
     Ok(Proposal {
-        id: s(item, "proposalId")?.to_string(),
+        id: proposal_id.clone(),
         project_id: s(item, "projectId")?.to_string(),
+        // Pre-slice-A items have no rootId; fall back to the proposal's own id
+        // (they were all roots anyway).
+        root_id: s_opt(item, "rootId")
+            .map(String::from)
+            .unwrap_or(proposal_id),
         author_id: s(item, "authorId")?.to_string(),
         title: s(item, "title")?.to_string(),
         body: s(item, "body")?.to_string(),
-        voting_mode,
+        voting_rule,
         quorum: n_opt(item, "quorum"),
         ends_at,
         status,
         tally: Tally {
-            yes: n_opt(item, "tallyYes").unwrap_or(0),
-            no: n_opt(item, "tallyNo").unwrap_or(0),
+            by_choice: tally_map(item, "tallyByChoice"),
+            none: n_opt(item, "tallyNone").unwrap_or(0),
             abstain: n_opt(item, "tallyAbstain").unwrap_or(0),
         },
         created_at,

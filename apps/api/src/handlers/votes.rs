@@ -32,19 +32,42 @@ pub async fn cast(
                 return Err(AppError::Conflict("voting is closed".into()));
             }
 
-            let previous = vote::get(state, &prop.id, &user.user_id)
+            // Slice A: the only candidate in a deliberation is its root. Reject a
+            // pick for any other id (forks/options arrive in slice B). "None of
+            // these" and "abstain" are always valid.
+            if let Some(id) = choice.picked_id() {
+                if id != prop.root_id {
+                    return Err(AppError::BadRequest(
+                        "choice must be the proposal, '__none__', or '__abstain__'".into(),
+                    ));
+                }
+            }
+
+            let previous = vote::get(state, &prop.root_id, &user.user_id)
                 .await?
                 .map(|v| v.choice);
+            let had_prev = previous.is_some();
 
-            vote::cast(state, &user, &auth.project.id, &prop.id, choice, previous).await?;
+            vote::cast(
+                state,
+                &user,
+                &auth.project.id,
+                &prop.root_id,
+                choice,
+                previous,
+            )
+            .await?;
 
+            // Note: the chosen value is deliberately NOT logged — vote choice
+            // tied to a user is PII (CLAUDE.md § Hard prohibitions).
             tracing::info!(
-                event = if previous.is_some() { "vote_changed" } else { "vote_cast" },
+                event = if had_prev { "vote_changed" } else { "vote_cast" },
                 proposal_id = %prop.id,
+                root_id = %prop.root_id,
                 user_id = %user.user_id,
-                had_prev = previous.is_some(),
+                had_prev = had_prev,
             );
-            Ok(serde_json::json!({ "ok": true, "choice": choice.as_str() }))
+            Ok(serde_json::json!({ "ok": true }))
         },
         200,
     )
@@ -67,11 +90,18 @@ pub async fn retract(
                 return Err(AppError::Conflict("voting is closed".into()));
             }
 
-            let previous = vote::get(state, &prop.id, &user.user_id)
+            let previous = vote::get(state, &prop.root_id, &user.user_id)
                 .await?
-                .ok_or_else(|| AppError::NotFound)?;
+                .ok_or(AppError::NotFound)?;
 
-            vote::retract(state, &user, &auth.project.id, &prop.id, previous.choice).await?;
+            vote::retract(
+                state,
+                &user,
+                &auth.project.id,
+                &prop.root_id,
+                previous.choice,
+            )
+            .await?;
 
             tracing::info!(
                 event = "vote_retracted",
@@ -85,10 +115,7 @@ pub async fn retract(
     .await
 }
 
-async fn authenticate(
-    state: &AppState,
-    req: &Request,
-) -> Result<AuthenticatedUser, AppError> {
+async fn authenticate(state: &AppState, req: &Request) -> Result<AuthenticatedUser, AppError> {
     let token = bearer_token(req)?;
     state.jwt.verify(token).await
 }

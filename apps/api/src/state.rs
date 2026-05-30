@@ -16,6 +16,18 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Build an `AppState` around an already-configured DynamoDB client, with a
+    /// stub JWT verifier and no scheduler. For DynamoDB-Local integration tests.
+    #[cfg(feature = "test-support")]
+    pub fn for_test(ddb: DdbClient, table_name: String) -> Self {
+        Self {
+            ddb: Arc::new(ddb),
+            jwt: Arc::new(crate::auth::jwt::JwtVerifier::stub()),
+            table_name,
+            scheduler: None,
+        }
+    }
+
     pub async fn from_env() -> Result<Self, BootError> {
         let aws_config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
 

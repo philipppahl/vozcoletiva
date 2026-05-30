@@ -317,8 +317,8 @@ export interface components {
         CastVoteBody: {
             choice: components["schemas"]["Choice"];
         };
-        /** @enum {string} */
-        Choice: "yes" | "no" | "abstain";
+        /** @description A vote in a deliberation: the picked alternative's proposal id, or the special token `__none__` ("none of these") or `__abstain__`. */
+        Choice: string;
         Comment: {
             author_display_name: string;
             author_id: string;
@@ -354,7 +354,7 @@ export interface components {
             ends_at: string;
             quorum?: number | null;
             title: string;
-            voting_mode: components["schemas"]["VotingMode"];
+            voting_rule: components["schemas"]["VotingRule"];
         };
         Hello: {
             /** @constant */
@@ -445,13 +445,22 @@ export interface components {
             id: string;
             project_id: string;
             quorum?: number | null;
+            /** @description Root of this proposal's deliberation; equals `id` for a root. */
+            root_id: string;
             status: components["schemas"]["ProposalStatus"];
             tally_abstain: number;
-            tally_no: number;
-            tally_yes: number;
+            /** @description proposalId → votes. For a plain decision the only key is the root id. */
+            tally_by_choice: {
+                [key: string]: number;
+            };
+            /** @description Picks + none; abstain excluded. */
+            tally_decisive: number;
+            /** @description "None of these" votes. */
+            tally_none: number;
+            /** @description All voters */
+            tally_total: number;
             title: string;
-            voter_count: number;
-            voting_mode: components["schemas"]["VotingMode"];
+            voting_rule: components["schemas"]["VotingRule"];
             your_choice?: components["schemas"]["Choice"];
         };
         ProposalListResponse: {
@@ -475,7 +484,7 @@ export interface components {
             user_id: string;
         };
         /** @enum {string} */
-        VotingMode: "simple_majority" | "qualified_two_thirds";
+        VotingRule: "plurality" | "simple_majority" | "two_thirds" | "consensus";
     };
     responses: {
         /** @description Bad request. */

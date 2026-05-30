@@ -3,9 +3,11 @@ use chrono::{DateTime, Utc};
 use lambda_http::{Body, Error, Request, Response};
 use serde::{Deserialize, Serialize};
 
+use std::collections::HashMap;
+
 use crate::auth::{bearer_token, perms, AuthenticatedUser};
 use crate::domain::proposal::ProposalStatus;
-use crate::domain::voting_mode::VotingMode;
+use crate::domain::voting_rule::VotingRule;
 use crate::error::AppError;
 use crate::repo::{proposal, vote};
 use crate::scheduler::{cancel_close, schedule_close};
@@ -15,7 +17,7 @@ use crate::state::AppState;
 struct CreateProposalBody {
     title: String,
     body: String,
-    voting_mode: String,
+    voting_rule: String,
     quorum: Option<i64>,
     ends_at: String,
 }
@@ -24,19 +26,25 @@ struct CreateProposalBody {
 struct ProposalView {
     id: String,
     project_id: String,
+    root_id: String,
     author_id: String,
     title: String,
     body: String,
-    voting_mode: String,
+    voting_rule: String,
     quorum: Option<i64>,
     ends_at: String,
     status: String,
-    tally_yes: i64,
-    tally_no: i64,
+    /// proposalId → votes. For a plain decision the only key is the root id.
+    tally_by_choice: HashMap<String, i64>,
+    tally_none: i64,
     tally_abstain: i64,
-    voter_count: i64,
+    /// Picks + "none of these". Abstain excluded.
+    tally_decisive: i64,
+    /// Everyone who voted, including abstainers.
+    tally_total: i64,
     created_at: String,
     closed_at: Option<String>,
+    /// The caller's choice: a proposalId, `__none__`, `__abstain__`, or null.
     your_choice: Option<String>,
 }
 
@@ -45,11 +53,7 @@ struct ProposalListResponse {
     proposals: Vec<ProposalView>,
 }
 
-pub async fn create(
-    state: &AppState,
-    req: Request,
-    slug: &str,
-) -> Result<Response<Body>, Error> {
+pub async fn create(state: &AppState, req: Request, slug: &str) -> Result<Response<Body>, Error> {
     super::json_or_error(
         async {
             let user = authenticate(state, &req).await?;
@@ -66,7 +70,7 @@ pub async fn create(
             if body_md.is_empty() || body_md.len() > 50_000 {
                 return Err(AppError::BadRequest("body must be 1-50_000 chars".into()));
             }
-            let voting_mode: VotingMode = body.voting_mode.parse()?;
+            let voting_rule: VotingRule = body.voting_rule.parse()?;
             if let Some(q) = body.quorum {
                 if !(1..=100_000).contains(&q) {
                     return Err(AppError::BadRequest(
@@ -90,7 +94,7 @@ pub async fn create(
                 &user,
                 title,
                 body_md,
-                voting_mode,
+                voting_rule,
                 body.quorum,
                 ends_at,
             )
@@ -125,7 +129,7 @@ pub async fn create(
                 event = "proposal_created",
                 project_id = %auth.project.id,
                 proposal_id = %prop.id,
-                voting_mode = %voting_mode.as_str(),
+                voting_rule = %voting_rule.as_str(),
                 ends_at = %ends_at.to_rfc3339(),
             );
 
@@ -136,11 +140,7 @@ pub async fn create(
     .await
 }
 
-pub async fn list(
-    state: &AppState,
-    req: Request,
-    slug: &str,
-) -> Result<Response<Body>, Error> {
+pub async fn list(state: &AppState, req: Request, slug: &str) -> Result<Response<Body>, Error> {
     super::json_or_error(
         async {
             let user = authenticate(state, &req).await?;
@@ -148,8 +148,11 @@ pub async fn list(
             let items = proposal::list_for_project(state, &auth.project.id).await?;
             let mut views = Vec::with_capacity(items.len());
             for p in items {
-                let your = vote::get(state, &p.id, &user.user_id).await?;
-                views.push(view_from(&p, your.as_ref().map(|v| v.choice.as_str().to_string())));
+                let your = vote::get(state, &p.root_id, &user.user_id).await?;
+                views.push(view_from(
+                    &p,
+                    your.as_ref().map(|v| v.choice.wire().to_string()),
+                ));
             }
             Ok(ProposalListResponse { proposals: views })
         },
@@ -169,8 +172,11 @@ pub async fn get(
             let user = authenticate(state, &req).await?;
             let auth = perms::require_member(state, &user, slug).await?;
             let p = proposal::get(state, &auth.project.id, proposal_id).await?;
-            let your = vote::get(state, &p.id, &user.user_id).await?;
-            Ok(view_from(&p, your.as_ref().map(|v| v.choice.as_str().to_string())))
+            let your = vote::get(state, &p.root_id, &user.user_id).await?;
+            Ok(view_from(
+                &p,
+                your.as_ref().map(|v| v.choice.wire().to_string()),
+            ))
         },
         200,
     )
@@ -223,27 +229,26 @@ fn view_from(p: &proposal::Proposal, your_choice: Option<String>) -> ProposalVie
     ProposalView {
         id: p.id.clone(),
         project_id: p.project_id.clone(),
+        root_id: p.root_id.clone(),
         author_id: p.author_id.clone(),
         title: p.title.clone(),
         body: p.body.clone(),
-        voting_mode: p.voting_mode.as_str().to_string(),
+        voting_rule: p.voting_rule.as_str().to_string(),
         quorum: p.quorum,
         ends_at: p.ends_at.to_rfc3339(),
         status: p.status.as_str().to_string(),
-        tally_yes: p.tally.yes,
-        tally_no: p.tally.no,
+        tally_by_choice: p.tally.by_choice.clone(),
+        tally_none: p.tally.none,
         tally_abstain: p.tally.abstain,
-        voter_count: p.tally.voter_count(),
+        tally_decisive: p.tally.decisive(),
+        tally_total: p.tally.total(),
         created_at: p.created_at.to_rfc3339(),
         closed_at: p.closed_at.map(|d| d.to_rfc3339()),
         your_choice,
     }
 }
 
-async fn authenticate(
-    state: &AppState,
-    req: &Request,
-) -> Result<AuthenticatedUser, AppError> {
+async fn authenticate(state: &AppState, req: &Request) -> Result<AuthenticatedUser, AppError> {
     let token = bearer_token(req)?;
     state.jwt.verify(token).await
 }

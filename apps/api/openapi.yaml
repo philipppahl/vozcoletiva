@@ -695,13 +695,15 @@ components:
         revoked: { type: boolean }
         valid: { type: boolean }
 
-    VotingMode:
+    VotingRule:
       type: string
-      enum: [simple_majority, qualified_two_thirds]
+      enum: [plurality, simple_majority, two_thirds, consensus]
 
     Choice:
       type: string
-      enum: [yes, no, abstain]
+      description: >
+        A vote in a deliberation: the picked alternative's proposal id, or the
+        special token `__none__` ("none of these") or `__abstain__`.
 
     ProposalStatus:
       type: string
@@ -709,12 +711,12 @@ components:
 
     CreateProposalBody:
       type: object
-      required: [title, body, voting_mode, ends_at]
+      required: [title, body, voting_rule, ends_at]
       additionalProperties: false
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
         body: { type: string, minLength: 1, maxLength: 50000 }
-        voting_mode: { $ref: '#/components/schemas/VotingMode' }
+        voting_rule: { $ref: '#/components/schemas/VotingRule' }
         quorum: { type: integer, minimum: 1, maximum: 100000, nullable: true }
         ends_at: { type: string, format: date-time }
 
@@ -730,32 +732,41 @@ components:
       required:
         - id
         - project_id
+        - root_id
         - author_id
         - title
         - body
-        - voting_mode
+        - voting_rule
         - ends_at
         - status
-        - tally_yes
-        - tally_no
+        - tally_by_choice
+        - tally_none
         - tally_abstain
-        - voter_count
+        - tally_decisive
+        - tally_total
         - created_at
       additionalProperties: false
       properties:
         id: { type: string }
         project_id: { type: string }
+        root_id:
+          type: string
+          description: Root of this proposal's deliberation; equals `id` for a root.
         author_id: { type: string }
         title: { type: string }
         body: { type: string }
-        voting_mode: { $ref: '#/components/schemas/VotingMode' }
+        voting_rule: { $ref: '#/components/schemas/VotingRule' }
         quorum: { type: integer, nullable: true }
         ends_at: { type: string, format: date-time }
         status: { $ref: '#/components/schemas/ProposalStatus' }
-        tally_yes: { type: integer }
-        tally_no: { type: integer }
+        tally_by_choice:
+          type: object
+          additionalProperties: { type: integer }
+          description: proposalId → votes. For a plain decision the only key is the root id.
+        tally_none: { type: integer, description: '"None of these" votes.' }
         tally_abstain: { type: integer }
-        voter_count: { type: integer }
+        tally_decisive: { type: integer, description: Picks + none; abstain excluded. }
+        tally_total: { type: integer, description: All voters, including abstainers. }
         created_at: { type: string, format: date-time }
         closed_at: { type: string, format: date-time, nullable: true }
         your_choice: { $ref: '#/components/schemas/Choice', nullable: true }

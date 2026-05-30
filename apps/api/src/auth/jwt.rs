@@ -72,6 +72,18 @@ impl JwtVerifier {
         Ok(v)
     }
 
+    /// A verifier that holds no keys and contacts nothing. For tests that need an
+    /// `AppState` but never call `verify` (e.g. repo-layer integration tests).
+    #[cfg(feature = "test-support")]
+    pub fn stub() -> Self {
+        Self {
+            jwks_url: String::new(),
+            expected_iss: String::new(),
+            expected_client_id: String::new(),
+            keys: RwLock::new(HashMap::new()),
+        }
+    }
+
     async fn refresh_keys(&self) -> Result<(), JwksError> {
         let body = reqwest::get(&self.jwks_url).await?.error_for_status()?;
         let jwks: Jwks = body.json().await?;

@@ -122,6 +122,10 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
   `votingRule` / `quorum` / `endsAt` (set on root, inherited by forks),
   `documentName?` (Document kind only), `isQuestion?` (root of a multi-option
   decision — frames the question, not itself a choice)
+- **Tally on the root head** (set on roots): `tallyByChoice` (map proposalId →
+  count, initialised `{}`), `tallyNone`, `tallyAbstain`. One write item then
+  doubles as the vote guard (`status = voting AND endsAt > now`) + the tally
+  adjustment — see Vote.
 - **GSI2PK** `DELIB#<rootId>` · **GSI2SK** `PROPOSAL#<createdAt>#<id>` —
   the deliberation tree (root + forks + options), sibling-ordered
 - **GSI3PK** `PROJECT#<projectId>#VOTING` · **GSI3SK** `<endsAt>` —
@@ -131,18 +135,21 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
 
 ### Vote (materialised, per deliberation)
 - **PK** `DELIB#<rootId>` · **SK** `VOTE#<userId>`
-- attrs: `choice` (alternative's proposalId / `__none__` / `__abstain__`), `at`
-- **GSI2PK** `USER#<userId>` · **GSI2SK** `VOTE#<ulid>` — a user's vote history
+- attrs: `choice` (alternative's proposalId / `__none__` / `__abstain__`), `votedAt`
+- **GSI2PK** `USER#<userId>` · **GSI2SK** `VOTE#<rootId>` — a user's vote history
+  (`rootId` is a ULID, so this sorts by deliberation age and is stable across
+  vote changes).
+- The tally is **not a separate item** — it's `tallyByChoice` / `tallyNone` /
+  `tallyAbstain` on the root proposal head (above). The cast/retract transaction
+  is three items: `Update`(root head: guard + `ADD tallyByChoice.<choice>`),
+  `Put`/`Delete`(this vote), `Put`(vote event). `decisive` / `total` are derived
+  at read time.
 
 ### Vote event (append-only audit)
 - **PK** `DELIB#<rootId>` · **SK** `VOTEEVENT#<ulid>`
-- attrs: `userId`, `choice` (or `null` for retraction), `previousChoice`,
-  `source` (web / api), `tokenId?`
-
-### Tally (materialised)
-- **PK** `DELIB#<rootId>` · **SK** `TALLY`
-- attrs: `byChoice` (map proposalId → count), `none`, `abstain`, `decisive`,
-  `total`. Updated transactionally with each vote.
+- attrs: `userId`, `newChoice` (or `null` for retraction), `previousChoice`
+  (or `null`), `ts`. The audit store legitimately holds choice-tied-to-user;
+  operational logs never do (PII).
 
 ### Comment (flat, soft-deletable)
 - **PK** `PROPOSAL#<proposalId>` · **SK** `COMMENT#<ulid>`
@@ -177,7 +184,7 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
 | GSI | PK / SK shapes | Serves |
 |---|---|---|
 | **GSI1** — secondary-id lookups | `SLUG#<slug>`/`PROJECT` · `USER#<uid>`/`MEMBER#<pid>` · `INVITETOKEN#<t>`/`INVITE` · `INVITECODE#<c>`/`INVITE` | slug→project; my projects (switcher); invite token→invite; short code→invite |
-| **GSI2** — by root / by user | `DELIB#<rootId>`/`PROPOSAL#<created>#<id>` · `USER#<uid>`/`VOTE#<ulid>` | deliberation tree; a user's vote history |
+| **GSI2** — by root / by user | `DELIB#<rootId>`/`PROPOSAL#<created>#<id>` · `USER#<uid>`/`VOTE#<rootId>` | deliberation tree; a user's vote history |
 | **GSI3** — time/status windows | `PROJECT#<pid>#VOTING`/`<endsAt>` · `PROJECT#<pid>#DOC`/`<name>#<closedAt>` · `THREAD#<parentMsgId>`/`<ulid>` | closing-soon roots; document library by name; thread replies |
 
 ## Access patterns covered (all 42 endpoints)
@@ -206,8 +213,8 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
 | `GET …/proposals/:id/comments` | `Query(PROPOSAL#id, COMMENT#)` |
 | `POST …/proposals/:id/comments` | `PutItem(PROPOSAL#id, COMMENT#<ulid>)` |
 | `DELETE …/comments/:commentId` | `UpdateItem` soft-delete (`body=null`, `deletedAt`) |
-| `POST …/proposals/:id/vote` | Tx on `DELIB#root`: upsert `VOTE#u`, append `VOTEEVENT`, update `TALLY` |
-| `DELETE …/proposals/:id/vote` | Tx: delete `VOTE#u`, append retraction `VOTEEVENT`, update `TALLY` |
+| `POST …/proposals/:id/vote` | Tx: `Update`(root head: guard + `ADD tallyByChoice.<choice>`), upsert `DELIB#root/VOTE#u`, append `VOTEEVENT` |
+| `DELETE …/proposals/:id/vote` | Tx: `Update`(root head: guard + `ADD … -1`), delete `VOTE#u`, append retraction `VOTEEVENT` |
 | `GET /projects/:slug/documents` | `Query GSI3(PROJECT#p#DOC)` → group by `documentName` |
 | `GET …/documents/by-name/:name` | `Query GSI3(PROJECT#p#DOC, begins_with name#)` |
 | `GET /projects/:slug/search` | `Query(PROJECT#p)` + in-Lambda substring filter (MVP — see Open questions) |
@@ -236,7 +243,7 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
   denormalised `proposalCount` on the topic, incremented/decremented in the
   proposal write path, rather than scanning proposals on every delete. Confirm
   the counter stays consistent under the vote/withdraw transitions.
-- **Tally consistency.** `TALLY` is updated transactionally with each vote. Fine
+- **Tally consistency.** The `tallyByChoice` map on the root head is updated transactionally with each vote. Fine
   until very high per-deliberation QPS; fall back to recompute-from-`VOTEEVENT`
   if a vote storm is measured.
 - **Inbox writes.** Fan-out-on-write (one `INBOX#` per recipient). Reconsider
