@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { Comments } from '../components/Comments';
+import { revisionTags } from '../components/forks/tree';
 import { VariantTabs } from '../components/forks/VariantTabs';
 import { Markdown } from '../components/Markdown';
 import { RequireAuth } from '../components/RequireAuth';
@@ -47,6 +48,7 @@ function ProposalDetailPage() {
 
   const treeList = tree.data?.proposals ?? (proposal.data ? [proposal.data] : []);
   const p = proposal.data;
+  const revision = p ? revisionTags(treeList)[p.id] : null;
 
   // Always return to the proposals list — history-back could land elsewhere
   // (came from inbox, search, a deep link, …).
@@ -67,7 +69,18 @@ function ProposalDetailPage() {
     <ProjectShell
       slug={slug}
       tab="proposals"
-      pageTitle={p?.title ?? <Trans>Proposal</Trans>}
+      pageTitle={
+        p ? (
+          <>
+            {p.title}
+            {revision && (
+              <span style={{ color: 'var(--ink-muted)', fontWeight: 400 }}> {revision}</span>
+            )}
+          </>
+        ) : (
+          <Trans>Proposal</Trans>
+        )
+      }
       subsection={subsection}
       onBack={onBack}
     >
@@ -146,13 +159,14 @@ function ProposalPane({
   const p = proposal;
   const isOpen = p.status === 'voting';
   const root = tree.find((x) => x.id === p.root_id) ?? p;
+  const revision = revisionTags(tree)[p.id];
   const inThread = tree.length > 1;
   const parent = p.parent_id ? tree.find((x) => x.id === p.parent_id) : null;
   const votingRule = root.voting_rule ?? 'simple_majority';
 
   return (
     <section className="flex flex-col gap-5 px-4 pt-4 pb-28">
-      {(inThread || isOpen) && (
+      {(inThread || isOpen) && !root.is_question && (
         <div
           className="-mx-4 border-b"
           style={{ borderColor: 'var(--border)', background: 'var(--surface-2)' }}
@@ -219,6 +233,9 @@ function ProposalPane({
           }}
         >
           {p.title}
+          {revision && (
+            <span style={{ color: 'var(--ink-muted)', fontWeight: 400 }}> {revision}</span>
+          )}
         </h1>
       </div>
 

@@ -57,6 +57,37 @@ export function treeFlat(rootId: string, all: ExtendedProposal[]): ExtendedPropo
 }
 
 /**
+ * Revision tags for a deliberation tree. When two or more alternatives share
+ * the same title (someone kept the title when forking/amending), they're hard
+ * to tell apart — so we tag each with `(r1)`, `(r2)`, … in creation order
+ * (the original is r1). Titles that are unique within the tree get `null`
+ * (no tag needed). Returns a map from proposal id → tag string or null.
+ */
+export function revisionTags(tree: ExtendedProposal[]): Record<string, string | null> {
+  const byTitle = new Map<string, ExtendedProposal[]>();
+  for (const p of tree) {
+    const key = p.title.trim().toLowerCase();
+    const bucket = byTitle.get(key);
+    if (bucket) bucket.push(p);
+    else byTitle.set(key, [p]);
+  }
+  const out: Record<string, string | null> = {};
+  for (const bucket of byTitle.values()) {
+    if (bucket.length < 2) {
+      for (const p of bucket) out[p.id] = null;
+      continue;
+    }
+    const ordered = [...bucket].sort(
+      (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+    );
+    ordered.forEach((p, i) => {
+      out[p.id] = `(r${i + 1})`;
+    });
+  }
+  return out;
+}
+
+/**
  * Pre-rendered box-drawing prefix for one row: `'├─ '`, `'└─ '`, with
  * leading `'│  '` / `'   '` columns reflecting `ancestorLasts`.
  */

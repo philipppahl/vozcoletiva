@@ -42,11 +42,18 @@ export function VoteControl({
   onRetract,
 }: VoteControlProps) {
   const { _ } = useLingui();
-  const alternatives = tree.filter((p) => p.parent_id || p.id === viewing.root_id);
-  // Order: root first, then by id (stable).
+  // The question root of a multi-option decision is not itself a choice — only
+  // its option children are.
+  const alternatives = tree.filter((p) => {
+    if (p.is_question) return false;
+    return p.parent_id || p.id === viewing.root_id;
+  });
+  // Order: root first (plain decision / fork tree), then children by creation.
   const ordered = [
     ...alternatives.filter((p) => !p.parent_id),
-    ...alternatives.filter((p) => p.parent_id).sort((a, b) => a.id.localeCompare(b.id)),
+    ...alternatives
+      .filter((p) => p.parent_id)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)),
   ];
   const isSolo = ordered.length === 1;
   const [pending, setPending] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { rowPrefix, treeRows } from '../src/components/forks/tree';
+import { revisionTags, rowPrefix, treeRows } from '../src/components/forks/tree';
 import type { ExtendedProposal } from '../src/lib/proposals/types';
 
 function p(
@@ -92,5 +92,42 @@ describe('treeRows', () => {
     expect(rowPrefix(rows[1]!)).toBe('├─ ');
     expect(rowPrefix(rows[2]!)).toBe('│  └─ ');
     expect(rowPrefix(rows[3]!)).toBe('└─ ');
+  });
+});
+
+describe('revisionTags', () => {
+  const titled = (id: string, title: string, createdAt: string): ExtendedProposal => ({
+    ...p(id, null, id, createdAt),
+    title,
+  });
+
+  it('returns null for titles that are unique in the tree', () => {
+    const tree = [
+      titled('A', 'Replace the racks', '2026-05-01T00:00:00Z'),
+      titled('B', 'Refurbish instead', '2026-05-02T00:00:00Z'),
+    ];
+    expect(revisionTags(tree)).toEqual({ A: null, B: null });
+  });
+
+  it('tags shared titles (r1, r2, …) in creation order', () => {
+    const tree = [
+      titled('B', 'Adopt the policy', '2026-05-02T00:00:00Z'),
+      titled('A', 'Adopt the policy', '2026-05-01T00:00:00Z'),
+      titled('C', 'A different one', '2026-05-03T00:00:00Z'),
+    ];
+    const revs = revisionTags(tree);
+    expect(revs.A).toBe('(r1)'); // earliest
+    expect(revs.B).toBe('(r2)');
+    expect(revs.C).toBeNull(); // unique
+  });
+
+  it('is case- and whitespace-insensitive when grouping', () => {
+    const tree = [
+      titled('A', 'House Rules', '2026-05-01T00:00:00Z'),
+      titled('B', '  house rules ', '2026-05-02T00:00:00Z'),
+    ];
+    const revs = revisionTags(tree);
+    expect(revs.A).toBe('(r1)');
+    expect(revs.B).toBe('(r2)');
   });
 });

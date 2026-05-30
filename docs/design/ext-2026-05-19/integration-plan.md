@@ -170,6 +170,8 @@ After D1 / D2 / D3 are answered, start with **Slice 1** via the `plan-feature` s
 | M7 | Categories (mock UI, see 0007) | ✓ shipped |
 | M7-recategorise | Bulk re-categorise + drag-reorder | future |
 | M8 | Shell v2: dynamic header/footer, topics-in-header, switcher redesign, Proposal/Discussion pager (see 0008) | ✓ shipped |
+| M9 | Multi-option decisions: upfront single-select options (see 0009) | ✓ shipped |
+| M9-multiselect | Approval (multi-select) Poll | future |
 | 6 | Inbox (cross-project) | future |
 | 7 | Comment threading + mentions + reactions | future |
 | 8 | Other proposal types (Election, Poll, Petition) | future |

@@ -61,6 +61,9 @@ export const proposalsHandlers = [
       proposal_kind?: ProposalKind | null;
       document_name?: string | null;
       category_id?: string | null;
+      /** Lightweight option labels for a multi-option decision. When 2+ are
+       *  given on a root decision, the proposal becomes a question + options. */
+      options?: string[] | null;
     };
     // Resolve the voting rule from either the new or legacy field.
     let votingRule: VotingRule =
@@ -149,6 +152,13 @@ export const proposalsHandlers = [
     }
     const id = ulid();
     if (!parentId) rootId = id;
+
+    // Multi-option decision: a root that frames the question + one option
+    // proposal per label. Only for brand-new decision roots (not forks,
+    // documents, or amendments).
+    const optionLabels = (body.options ?? []).map((o) => o.trim()).filter((o) => o.length > 0);
+    const isMultiOption = !parentId && proposalKind === 'decision' && optionLabels.length >= 2;
+
     const proposal: MockProposal = {
       id,
       projectId: project.id,
@@ -166,8 +176,35 @@ export const proposalsHandlers = [
       proposalKind,
       documentName,
       categoryId: categoryId!,
+      ...(isMultiOption && { isQuestion: true }),
     };
     getDb().proposals.set(id, proposal);
+
+    if (isMultiOption) {
+      optionLabels.forEach((label, i) => {
+        const optId = ulid();
+        getDb().proposals.set(optId, {
+          id: optId,
+          projectId: project.id,
+          authorId: me.userId,
+          title: label,
+          body: '',
+          votingRule,
+          quorum,
+          status: 'voting',
+          // Stagger createdAt so option order is stable + matches input order.
+          createdAt: new Date(mockNow() + i).toISOString(),
+          endsAt,
+          closedAt: null,
+          parentId: id,
+          rootId: id,
+          proposalKind,
+          documentName: null,
+          categoryId: categoryId!,
+        });
+      });
+    }
+
     return HttpResponse.json(toProposalDto(proposal, me.userId), { status: 201 });
   }),
 

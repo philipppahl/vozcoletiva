@@ -49,95 +49,96 @@ export function ProjectTopSheet({ open, onOpenChange, currentSlug }: ProjectTopS
           return (
             <li key={entry.project.id}>
               <div
-                className="flex items-center gap-3 rounded-2xl py-3.5 pl-4 pr-2"
+                className="rounded-2xl py-3 pl-4 pr-3"
                 style={{
                   background: isCurrent ? 'var(--surface-2)' : 'transparent',
                   border: `1px solid ${isCurrent ? 'var(--border)' : 'transparent'}`,
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    close();
-                    if (!isCurrent) {
-                      void navigate({ to: '/p/$slug', params: { slug: entry.project.slug } });
-                    }
-                  }}
-                  className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="truncate"
-                        style={{
-                          fontFamily: 'var(--font-display)',
-                          fontSize: 17,
-                          fontWeight: 500,
-                          color: 'var(--ink)',
-                          lineHeight: 1.2,
-                          letterSpacing: -0.2,
-                          fontVariationSettings: '"opsz" 24',
-                        }}
-                      >
-                        {entry.project.name}
-                      </span>
-                      {hasUnread && !isCurrent && (
-                        <span
-                          aria-hidden="true"
-                          className="inline-block flex-shrink-0 rounded-full"
-                          style={{ width: 7, height: 7, background: 'var(--accent)' }}
-                        />
-                      )}
-                    </div>
-                    <div className="mt-0.5 text-[11.5px]" style={{ color: 'var(--ink-muted)' }}>
-                      {isCurrent && (
-                        <>
-                          <Trans>Current</Trans>
-                          {' · '}
-                        </>
-                      )}
-                      {ROLE_LABEL[entry.role as Role] ?? entry.role}
-                    </div>
-                  </div>
-                </button>
-                {canManage(entry.role) ? (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    aria-label={`Settings for ${entry.project.name}`}
                     onClick={() => {
                       close();
-                      void navigate({
-                        to: '/p/$slug/manage',
-                        params: { slug: entry.project.slug },
-                      });
+                      if (!isCurrent) {
+                        void navigate({ to: '/p/$slug', params: { slug: entry.project.slug } });
+                      }
                     }}
-                    className="flex-shrink-0 rounded-full"
+                    className="min-w-0 truncate text-left"
                     style={{
-                      padding: 8,
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 17,
+                      fontWeight: 500,
+                      color: 'var(--ink)',
+                      lineHeight: 1.2,
+                      letterSpacing: -0.2,
+                      fontVariationSettings: '"opsz" 24',
                       background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
-                      color: 'var(--ink-soft)',
                     }}
                   >
-                    <GearIcon />
+                    {entry.project.name}
                   </button>
-                ) : !isCurrent ? (
-                  <span className="flex-shrink-0 pr-2" aria-hidden="true">
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                      <path
-                        d="M5 3l4 4-4 4"
-                        stroke="var(--ink-muted)"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                ) : (
-                  <span className="w-2 flex-shrink-0" />
-                )}
+                  {canManage(entry.role) && (
+                    <button
+                      type="button"
+                      aria-label={`Settings for ${entry.project.name}`}
+                      onClick={() => {
+                        close();
+                        void navigate({
+                          to: '/p/$slug/manage',
+                          params: { slug: entry.project.slug },
+                        });
+                      }}
+                      className="flex-shrink-0 rounded-full"
+                      style={{
+                        padding: 4,
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--ink-soft)',
+                      }}
+                    >
+                      <GearIcon />
+                    </button>
+                  )}
+                  {hasUnread && !isCurrent && (
+                    <span
+                      aria-hidden="true"
+                      className="inline-block flex-shrink-0 rounded-full"
+                      style={{ width: 7, height: 7, background: 'var(--accent)' }}
+                    />
+                  )}
+                  {!isCurrent && (
+                    <span className="ml-auto flex-shrink-0 pl-1" aria-hidden="true">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M5 3l4 4-4 4"
+                          stroke="var(--ink-muted)"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-[11.5px]" style={{ color: 'var(--ink-muted)' }}>
+                  {isCurrent && (
+                    <>
+                      <Trans>Current</Trans>
+                      {' · '}
+                    </>
+                  )}
+                  {ROLE_LABEL[entry.role as Role] ?? entry.role}
+                </div>
               </div>
             </li>
           );

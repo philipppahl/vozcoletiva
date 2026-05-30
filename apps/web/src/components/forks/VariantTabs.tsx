@@ -2,7 +2,7 @@ import { Trans } from '@lingui/macro';
 import { forwardRef, useEffect, useRef } from 'react';
 
 import type { ExtendedProposal } from '../../lib/proposals/types';
-import { rowPrefix, type TreeRow, treeRows } from './tree';
+import { revisionTags, rowPrefix, type TreeRow, treeRows } from './tree';
 
 interface VariantTabsProps {
   proposal: ExtendedProposal;
@@ -37,6 +37,7 @@ export function VariantTabs({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const activeRef = useRef<HTMLButtonElement | null>(null);
   const rows = treeRows(proposal.root_id, all);
+  const revs = revisionTags(rows.map((r) => r.proposal));
 
   useEffect(() => {
     const c = containerRef.current;
@@ -99,6 +100,7 @@ export function VariantTabs({
             key={row.proposal.id}
             row={row}
             voteCount={tallyByChoice[row.proposal.id] ?? 0}
+            revision={revs[row.proposal.id] ?? null}
             isCurrent={row.proposal.id === proposal.id}
             ref={row.proposal.id === proposal.id ? activeRef : undefined}
             onClick={() => onOpen(row.proposal.id)}
@@ -140,12 +142,13 @@ export function VariantTabs({
 interface RowProps {
   row: TreeRow;
   voteCount: number;
+  revision: string | null;
   isCurrent: boolean;
   onClick: () => void;
 }
 
 const Row = forwardRef<HTMLButtonElement, RowProps>(function Row(
-  { row, voteCount, isCurrent, onClick },
+  { row, voteCount, revision, isCurrent, onClick },
   ref,
 ) {
   const p = row.proposal;
@@ -211,6 +214,9 @@ const Row = forwardRef<HTMLButtonElement, RowProps>(function Row(
         }}
       >
         {p.title}
+        {revision && (
+          <span style={{ color: 'var(--ink-muted)', fontWeight: 500 }}> {revision}</span>
+        )}
       </span>
       {voteCount > 0 && (
         <span

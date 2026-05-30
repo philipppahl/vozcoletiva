@@ -35,6 +35,11 @@ msgstr "{0} tem uma nova versão"
 msgid "{0} members"
 msgstr "{0} membros"
 
+#. placeholder {0}: rows.length
+#: src/components/forks/DeliberationCard.tsx
+msgid "{0} options"
+msgstr "{0} opções"
+
 #. placeholder {0}: members.data.members.length
 #: src/routes/p.$slug.manage.tsx
 msgid "{0} people"
@@ -48,7 +53,6 @@ msgid "{0} replies"
 msgstr "{0} respostas"
 
 #. placeholder {0}: rows.length
-#. placeholder {0}: tree.length
 #: src/components/forks/DeliberationCard.tsx
 #: src/components/forks/VariantTabs.tsx
 msgid "{0} variants"
@@ -96,6 +100,10 @@ msgstr "**negrito** *itálico* `código` [link](url) — @ para mencionar"
 msgid "+ {hiddenCount} more"
 msgstr "+ {hiddenCount} mais"
 
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "+ Add option"
+msgstr "+ Adicionar opção"
+
 #: src/components/messages/ChannelListSection.tsx
 #: src/components/messages/DmListSection.tsx
 msgid "+ New"
@@ -132,16 +140,16 @@ msgid "A deliberation you voted in closed"
 msgstr "Uma deliberação em que você votou foi encerrada"
 
 #: src/routes/p.$slug.proposals.new.tsx
-msgid "A new or amended canonical text."
-msgstr "Um texto canônico novo ou emendado."
+#~ msgid "A new or amended canonical text."
+#~ msgstr "Um texto canônico novo ou emendado."
 
 #: src/routes/p.$slug.proposals.new.tsx
-msgid "A stable identifier for this document, e.g. \"House Rules\"."
-msgstr "Um identificador estável para este documento, ex. \"Regras da Casa\"."
+#~ msgid "A stable identifier for this document, e.g. \"House Rules\"."
+#~ msgstr "Um identificador estável para este documento, ex. \"Regras da Casa\"."
 
 #: src/routes/p.$slug.proposals.new.tsx
-msgid "A vote with a yes/no/alternative outcome."
-msgstr "Uma votação com resultado sim/não/alternativa."
+#~ msgid "A vote with a yes/no/alternative outcome."
+#~ msgstr "Uma votação com resultado sim/não/alternativa."
 
 #: src/components/TallyBar.tsx
 #: src/components/VoteControl.tsx
@@ -176,6 +184,14 @@ msgstr "Adicionar um tópico"
 #: src/components/forks/VariantTabs.tsx
 msgid "Add an alternative"
 msgstr "Adicionar alternativa"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Add at least one more option, or remove it for a yes / no vote."
+msgstr "Adicione pelo menos mais uma opção, ou remova-a para uma votação sim / não."
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Add two or more for a pick-one vote among them. Leave empty for a plain yes / no."
+msgstr "Adicione duas ou mais para uma votação de escolha única entre elas. Deixe vazio para um sim / não simples."
 
 #: src/components/RoleBadge.tsx
 #: src/components/shell/ProjectTopSheet.tsx
@@ -394,6 +410,10 @@ msgstr "Atual"
 msgid "Dark"
 msgstr "Escuro"
 
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Decide a question — yes / no, or among alternatives."
+msgstr "Decida uma questão — sim / não, ou entre alternativas."
+
 #: src/routes/welcome.tsx
 msgid "Decide together"
 msgstr "Decidir em conjunto"
@@ -445,6 +465,10 @@ msgstr "Nome do documento"
 #: src/routes/p.$slug.documents.tsx
 #~ msgid "Document proposals will become versioned canonical texts — statutes, by-laws, policies. Amendments diff against prior versions."
 #~ msgstr "Propostas do tipo documento se tornarão textos canônicos versionados — estatutos, regimentos, políticas. Emendas comparam-se com versões anteriores."
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Document text (Markdown)"
+msgstr "Texto do documento (Markdown)"
 
 #: src/components/search/SearchResults.tsx
 #: src/components/shell/TabBar.tsx
@@ -522,6 +546,10 @@ msgstr "Olá, {displayName}"
 msgid "Hide diff"
 msgstr "Ocultar diferenças"
 
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "How it's decided"
+msgstr "Como é decidido"
+
 #: src/components/shell/BellButton.tsx
 #: src/routes/inbox.tsx
 msgid "Inbox"
@@ -554,6 +582,10 @@ msgstr "Emitir e revogar convites"
 msgid "Issue invite"
 msgstr "Emitir convite"
 
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Its name in the Library, e.g. \"House Rules\". The title below is what voters see in the deliberation."
+msgstr "O nome dele na Biblioteca, ex. \"Regras da Casa\". O título abaixo é o que os votantes veem na deliberação."
+
 #: src/routes/join.tsx
 msgid "Join"
 msgstr "Juntar"
@@ -572,8 +604,8 @@ msgid "just now"
 msgstr "agora mesmo"
 
 #: src/routes/p.$slug.proposals.new.tsx
-msgid "Kind"
-msgstr "Tipo"
+#~ msgid "Kind"
+#~ msgstr "Tipo"
 
 #: src/routes/preferences.tsx
 msgid "Language"
@@ -654,8 +686,8 @@ msgid "New"
 msgstr "Nova"
 
 #: src/routes/p.$slug.proposals.new.tsx
-msgid "New body (Markdown)"
-msgstr "Novo conteúdo (Markdown)"
+#~ msgid "New body (Markdown)"
+#~ msgstr "Novo conteúdo (Markdown)"
 
 #: src/components/messages/MemberPickerSheet.tsx
 msgid "New direct message"
@@ -669,6 +701,10 @@ msgstr "Novo projeto"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "New proposal"
 msgstr "Nova proposta"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "New version (Markdown)"
+msgstr "Nova versão (Markdown)"
 
 #: src/components/TallyBar.tsx
 #: src/components/VoteControl.tsx
@@ -761,6 +797,15 @@ msgstr "Deliberação em aberto"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Open this alternative"
 msgstr "Abrir esta alternativa"
+
+#. placeholder {0}: i + 1
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Option {0}"
+msgstr "Opção {0}"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Options"
+msgstr "Opções"
 
 #: src/routes/p.$slug.manage.tsx
 msgid "Organise proposals and documents by topic"
@@ -872,6 +917,7 @@ msgid "Proposals"
 msgstr "Propostas"
 
 #: src/routes/p.$slug.documents_.$name.tsx
+#: src/routes/p.$slug.proposals.new.tsx
 msgid "Propose amendment"
 msgstr "Propor emenda"
 
@@ -879,6 +925,10 @@ msgstr "Propor emenda"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Propose an alternative"
 msgstr "Propor uma alternativa"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Propose document"
+msgstr "Propor documento"
 
 #: src/routes/welcome.tsx
 msgid "Propose, discuss, and vote with the people who share the decision."
@@ -893,6 +943,10 @@ msgstr "Propondo alternativa a"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Proposing an amendment to {0} (currently v{1})."
 msgstr "Propondo uma emenda a {0} (atualmente v{1})."
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Question"
+msgstr "Pergunta"
 
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Quorum (optional)"
@@ -941,6 +995,10 @@ msgstr "rejeitada"
 #: src/components/StatusBadge.tsx
 msgid "Rejected"
 msgstr "Rejeitada"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Remove option"
+msgstr "Remover opção"
 
 #: src/components/categories/CategoryManager.tsx
 msgid "Rename"
@@ -1082,6 +1140,10 @@ msgstr "Sistema"
 #~ msgid "Template"
 #~ msgstr "Modelo"
 
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Text that becomes a versioned document if it passes."
+msgstr "Texto que vira um documento versionado se for aprovado."
+
 #: src/routes/join.tsx
 msgid "That invite is no longer valid."
 msgstr "Esse convite já não é válido."
@@ -1131,6 +1193,10 @@ msgid "Title must be 1-200 characters."
 msgstr "O título deve ter entre 1 e 200 caracteres."
 
 #: src/routes/p.$slug.proposals.new.tsx
+msgid "Title of this alternative"
+msgstr "Título desta alternativa"
+
+#: src/routes/p.$slug.proposals.new.tsx
 msgid "Title of this amendment"
 msgstr "Título desta emenda"
 
@@ -1159,6 +1225,10 @@ msgstr "Tópicos"
 #: src/components/VotingRulePicker.tsx
 msgid "Two-thirds"
 msgstr "Dois terços"
+
+#: src/routes/p.$slug.proposals.new.tsx
+msgid "Type"
+msgstr "Tipo"
 
 #: src/components/search/SearchResults.tsx
 msgid "Type at least 2 characters."

@@ -7,7 +7,7 @@ import { CategoryBadge } from '../categories/CategoryBadge';
 import { StatusBadge } from '../StatusBadge';
 import { TimeRemaining } from '../TimeRemaining';
 import { Card } from '../ui/Card';
-import { treeFlat } from './tree';
+import { revisionTags, treeFlat } from './tree';
 
 interface DeliberationCardProps {
   /** The root proposal of the tree. */
@@ -31,9 +31,15 @@ export function DeliberationCard({ root, all, slug }: DeliberationCardProps) {
   const nextClose = nextCloseAt(tree);
   const tallyByChoice = root.tally_by_choice ?? {};
   const decisive = root.tally_decisive ?? 0;
+  const revs = revisionTags(tree);
+  // For a multi-option decision, the question root frames the title but isn't
+  // a votable row — show only the option children.
+  const isQuestion = root.is_question === true;
+  const rows = isQuestion ? tree.filter((p) => p.id !== root.id) : tree;
 
-  const visible = tree.slice(0, MAX_ROWS_BEFORE_COLLAPSE);
-  const hiddenCount = Math.max(0, tree.length - visible.length);
+  const visible = rows.slice(0, MAX_ROWS_BEFORE_COLLAPSE);
+  const hiddenCount = Math.max(0, rows.length - visible.length);
+  const optionLabel = isQuestion ? 'options' : 'variants';
 
   return (
     <Card padded={false}>
@@ -51,7 +57,13 @@ export function DeliberationCard({ root, all, slug }: DeliberationCardProps) {
               </span>
             )}
             <span className="text-xs font-medium" style={{ color: 'var(--ink-soft)' }}>
-              {tree.length === 1 ? <Trans>1 variant</Trans> : <Trans>{tree.length} variants</Trans>}
+              {optionLabel === 'options' ? (
+                <Trans>{rows.length} options</Trans>
+              ) : rows.length === 1 ? (
+                <Trans>1 variant</Trans>
+              ) : (
+                <Trans>{rows.length} variants</Trans>
+              )}
             </span>
             {nextClose && (
               <span className="ml-auto text-xs" style={{ color: 'var(--ink-soft)' }}>
@@ -91,12 +103,12 @@ export function DeliberationCard({ root, all, slug }: DeliberationCardProps) {
           >
             <Link
               to="/p/$slug/proposals/$id"
-              params={{ slug, id: node.id }}
+              params={{ slug, id: isQuestion ? root.id : node.id }}
               className="flex items-center gap-3 px-3 py-2.5"
               style={{ color: 'var(--ink)' }}
             >
               <RowMarker
-                isRoot={!node.parent_id}
+                isRoot={isQuestion ? true : !node.parent_id}
                 isWinner={node.status === 'passed' && tree.length > 1}
               />
               <div className="min-w-0 flex-1">
@@ -105,6 +117,12 @@ export function DeliberationCard({ root, all, slug }: DeliberationCardProps) {
                   style={{ color: 'var(--ink)', lineHeight: 1.3 }}
                 >
                   {node.title}
+                  {revs[node.id] && (
+                    <span style={{ color: 'var(--ink-muted)', fontWeight: 500 }}>
+                      {' '}
+                      {revs[node.id]}
+                    </span>
+                  )}
                 </div>
                 {node.status !== 'voting' && (
                   <div className="mt-0.5 text-[11px]" style={{ color: 'var(--ink-muted)' }}>

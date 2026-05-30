@@ -91,6 +91,9 @@ export interface MockProposal {
   /** Project-scoped category. Required. Forks inherit from the root.
    *  Document amendments inherit from the previous version. */
   categoryId: string;
+  /** True on the ROOT of a multi-option decision — it frames the question but
+   *  is not itself a votable choice; its children are the options. */
+  isQuestion?: boolean;
 }
 
 /** A vote is per-deliberation (per root), not per-proposal/alternative.

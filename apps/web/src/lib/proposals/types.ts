@@ -32,6 +32,9 @@ export type ExtendedProposal = components['schemas']['Proposal'] & {
   your_root_choice?: string | null;
   /** Project-scoped category this proposal belongs to. */
   category_id?: string | null;
+  /** True on the root of a multi-option decision — frames the question but is
+   *  not itself a votable choice. */
+  is_question?: boolean | null;
 };
 
 export interface ExtendedProposalListResponse {

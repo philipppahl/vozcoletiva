@@ -87,6 +87,9 @@ export interface CreateProposalInput {
   document_name?: string;
   /** Optional on POST. Server falls back to the project's default category. */
   category_id?: string;
+  /** Lightweight option labels — 2+ turns a decision into a single-select
+   *  multi-option vote (a question + one option per label). */
+  options?: string[];
 }
 
 export function useCreateProposal() {
@@ -106,6 +109,7 @@ export function useCreateProposal() {
         ...(input.proposal_kind && { proposal_kind: input.proposal_kind }),
         ...(input.document_name && { document_name: input.document_name }),
         ...(input.category_id && { category_id: input.category_id }),
+        ...(input.options && input.options.length > 0 && { options: input.options }),
       };
       const { data, error } = await apiClient.POST('/v1/projects/{slug}/proposals', {
         params: { path: { slug: input.slug } },

@@ -78,6 +78,7 @@ export function toProposalDto(p: MockProposal, viewerId: string | null): Proposa
     proposal_kind: p.proposalKind,
     document_name: p.documentName ?? null,
     category_id: p.categoryId,
+    is_question: p.isQuestion ?? false,
     voting_rule: p.votingRule,
     /** Map of alternative-proposal-id → vote count for the whole deliberation. */
     tally_by_choice: t.byChoice,
@@ -158,6 +159,10 @@ export function autoCloseDuePoll(projectId?: string) {
     for (const p of tree) {
       if (outcome.status === 'quorum_failed') {
         p.status = 'quorum_failed';
+      } else if (p.isQuestion) {
+        // The question root isn't a votable choice — it "passed" if any option
+        // won, otherwise the deliberation produced no winner.
+        p.status = outcome.winnerId ? 'passed' : 'rejected';
       } else if (outcome.winnerId === p.id) {
         p.status = 'passed';
       } else {

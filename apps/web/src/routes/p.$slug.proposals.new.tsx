@@ -81,7 +81,10 @@ function NewProposalPage() {
   const [documentName, setDocumentName] = useState<string>(search.amends ?? '');
   const [bodyValue, setBodyValue] = useState<string>('');
   const [showDiff, setShowDiff] = useState(false);
+  const [options, setOptions] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+  const trimmedOptions = options.map((o) => o.trim()).filter((o) => o.length > 0);
+  const isMultiOption = !isFork && proposalKind === 'decision' && trimmedOptions.length >= 2;
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
   const categories = useCategories(slug);
   // Initialise picker to the first category once loaded.
@@ -164,6 +167,7 @@ function NewProposalPage() {
             document_name: documentName.trim(),
           }),
         ...(!isFork && !isAmendment && categoryId && { category_id: categoryId }),
+        ...(isMultiOption && { options: trimmedOptions }),
       });
       navigate({
         to: '/p/$slug/proposals/$id',
@@ -221,7 +225,7 @@ function NewProposalPage() {
                 className="text-xs font-semibold uppercase"
                 style={{ color: 'var(--ink-soft)', letterSpacing: 0.04 }}
               >
-                <Trans>Kind</Trans>
+                <Trans>Type</Trans>
               </legend>
               <div className="grid grid-cols-2 gap-2">
                 {(['decision', 'document'] as const).map((k) => {
@@ -247,9 +251,9 @@ function NewProposalPage() {
                         style={{ color: 'var(--ink-soft)', lineHeight: 1.4 }}
                       >
                         {k === 'decision' ? (
-                          <Trans>A vote with a yes/no/alternative outcome.</Trans>
+                          <Trans>Decide a question — yes / no, or among alternatives.</Trans>
                         ) : (
-                          <Trans>A new or amended canonical text.</Trans>
+                          <Trans>Text that becomes a versioned document if it passes.</Trans>
                         )}
                       </span>
                     </button>
@@ -265,13 +269,21 @@ function NewProposalPage() {
               autoComplete="off"
               value={documentName}
               onChange={(e) => setDocumentName(e.target.value)}
-              hint={_(t`A stable identifier for this document, e.g. "House Rules".`)}
+              hint={_(
+                t`Its name in the Library, e.g. "House Rules". The title below is what voters see in the deliberation.`,
+              )}
             />
           )}
 
           <Field
             label={
-              isFork || proposalKind === 'document' ? _(t`Title of this amendment`) : _(t`Title`)
+              isAmendment
+                ? _(t`Title of this amendment`)
+                : isFork
+                  ? _(t`Title of this alternative`)
+                  : options.length > 0
+                    ? _(t`Question`)
+                    : _(t`Title`)
             }
             autoComplete="off"
             {...register('title')}
@@ -280,8 +292,10 @@ function NewProposalPage() {
 
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium" style={{ color: 'var(--ink-soft)' }}>
-              {proposalKind === 'document' && isAmendment ? (
-                <Trans>New body (Markdown)</Trans>
+              {isAmendment ? (
+                <Trans>New version (Markdown)</Trans>
+              ) : proposalKind === 'document' ? (
+                <Trans>Document text (Markdown)</Trans>
               ) : (
                 <Trans>Body (Markdown)</Trans>
               )}
@@ -305,6 +319,94 @@ function NewProposalPage() {
               </span>
             )}
           </label>
+
+          {!isFork && !isAmendment && proposalKind === 'decision' && (
+            <fieldset className="flex flex-col gap-2">
+              <legend
+                className="text-xs font-semibold uppercase"
+                style={{ color: 'var(--ink-soft)', letterSpacing: 0.04 }}
+              >
+                <Trans>Options</Trans>
+              </legend>
+              <p className="text-[11.5px]" style={{ color: 'var(--ink-soft)', lineHeight: 1.4 }}>
+                <Trans>
+                  Add two or more for a pick-one vote among them. Leave empty for a plain yes / no.
+                </Trans>
+              </p>
+              {options.length > 0 && (
+                <ul className="flex flex-col gap-2">
+                  {options.map((opt, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: simple local repeater, no reorder
+                    <li key={i} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={opt}
+                        onChange={(e) =>
+                          setOptions((prev) => prev.map((o, j) => (j === i ? e.target.value : o)))
+                        }
+                        placeholder={_(t`Option ${i + 1}`)}
+                        maxLength={120}
+                        className="min-h-[40px] flex-1 rounded-xl border px-3 py-2 text-base outline-none"
+                        style={{
+                          background: 'var(--surface)',
+                          borderColor: 'var(--border)',
+                          color: 'var(--ink)',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        aria-label={_(t`Remove option`)}
+                        onClick={() => setOptions((prev) => prev.filter((_o, j) => j !== i))}
+                        className="flex-shrink-0 rounded-full"
+                        style={{
+                          width: 32,
+                          height: 32,
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          color: 'var(--ink-muted)',
+                        }}
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M4 4l8 8M12 4l-8 8"
+                            stroke="currentColor"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={() => setOptions((prev) => [...prev, ''])}
+                className="self-start text-sm font-semibold"
+                style={{
+                  color: 'var(--accent)',
+                  background: 'transparent',
+                  border: 'none',
+                  padding: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                <Trans>+ Add option</Trans>
+              </button>
+              {options.filter((o) => o.trim()).length === 1 && (
+                <span className="text-[11px]" style={{ color: 'var(--no)' }}>
+                  <Trans>Add at least one more option, or remove it for a yes / no vote.</Trans>
+                </span>
+              )}
+            </fieldset>
+          )}
 
           {isAmendment && amendedDoc.data && (
             <div className="flex flex-col gap-2">
@@ -351,6 +453,18 @@ function NewProposalPage() {
             </div>
           )}
 
+          {!isFork && (
+            <div
+              className="mt-1 border-t pt-4 text-xs font-semibold uppercase"
+              style={{
+                color: 'var(--ink-soft)',
+                letterSpacing: 0.04,
+                borderColor: 'var(--border)',
+              }}
+            >
+              <Trans>How it's decided</Trans>
+            </div>
+          )}
           {!isFork && <VotingRulePicker value={votingRule} onChange={setVotingRule} />}
           {isFork && (
             <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
@@ -406,8 +520,22 @@ function NewProposalPage() {
             </p>
           )}
 
-          <Button type="submit" variant="primary" size="lg" block disabled={isSubmitting}>
-            {isFork ? <Trans>Open this alternative</Trans> : <Trans>Create proposal</Trans>}
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            block
+            disabled={isSubmitting || trimmedOptions.length === 1}
+          >
+            {isFork ? (
+              <Trans>Open this alternative</Trans>
+            ) : isAmendment ? (
+              <Trans>Propose amendment</Trans>
+            ) : proposalKind === 'document' ? (
+              <Trans>Propose document</Trans>
+            ) : (
+              <Trans>Create proposal</Trans>
+            )}
           </Button>
         </form>
       </section>
