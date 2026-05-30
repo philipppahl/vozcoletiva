@@ -1,3 +1,4 @@
+pub mod category;
 pub mod comment;
 pub mod invite;
 pub mod membership;

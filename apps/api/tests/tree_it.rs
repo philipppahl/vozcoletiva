@@ -43,6 +43,7 @@ async fn root(ddb: &LocalDdb, project: &str, rule: VotingRule, quorum: Option<i6
         rule,
         quorum,
         Utc::now() + Duration::hours(1),
+        "cat-test".to_string(),
     )
     .await
     .expect("create root")

@@ -49,6 +49,7 @@ async fn new_proposal(
         rule,
         quorum,
         Utc::now() + Duration::hours(1),
+        "cat-test".to_string(),
     )
     .await
     .expect("create proposal")

@@ -97,7 +97,10 @@ pub async fn create(
         .item("projectId", AttributeValue::S(project.id.clone()))
         .item("userId", AttributeValue::S(creator.user_id.clone()))
         .item("role", AttributeValue::S(Role::Owner.as_str().into()))
-        .item("displayName", AttributeValue::S(creator_display_name.into()))
+        .item(
+            "displayName",
+            AttributeValue::S(creator_display_name.into()),
+        )
         .item("joinedAt", AttributeValue::S(now.to_rfc3339()))
         .item("GSI1PK", AttributeValue::S(user_pk))
         .item(
@@ -108,12 +111,23 @@ pub async fn create(
         .build()
         .map_err(|e| AppError::Internal(Box::new(e)))?;
 
+    // Every project starts with one default "Commons" category, so the proposal
+    // create flow always has a category to fall back to.
+    let default_category = crate::repo::category::new_category(&project_id, "Commons", 0);
+    let put_category = Put::builder()
+        .table_name(&state.table_name)
+        .set_item(Some(crate::repo::category::item_map(&default_category)))
+        .condition_expression("attribute_not_exists(SK)")
+        .build()
+        .map_err(|e| AppError::Internal(Box::new(e)))?;
+
     let result = state
         .ddb
         .transact_write_items()
         .transact_items(TransactWriteItem::builder().put(put_project).build())
         .transact_items(TransactWriteItem::builder().put(put_slug).build())
         .transact_items(TransactWriteItem::builder().put(put_member).build())
+        .transact_items(TransactWriteItem::builder().put(put_category).build())
         .send()
         .await;
 
@@ -138,10 +152,7 @@ pub async fn get_by_slug(state: &AppState, slug: &str) -> Result<Project, AppErr
         .table_name(&state.table_name)
         .index_name("GSI1")
         .key_condition_expression("GSI1PK = :pk AND GSI1SK = :sk")
-        .expression_attribute_values(
-            ":pk",
-            AttributeValue::S(format!("PROJECTSLUG#{slug}")),
-        )
+        .expression_attribute_values(":pk", AttributeValue::S(format!("PROJECTSLUG#{slug}")))
         .expression_attribute_values(":sk", AttributeValue::S("METADATA".into()))
         .limit(1)
         .send()
@@ -193,10 +204,7 @@ pub async fn list_for_user(
     Ok(out)
 }
 
-pub async fn get_by_slug_from_id(
-    state: &AppState,
-    project_id: &str,
-) -> Result<Project, AppError> {
+pub async fn get_by_slug_from_id(state: &AppState, project_id: &str) -> Result<Project, AppError> {
     get_by_id(state, project_id).await
 }
 

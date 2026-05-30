@@ -9,7 +9,7 @@ use crate::auth::{bearer_token, perms, AuthenticatedUser};
 use crate::domain::proposal::{ProposalStatus, Tally};
 use crate::domain::voting_rule::VotingRule;
 use crate::error::AppError;
-use crate::repo::{proposal, vote};
+use crate::repo::{category, proposal, vote};
 use crate::scheduler::{cancel_close, schedule_close};
 use crate::state::AppState;
 
@@ -26,6 +26,9 @@ struct CreateProposalBody {
     ends_at: String,
     /// When set, creates a fork under this parent's deliberation.
     parent_id: Option<String>,
+    /// Category (topic) for a root; defaults to the project's first. Ignored for
+    /// a fork (inherited from the root).
+    category_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -34,6 +37,7 @@ struct ProposalView {
     project_id: String,
     root_id: String,
     parent_id: Option<String>,
+    category_id: String,
     author_id: String,
     title: String,
     body: String,
@@ -128,6 +132,21 @@ pub async fn create(state: &AppState, req: Request, slug: &str) -> Result<Respon
                     ));
                 }
 
+                // Resolve the category: a named one (validated to belong to the
+                // project) or the project's default.
+                let category_id = match body.category_id.as_deref() {
+                    Some(cid) => match category::get(state, &auth.project.id, cid).await {
+                        Ok(c) => c.id,
+                        Err(AppError::NotFound) => {
+                            return Err(AppError::BadRequest(
+                                "category_id is not a category in this project".into(),
+                            ))
+                        }
+                        Err(e) => return Err(e),
+                    },
+                    None => category::default_for(state, &auth.project.id).await?.id,
+                };
+
                 let prop = proposal::create(
                     state,
                     &auth.project.id,
@@ -137,6 +156,7 @@ pub async fn create(state: &AppState, req: Request, slug: &str) -> Result<Respon
                     voting_rule,
                     body.quorum,
                     ends_at,
+                    category_id,
                 )
                 .await?;
 
@@ -329,6 +349,7 @@ fn view_with_tally(
         project_id: p.project_id.clone(),
         root_id: p.root_id.clone(),
         parent_id: p.parent_id.clone(),
+        category_id: p.category_id.clone(),
         author_id: p.author_id.clone(),
         title: p.title.clone(),
         body: p.body.clone(),

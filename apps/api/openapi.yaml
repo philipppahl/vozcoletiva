@@ -138,6 +138,98 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/projects/{slug}/categories:
+    get:
+      summary: List categories (topics) in a project
+      operationId: listCategories
+      tags: [categories]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Categories, ordered by position.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      summary: Create a category (owner/admin)
+      operationId: createCategory
+      tags: [categories]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryNameBody' }
+      responses:
+        '201':
+          description: Category created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: A category with that name already exists.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /v1/projects/{slug}/categories/{id}:
+    patch:
+      summary: Rename a category (owner/admin)
+      operationId: renameCategory
+      tags: [categories]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/CategoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryNameBody' }
+      responses:
+        '200':
+          description: Category renamed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A category with that name already exists.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+    delete:
+      summary: Delete a category (owner/admin)
+      operationId: deleteCategory
+      tags: [categories]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/CategoryId'
+      responses:
+        '200':
+          description: Category deleted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Category still has proposals, or is the project's last.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
   /v1/projects/{slug}/invites:
     get:
       summary: List a project's invites
@@ -544,6 +636,12 @@ components:
       required: true
       schema: { type: string }
 
+    CategoryId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+
   responses:
     Forbidden:
       description: Forbidden.
@@ -669,6 +767,31 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Member' }
 
+    Category:
+      type: object
+      required: [id, name, position]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        name: { type: string }
+        position: { type: integer }
+
+    CategoryListResponse:
+      type: object
+      required: [categories]
+      additionalProperties: false
+      properties:
+        categories:
+          type: array
+          items: { $ref: '#/components/schemas/Category' }
+
+    CategoryNameBody:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 30 }
+
     IssueInviteBody:
       type: object
       required: [role]
@@ -754,6 +877,10 @@ components:
           type: string
           nullable: true
           description: When set, creates a fork under this parent's deliberation.
+        category_id:
+          type: string
+          nullable: true
+          description: Category (topic) for a root; defaults to the project's first. Ignored for a fork.
 
     CastVoteBody:
       type: object
@@ -768,6 +895,7 @@ components:
         - id
         - project_id
         - root_id
+        - category_id
         - author_id
         - title
         - body
@@ -791,6 +919,9 @@ components:
           type: string
           nullable: true
           description: Parent proposal id for a fork; null for a root.
+        category_id:
+          type: string
+          description: Project-scoped category (topic) id.
         author_id: { type: string }
         title: { type: string }
         body: { type: string }

@@ -50,6 +50,20 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
             handlers::members::list(&state, event, slug).await
         }
 
+        // Categories (topics)
+        ("GET", ["projects", slug, "categories"]) => {
+            handlers::categories::list(&state, event, slug).await
+        }
+        ("POST", ["projects", slug, "categories"]) => {
+            handlers::categories::create(&state, event, slug).await
+        }
+        ("PATCH", ["projects", slug, "categories", id]) => {
+            handlers::categories::update(&state, event, slug, id).await
+        }
+        ("DELETE", ["projects", slug, "categories", id]) => {
+            handlers::categories::delete(&state, event, slug, id).await
+        }
+
         // Invites — project-scoped
         ("POST", ["projects", slug, "invites"]) => {
             handlers::invites::issue(&state, event, slug).await

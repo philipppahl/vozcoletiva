@@ -100,8 +100,12 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
 
 ### Topic (category — `category_id` in the entity, "topic" in the UI)
 - **PK** `PROJECT#<projectId>` · **SK** `TOPIC#<topicId>`
-- attrs: `name`, `position`, `createdAt`, `proposalCount` (denormalised; gates
-  delete — see Open questions)
+- attrs: `name`, `position` (creation order), `createdAt`
+- A default "Commons" topic is created in the `project::create` transaction.
+- **Delete guard**: a topic can't be deleted while a proposal references it
+  (`Query(PROJECT#p, PROPOSAL#)` filtered by `categoryId`, `Select=COUNT`) or if
+  it's the project's last topic. Scan-and-filter on a rare admin delete — see
+  Open questions (chose scan over a denormalised counter, 2026-05-30).
 
 ### Invite
 - **PK** `PROJECT#<projectId>` · **SK** `INVITE#<inviteId>`
@@ -207,7 +211,7 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
 | `GET /projects/:slug` | `Query GSI1(SLUG#s)` |
 | `GET /projects/:slug/members` | `Query(PROJECT#p, MEMBER#)` |
 | `GET /projects/:slug/categories` | `Query(PROJECT#p, TOPIC#)` |
-| `POST/PATCH/DELETE …/categories[/:id]` | CRUD `PROJECT#p / TOPIC#id` (delete gated by `proposalCount`) |
+| `POST/PATCH/DELETE …/categories[/:id]` | CRUD `PROJECT#p / TOPIC#id` (delete gated by a `Select=COUNT` query of referencing proposals + last-topic check) |
 | `GET /projects/:slug/channels` | `Query(PROJECT#p, CONV#)` |
 | `GET /projects/:slug/invites` | `Query(PROJECT#p, INVITE#)` |
 | `POST /projects/:slug/invites` | put `INVITE#` + GSI1 token + GSI1 code |
@@ -246,10 +250,11 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
   Acceptable for small projects; **migrate to OpenSearch Serverless** (mirror
   proposal/document bodies) when project size makes the scan hurt. Threshold TBD
   under load.
-- **Topic delete guard.** "Can't delete a topic with proposals" uses a
-  denormalised `proposalCount` on the topic, incremented/decremented in the
-  proposal write path, rather than scanning proposals on every delete. Confirm
-  the counter stays consistent under the vote/withdraw transitions.
+- **Topic delete guard (decided 2026-05-30: scan).** "Can't delete a topic with
+  proposals" is enforced by a `Select=COUNT` query of the project's proposals
+  filtered on `categoryId`, not a denormalised counter — delete is a rare admin
+  action and scan-and-filter exactly matches the mock. Revisit with a counter
+  only if delete-time scans become a measured hotspot.
 - **Tally consistency.** The `tallyByChoice` map on the root head is updated transactionally with each vote. Fine
   until very high per-deliberation QPS; fall back to recompute-from-`VOTEEVENT`
   if a vote storm is measured.

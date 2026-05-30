@@ -1,3 +1,4 @@
+pub mod category;
 pub mod code;
 pub mod comment;
 pub mod outcome;

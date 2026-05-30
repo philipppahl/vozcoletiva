@@ -20,6 +20,9 @@ pub struct Proposal {
     pub root_id: String,
     /// `None` for a root; the parent proposal's id for a fork/alternative.
     pub parent_id: Option<String>,
+    /// Project-scoped category (topic). Roots set it from the request or the
+    /// default; forks inherit the root's.
+    pub category_id: String,
     pub author_id: String,
     pub title: String,
     pub body: String,
@@ -43,6 +46,7 @@ pub async fn create(
     voting_rule: VotingRule,
     quorum: Option<i64>,
     ends_at: DateTime<Utc>,
+    category_id: String,
 ) -> Result<Proposal, AppError> {
     let id = Ulid::new().to_string();
     let now = Utc::now();
@@ -51,6 +55,7 @@ pub async fn create(
         project_id: project_id.to_string(),
         root_id: id.clone(),
         parent_id: None,
+        category_id,
         author_id: author.user_id.clone(),
         title,
         body,
@@ -77,6 +82,10 @@ pub async fn create(
         .item("title", AttributeValue::S(proposal.title.clone()))
         .item("body", AttributeValue::S(proposal.body.clone()))
         .item("rootId", AttributeValue::S(proposal.root_id.clone()))
+        .item(
+            "categoryId",
+            AttributeValue::S(proposal.category_id.clone()),
+        )
         .item("votingRule", AttributeValue::S(voting_rule.as_str().into()))
         .item("endsAt", AttributeValue::S(ends_at.to_rfc3339()))
         .item(
@@ -133,6 +142,7 @@ pub async fn create_fork(
         project_id: project_id.to_string(),
         root_id: root.id.clone(),
         parent_id: Some(parent_id.to_string()),
+        category_id: root.category_id.clone(),
         author_id: author.user_id.clone(),
         title,
         body,
@@ -160,6 +170,7 @@ pub async fn create_fork(
         .item("body", AttributeValue::S(proposal.body.clone()))
         .item("rootId", AttributeValue::S(proposal.root_id.clone()))
         .item("parentId", AttributeValue::S(parent_id.to_string()))
+        .item("categoryId", AttributeValue::S(root.category_id.clone()))
         .item(
             "votingRule",
             AttributeValue::S(root.voting_rule.as_str().into()),
@@ -419,6 +430,7 @@ pub fn proposal_from_item(item: &HashMap<String, AttributeValue>) -> Result<Prop
             .map(String::from)
             .unwrap_or(proposal_id),
         parent_id: s_opt(item, "parentId").map(String::from),
+        category_id: s_opt(item, "categoryId").unwrap_or("").to_string(),
         author_id: s(item, "authorId")?.to_string(),
         title: s(item, "title")?.to_string(),
         body: s(item, "body")?.to_string(),

@@ -140,6 +140,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{slug}/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List categories (topics) in a project */
+        get: operations["listCategories"];
+        put?: never;
+        /** Create a category (owner/admin) */
+        post: operations["createCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{slug}/categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a category (owner/admin) */
+        delete: operations["deleteCategory"];
+        options?: never;
+        head?: never;
+        /** Rename a category (owner/admin) */
+        patch: operations["renameCategory"];
+        trace?: never;
+    };
     "/v1/projects/{slug}/invites": {
         parameters: {
             query?: never;
@@ -334,6 +370,17 @@ export interface components {
         CastVoteBody: {
             choice: components["schemas"]["Choice"];
         };
+        Category: {
+            id: string;
+            name: string;
+            position: number;
+        };
+        CategoryListResponse: {
+            categories: components["schemas"]["Category"][];
+        };
+        CategoryNameBody: {
+            name: string;
+        };
         /** @description A vote in a deliberation: the picked alternative's proposal id, or the special token `__none__` ("none of these") or `__abstain__`. */
         Choice: string;
         Comment: {
@@ -367,6 +414,8 @@ export interface components {
         };
         CreateProposalBody: {
             body: string;
+            /** @description Category (topic) for a root; defaults to the project's first. Ignored for a fork. */
+            category_id?: string | null;
             /**
              * Format: date-time
              * @description Required for a root; inherited for a fork.
@@ -459,6 +508,8 @@ export interface components {
         Proposal: {
             author_id: string;
             body: string;
+            /** @description Project-scoped category (topic) id. */
+            category_id: string;
             /** Format: date-time */
             closed_at?: string | null;
             /** Format: date-time */
@@ -541,6 +592,7 @@ export interface components {
         };
     };
     parameters: {
+        CategoryId: string;
         ProposalId: string;
         Slug: string;
     };
@@ -815,6 +867,140 @@ export interface operations {
             };
             /** @description Project does not exist. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Categories, ordered by position. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryListResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryNameBody"];
+            };
+        };
+        responses: {
+            /** @description Category created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            /** @description A category with that name already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    deleteCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["CategoryId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Category deleted. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Category still has proposals, or is the project's last. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    renameCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["CategoryId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryNameBody"];
+            };
+        };
+        responses: {
+            /** @description Category renamed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Category"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description A category with that name already exists. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
