@@ -80,6 +80,10 @@ function writeWebEnvFile(env: 'dev' | 'prod', outputs: StackOutputs, root: strin
     `VITE_USER_POOL_ID=${outputs.userPoolId}`,
     `VITE_USER_POOL_CLIENT_ID=${outputs.userPoolClientId}`,
     `VITE_AWS_REGION=${outputs.region}`,
+    // Dev only: messages / DMs / inbox / search have no backend yet, so MSW
+    // serves mock data for just those endpoints (real API for everything else).
+    // Never set for prod — the prod-mock guard would reject it anyway.
+    ...(env === 'dev' ? ['VITE_MOCK_COMMS=1'] : []),
     '',
   ];
   writeFileSync(path, lines.join('\n'), 'utf8');
