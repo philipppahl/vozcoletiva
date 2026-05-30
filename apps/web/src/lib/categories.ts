@@ -1,31 +1,18 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { Category, CategoryListResponse } from './categories/types';
+import { apiClient } from './api';
 import { qk } from './query';
 
-async function mockGet<T>(path: string): Promise<T> {
-  const res = await fetch(`/v1${path}`, {
-    headers: { authorization: 'Bearer mock' },
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new Error(body.message ?? `HTTP ${res.status}`);
+function unwrap<T>(data: T | undefined, error: unknown): T {
+  if (error) {
+    throw new Error(
+      typeof error === 'object' && error && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : 'request failed',
+    );
   }
-  return (await res.json()) as T;
-}
-
-async function mockJson<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`/v1${path}`, {
-    method,
-    headers: { authorization: 'Bearer mock', 'content-type': 'application/json' },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const errBody = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new Error(errBody.message ?? `HTTP ${res.status}`);
-  }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  if (data === undefined) throw new Error('empty response');
+  return data;
 }
 
 function invalidate(qc: QueryClient, slug: string) {
@@ -40,16 +27,25 @@ export function useCategories(slug: string | undefined) {
   return useQuery({
     queryKey: slug ? qk.projects.categories(slug) : ['categories', '_none_'],
     enabled: !!slug,
-    queryFn: () =>
-      mockGet<CategoryListResponse>(`/projects/${encodeURIComponent(slug ?? '')}/categories`),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/v1/projects/{slug}/categories', {
+        params: { path: { slug: slug ?? '' } },
+      });
+      return unwrap(data, error);
+    },
   });
 }
 
 export function useCreateCategory(slug: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { name: string }) =>
-      mockJson<Category>('POST', `/projects/${encodeURIComponent(slug)}/categories`, input),
+    mutationFn: async (input: { name: string }) => {
+      const { data, error } = await apiClient.POST('/v1/projects/{slug}/categories', {
+        params: { path: { slug } },
+        body: input,
+      });
+      return unwrap(data, error);
+    },
     onSuccess: () => invalidate(qc, slug),
   });
 }
@@ -57,12 +53,13 @@ export function useCreateCategory(slug: string) {
 export function useRenameCategory(slug: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { id: string; name: string }) =>
-      mockJson<Category>(
-        'PATCH',
-        `/projects/${encodeURIComponent(slug)}/categories/${encodeURIComponent(input.id)}`,
-        { name: input.name },
-      ),
+    mutationFn: async (input: { id: string; name: string }) => {
+      const { data, error } = await apiClient.PATCH('/v1/projects/{slug}/categories/{id}', {
+        params: { path: { slug, id: input.id } },
+        body: { name: input.name },
+      });
+      return unwrap(data, error);
+    },
     onSuccess: () => invalidate(qc, slug),
   });
 }
@@ -70,11 +67,18 @@ export function useRenameCategory(slug: string) {
 export function useDeleteCategory(slug: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      mockJson<void>(
-        'DELETE',
-        `/projects/${encodeURIComponent(slug)}/categories/${encodeURIComponent(id)}`,
-      ),
+    mutationFn: async (id: string) => {
+      const { error } = await apiClient.DELETE('/v1/projects/{slug}/categories/{id}', {
+        params: { path: { slug, id } },
+      });
+      if (error) {
+        throw new Error(
+          typeof error === 'object' && error && 'message' in error
+            ? String((error as { message: unknown }).message)
+            : 'request failed',
+        );
+      }
+    },
     onSuccess: () => invalidate(qc, slug),
   });
 }

@@ -1,25 +1,10 @@
-import type { ExtendedProposal } from '../proposals/types';
+import type { components } from '@vozcoletiva/api-client';
 
 /**
- * A "document" in the FE is a derived view. The server returns a snapshot
- * shaped like a Document, but every version IS a passed Document proposal.
- * See docs/decisions/0004-documents-mock-first.md.
+ * A "document" in the FE is a derived view over passed Document-kind proposals
+ * (decision 0004). These alias the generated api-client schemas so they match
+ * the wire shape exactly.
  */
-export interface DocumentSummary {
-  name: string;
-  version_count: number;
-  current_version: ExtendedProposal | null;
-  active_amendment: ExtendedProposal | null;
-}
-
-export interface DocumentDetail {
-  name: string;
-  version_count: number;
-  current_version: ExtendedProposal;
-  versions: ExtendedProposal[]; // newest first
-  active_amendment: ExtendedProposal | null;
-}
-
-export interface DocumentListResponse {
-  documents: DocumentSummary[];
-}
+export type DocumentSummary = components['schemas']['DocumentSummary'];
+export type DocumentDetail = components['schemas']['DocumentDetail'];
+export type DocumentListResponse = components['schemas']['DocumentListResponse'];
