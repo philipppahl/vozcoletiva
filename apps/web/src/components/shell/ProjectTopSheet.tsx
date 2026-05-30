@@ -33,12 +33,9 @@ export function ProjectTopSheet({ open, onOpenChange, currentSlug }: ProjectTopS
   const navigate = useNavigate();
   const projects = useProjects();
   const unreadByProject = useUnreadByProject();
+  // Keep the projects in their natural order — they shouldn't jump around as
+  // you switch. The current one is just marked in place.
   const items = projects.data?.projects ?? [];
-  // Current project first, then the rest in their existing order.
-  const ordered = [
-    ...items.filter((p) => p.project.slug === currentSlug),
-    ...items.filter((p) => p.project.slug !== currentSlug),
-  ];
 
   const close = () => onOpenChange(false);
   const canManage = (role: string) => role === 'owner' || role === 'admin';
@@ -46,7 +43,7 @@ export function ProjectTopSheet({ open, onOpenChange, currentSlug }: ProjectTopS
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={<Trans>Switch project</Trans>} side="top">
       <ul className="flex flex-col gap-1.5 px-3 pb-2">
-        {ordered.map((entry) => {
+        {items.map((entry) => {
           const isCurrent = entry.project.slug === currentSlug;
           const hasUnread = (unreadByProject[entry.project.slug] ?? 0) > 0;
           return (
@@ -104,10 +101,10 @@ export function ProjectTopSheet({ open, onOpenChange, currentSlug }: ProjectTopS
                     </div>
                   </div>
                 </button>
-                {isCurrent && canManage(entry.role) ? (
+                {canManage(entry.role) ? (
                   <button
                     type="button"
-                    aria-label="Manage project"
+                    aria-label={`Settings for ${entry.project.name}`}
                     onClick={() => {
                       close();
                       void navigate({

@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/macro';
-import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useMemo } from 'react';
 import { DiffView } from '../components/documents/DiffView';
 import { diffLines } from '../components/documents/diff';
@@ -32,7 +32,6 @@ function DocumentDetailPage() {
   const decodedName = decodeURIComponent(name);
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const router = useRouter();
   const doc = useDocument(slug, decodedName);
 
   const viewingVersion = useMemo(() => {
@@ -56,11 +55,7 @@ function DocumentDetailPage() {
       slug={slug}
       tab="documents"
       pageTitle={decodedName}
-      onBack={() =>
-        router.history.canGoBack()
-          ? router.history.back()
-          : navigate({ to: '/p/$slug/documents', params: { slug } })
-      }
+      onBack={() => void navigate({ to: '/p/$slug/documents', params: { slug } })}
     >
       <section className="flex flex-col gap-5 px-4 pt-5 pb-28">
         {doc.isLoading && (

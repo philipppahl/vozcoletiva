@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/macro';
-import { createFileRoute, Link, useNavigate, useRouter } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { Comments } from '../components/Comments';
@@ -37,7 +37,6 @@ type Pane = 'proposal' | 'discussion';
 function ProposalDetailPage() {
   const { slug, id } = Route.useParams();
   const navigate = useNavigate();
-  const router = useRouter();
   const proposal = useProposal(slug, id);
   const tree = useProposalTree(slug, id);
   const castVote = useCastVote(slug, id);
@@ -49,10 +48,9 @@ function ProposalDetailPage() {
   const treeList = tree.data?.proposals ?? (proposal.data ? [proposal.data] : []);
   const p = proposal.data;
 
-  const onBack = () =>
-    router.history.canGoBack()
-      ? router.history.back()
-      : navigate({ to: '/p/$slug', params: { slug } });
+  // Always return to the proposals list — history-back could land elsewhere
+  // (came from inbox, search, a deep link, …).
+  const onBack = () => navigate({ to: '/p/$slug', params: { slug } });
 
   const subsection = p ? (
     <Segmented<Pane>
@@ -224,6 +222,10 @@ function ProposalPane({
         </h1>
       </div>
 
+      <article>
+        <Markdown source={p.body} />
+      </article>
+
       <Card>
         <div className="flex flex-col gap-4">
           <div
@@ -268,10 +270,6 @@ function ProposalPane({
           )}
         </div>
       </Card>
-
-      <article>
-        <Markdown source={p.body} />
-      </article>
 
       {isAuthor && isOpen && (
         <Button variant="danger" size="sm" onClick={onWithdraw} disabled={withdrawBusy}>

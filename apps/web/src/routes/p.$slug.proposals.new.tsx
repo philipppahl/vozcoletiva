@@ -183,14 +183,19 @@ function NewProposalPage() {
       <TopBar
         title={isFork ? <Trans>Propose an alternative</Trans> : <Trans>New proposal</Trans>}
         eyebrow={project.data?.project.name ?? slug}
-        onBack={() =>
-          isFork && parent.data
-            ? void navigate({
-                to: '/p/$slug/proposals/$id',
-                params: { slug, id: parent.data.id },
-              })
-            : void navigate({ to: '/p/$slug', params: { slug } })
-        }
+        onBack={() => {
+          if (isFork && parent.data) {
+            void navigate({ to: '/p/$slug/proposals/$id', params: { slug, id: parent.data.id } });
+          } else if (isAmendment && search.amends) {
+            void navigate({
+              to: '/p/$slug/documents/$name',
+              params: { slug, name: encodeURIComponent(search.amends) },
+              search: {},
+            });
+          } else {
+            void navigate({ to: '/p/$slug', params: { slug } });
+          }
+        }}
       />
       <section className="flex flex-col gap-6 px-4 pt-4 pb-10">
         {isFork && parent.data && <ForkingFromBanner parentTitle={parent.data.title} />}

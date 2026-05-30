@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/macro';
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useState } from 'react';
 
 import { DmListSection } from '../components/messages/DmListSection';
@@ -18,6 +18,7 @@ export const Route = createFileRoute('/dms')({
 
 function DmsIndex() {
   const navigate = useNavigate();
+  const router = useRouter();
   const dms = useDms();
   const [pickerOpen, setPickerOpen] = useState(false);
   return (
@@ -25,7 +26,10 @@ function DmsIndex() {
       className="flex min-h-dvh flex-col"
       style={{ background: 'var(--bg)', color: 'var(--ink)' }}
     >
-      <TopBar title={<Trans>Direct messages</Trans>} onBack={() => void navigate({ to: '/' })} />
+      <TopBar
+        title={<Trans>Direct messages</Trans>}
+        onBack={() => (router.history.canGoBack() ? router.history.back() : navigate({ to: '/' }))}
+      />
       <DmListSection dms={dms.data?.dms ?? []} onStartDm={() => setPickerOpen(true)} />
       <MemberPickerSheet open={pickerOpen} onOpenChange={setPickerOpen} />
     </div>
