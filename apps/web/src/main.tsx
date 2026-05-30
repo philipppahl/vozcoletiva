@@ -54,6 +54,11 @@ async function bootstrap() {
         // ignore malformed session
       }
     }
+  } else if (import.meta.env.VITE_MOCK_COMMS === '1') {
+    // Real API for everything that has a backend; mock only the comms surfaces
+    // (messages / DMs / inbox / search) that don't exist on the server yet.
+    const { startCommsMocks } = await import('./mocks/browser');
+    await startCommsMocks();
   }
 
   useAuthStore.getState().hydrate();
