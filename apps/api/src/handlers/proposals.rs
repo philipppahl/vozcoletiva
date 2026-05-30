@@ -34,6 +34,9 @@ struct CreateProposalBody {
     /// Required for a `document` root — the stable document name this proposal
     /// is a version of.
     document_name: Option<String>,
+    /// 2+ option labels turn a brand-new Decision into a multi-option vote: the
+    /// proposal becomes the (non-votable) question and each label a child option.
+    options: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -45,6 +48,7 @@ pub(crate) struct ProposalView {
     category_id: String,
     proposal_kind: String,
     document_name: Option<String>,
+    is_question: bool,
     author_id: String,
     title: String,
     body: String,
@@ -195,6 +199,28 @@ pub async fn create(state: &AppState, req: Request, slug: &str) -> Result<Respon
                     }
                 };
 
+                // Multi-option: 2+ option labels make a Decision a question root
+                // (non-votable) with one child per label. 1 is rejected; 0 is a
+                // plain yes/no decision. Options are ignored for documents/forks.
+                let option_labels: Vec<String> = body
+                    .options
+                    .as_deref()
+                    .unwrap_or(&[])
+                    .iter()
+                    .map(|o| o.trim().to_string())
+                    .filter(|o| !o.is_empty())
+                    .collect();
+                let is_question = if proposal_kind == ProposalKind::Decision {
+                    if option_labels.len() == 1 {
+                        return Err(AppError::BadRequest(
+                            "a multi-option decision needs at least two options".into(),
+                        ));
+                    }
+                    option_labels.len() >= 2
+                } else {
+                    false
+                };
+
                 let prop = proposal::create(
                     state,
                     &auth.project.id,
@@ -207,8 +233,25 @@ pub async fn create(state: &AppState, req: Request, slug: &str) -> Result<Respon
                     category_id,
                     proposal_kind,
                     document_name.clone(),
+                    is_question,
                 )
                 .await?;
+
+                // Each option label becomes a lightweight child of the question.
+                if is_question {
+                    for label in &option_labels {
+                        proposal::create_fork(
+                            state,
+                            &auth.project.id,
+                            &user,
+                            label.clone(),
+                            String::new(),
+                            &prop.id,
+                            &prop,
+                        )
+                        .await?;
+                    }
+                }
 
                 if current_version.is_some() {
                     if let Some(name) = &document_name {
@@ -253,6 +296,8 @@ pub async fn create(state: &AppState, req: Request, slug: &str) -> Result<Respon
                     proposal_id = %prop.id,
                     voting_rule = %prop.voting_rule.as_str(),
                     ends_at = %prop.ends_at.to_rfc3339(),
+                    is_question = is_question,
+                    option_count = option_labels.len(),
                 );
                 let tally = prop.tally.clone();
                 (prop, tally)
@@ -414,6 +459,7 @@ pub(crate) fn view_with_tally(
         category_id: p.category_id.clone(),
         proposal_kind: p.proposal_kind.as_str().to_string(),
         document_name: p.document_name.clone(),
+        is_question: p.is_question,
         author_id: p.author_id.clone(),
         title: p.title.clone(),
         body: p.body.clone(),

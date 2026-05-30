@@ -48,6 +48,7 @@ async fn doc_root(ddb: &LocalDdb, project: &str, name: &str) -> Proposal {
         "cat-x".to_string(),
         ProposalKind::Document,
         Some(name.to_string()),
+        false,
     )
     .await
     .expect("create document root")
@@ -66,6 +67,7 @@ async fn decision_root(ddb: &LocalDdb, project: &str) -> Proposal {
         "cat-x".to_string(),
         ProposalKind::Decision,
         None,
+        false,
     )
     .await
     .expect("create decision root")

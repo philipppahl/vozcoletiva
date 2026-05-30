@@ -109,6 +109,7 @@ async fn count_referencing_drives_the_delete_guard() {
         used.id.clone(),
         ProposalKind::Decision,
         None,
+        false,
     )
     .await
     .unwrap();
@@ -158,6 +159,7 @@ async fn proposal_and_fork_carry_the_category() {
         cat.id.clone(),
         ProposalKind::Decision,
         None,
+        false,
     )
     .await
     .unwrap();

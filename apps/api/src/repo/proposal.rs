@@ -28,6 +28,9 @@ pub struct Proposal {
     /// Set only on Document-kind proposals — the stable document name this
     /// proposal is a version of. Forks inherit the root's.
     pub document_name: Option<String>,
+    /// True on the root of a multi-option decision — it frames the question but
+    /// is not itself a votable candidate; its children are the options.
+    pub is_question: bool,
     pub author_id: String,
     pub title: String,
     pub body: String,
@@ -54,6 +57,7 @@ pub async fn create(
     category_id: String,
     proposal_kind: ProposalKind,
     document_name: Option<String>,
+    is_question: bool,
 ) -> Result<Proposal, AppError> {
     let id = Ulid::new().to_string();
     let now = Utc::now();
@@ -65,6 +69,7 @@ pub async fn create(
         category_id,
         proposal_kind,
         document_name,
+        is_question,
         author_id: author.user_id.clone(),
         title,
         body,
@@ -133,6 +138,10 @@ pub async fn create(
     if let Some(name) = &proposal.document_name {
         put = put.item("documentName", AttributeValue::S(name.clone()));
     }
+    // Sparse: only multi-option roots carry isQuestion.
+    if is_question {
+        put = put.item("isQuestion", AttributeValue::Bool(true));
+    }
 
     put.send().await?;
     Ok(proposal)
@@ -161,6 +170,8 @@ pub async fn create_fork(
         category_id: root.category_id.clone(),
         proposal_kind: root.proposal_kind,
         document_name: root.document_name.clone(),
+        // A fork/option is always a candidate, never the question itself.
+        is_question: false,
         author_id: author.user_id.clone(),
         title,
         body,
@@ -488,6 +499,11 @@ pub fn proposal_from_item(item: &HashMap<String, AttributeValue>) -> Result<Prop
             .transpose()?
             .unwrap_or(ProposalKind::Decision),
         document_name: s_opt(item, "documentName").map(String::from),
+        is_question: item
+            .get("isQuestion")
+            .and_then(|v| v.as_bool().ok())
+            .copied()
+            .unwrap_or(false),
         author_id: s(item, "authorId")?.to_string(),
         title: s(item, "title")?.to_string(),
         body: s(item, "body")?.to_string(),

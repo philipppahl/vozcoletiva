@@ -53,6 +53,7 @@ async fn new_proposal(
         "cat-test".to_string(),
         ProposalKind::Decision,
         None,
+        false,
     )
     .await
     .expect("create proposal")

@@ -124,8 +124,12 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
   `categoryId`, `createdAt`, `closedAt?`,
   `parentId?` (null on root), `rootId` (= `id` on root),
   `votingRule` / `quorum` / `endsAt` (set on root, inherited by forks),
-  `documentName?` (Document kind only), `isQuestion?` (root of a multi-option
-  decision — frames the question, not itself a choice)
+  `documentName?` (Document kind only), `isQuestion?` (sparse BOOL — root of a
+  multi-option decision; frames the question, not itself a choice). The options
+  are ordinary child proposals (`parentId` = the question root). At close, a
+  question root is **excluded from the candidate set** (`valid_ids`) and its
+  status derives from the outcome: `passed` if any option won, else
+  `rejected`/`quorum_failed`.
 - **Tally on the root head** (set on roots): `tallyByChoice` (map proposalId →
   count, initialised `{}`), `tallyNone`, `tallyAbstain`. One write item then
   doubles as the vote guard (`status = voting AND endsAt > now`) + the tally

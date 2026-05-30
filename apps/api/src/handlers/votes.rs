@@ -49,6 +49,12 @@ pub async fn cast(
                         "choice must be an alternative in this deliberation".into(),
                     ));
                 }
+                if picked.is_question {
+                    return Err(AppError::BadRequest(
+                        "the question itself is not a votable option — pick one of its options"
+                            .into(),
+                    ));
+                }
             }
 
             let previous = vote::get(state, &prop.root_id, &user.user_id)

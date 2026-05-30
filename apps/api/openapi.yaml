@@ -972,6 +972,14 @@ components:
           type: string
           nullable: true
           description: Required for a `document` root — the stable document name.
+        options:
+          type: array
+          nullable: true
+          items: { type: string }
+          description: >
+            2+ labels turn a brand-new Decision into a multi-option vote (the
+            proposal becomes the non-votable question, each label a child option).
+            1 label is rejected; 0/absent is a plain yes/no decision.
 
     CastVoteBody:
       type: object
@@ -988,6 +996,7 @@ components:
         - root_id
         - category_id
         - proposal_kind
+        - is_question
         - author_id
         - title
         - body
@@ -1019,6 +1028,9 @@ components:
           type: string
           nullable: true
           description: Set on Document-kind proposals — the document this is a version of.
+        is_question:
+          type: boolean
+          description: True on a multi-option decision's question root — not itself votable.
         author_id: { type: string }
         title: { type: string }
         body: { type: string }

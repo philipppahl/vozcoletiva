@@ -37,7 +37,13 @@ pub async fn close(
         .find(|n| n.id == prop.root_id)
         .unwrap_or(&nodes[0]);
 
-    let valid_ids: HashSet<String> = nodes.iter().map(|n| n.id.clone()).collect();
+    // Candidates exclude a multi-option question root — it frames the question
+    // but can't win; only its option children can.
+    let valid_ids: HashSet<String> = nodes
+        .iter()
+        .filter(|n| !n.is_question)
+        .map(|n| n.id.clone())
+        .collect();
     let outcome = decide_outcome(&valid_ids, &root.tally, root.voting_rule, root.quorum);
 
     // Per-node terminal status. Only still-`voting` nodes are transitioned;
@@ -47,12 +53,23 @@ pub async fn close(
         .iter()
         .filter(|n| !n.status.is_terminal())
         .map(|n| {
-            let status = match outcome.status {
-                OutcomeStatus::QuorumFailed => ProposalStatus::QuorumFailed,
-                OutcomeStatus::HasWinner if outcome.winner_id.as_deref() == Some(n.id.as_str()) => {
-                    ProposalStatus::Passed
+            let status = if n.is_question {
+                // The question root passes iff some option won.
+                match outcome.status {
+                    OutcomeStatus::QuorumFailed => ProposalStatus::QuorumFailed,
+                    OutcomeStatus::HasWinner => ProposalStatus::Passed,
+                    OutcomeStatus::NoWinner => ProposalStatus::Rejected,
                 }
-                OutcomeStatus::HasWinner | OutcomeStatus::NoWinner => ProposalStatus::Rejected,
+            } else {
+                match outcome.status {
+                    OutcomeStatus::QuorumFailed => ProposalStatus::QuorumFailed,
+                    OutcomeStatus::HasWinner
+                        if outcome.winner_id.as_deref() == Some(n.id.as_str()) =>
+                    {
+                        ProposalStatus::Passed
+                    }
+                    OutcomeStatus::HasWinner | OutcomeStatus::NoWinner => ProposalStatus::Rejected,
+                }
             };
             let doc_index =
                 if status == ProposalStatus::Passed && n.proposal_kind == ProposalKind::Document {

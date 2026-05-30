@@ -457,6 +457,8 @@ export interface components {
              * @description Required for a root; inherited for a fork.
              */
             ends_at?: string;
+            /** @description 2+ labels turn a brand-new Decision into a multi-option vote (the proposal becomes the non-votable question, each label a child option). 1 label is rejected; 0/absent is a plain yes/no decision. */
+            options?: string[] | null;
             /** @description When set, creates a fork under this parent's deliberation. */
             parent_id?: string | null;
             /** @description `decision` (default) or `document`. Root only; forks inherit. */
@@ -573,6 +575,8 @@ export interface components {
             /** Format: date-time */
             ends_at: string;
             id: string;
+            /** @description True on a multi-option decision's question root — not itself votable. */
+            is_question: boolean;
             /** @description Parent proposal id for a fork; null for a root. */
             parent_id?: string | null;
             project_id: string;
