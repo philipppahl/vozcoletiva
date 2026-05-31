@@ -1,4 +1,5 @@
-import { Trans } from '@lingui/macro';
+import { Trans, t } from '@lingui/macro';
+import { useLingui } from '@lingui/react';
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import type { Locale, Theme } from '@vozcoletiva/shared';
 import { useEffect, useState } from 'react';
@@ -6,8 +7,10 @@ import { RequireAuth } from '../components/RequireAuth';
 import { Avatar } from '../components/shell/Avatar';
 import { TopBar } from '../components/shell/TopBar';
 import { Button } from '../components/ui/Button';
+import { Field } from '../components/ui/Field';
 import { setLocale } from '../i18n';
 import { useAuth } from '../lib/auth/hooks';
+import { useUpdateDisplayName } from '../lib/profile';
 import { useThemeStore } from '../lib/theme';
 import { ScenarioPicker } from '../mocks/ScenarioPicker';
 
@@ -73,6 +76,15 @@ function PreferencesPage() {
 
       <section className="px-4 pt-2">
         <PrefHeading>
+          <Trans>Profile</Trans>
+        </PrefHeading>
+        <PrefCard>
+          <DisplayNameField />
+        </PrefCard>
+      </section>
+
+      <section className="px-4 pt-6">
+        <PrefHeading>
           <Trans>Settings</Trans>
         </PrefHeading>
         <PrefCard>
@@ -128,6 +140,51 @@ function PreferencesPage() {
       >
         vozcoletiva · open source
       </div>
+    </div>
+  );
+}
+
+function DisplayNameField() {
+  const { _ } = useLingui();
+  const { session } = useAuth();
+  const update = useUpdateDisplayName();
+  const [name, setName] = useState(session?.displayName ?? '');
+  const [saved, setSaved] = useState(false);
+
+  // Keep the input seeded as the session name resolves from the backend.
+  useEffect(() => {
+    setName(session?.displayName ?? '');
+  }, [session?.displayName]);
+
+  const trimmed = name.trim();
+  const dirty = trimmed.length > 0 && trimmed !== (session?.displayName ?? '');
+
+  async function onSave() {
+    setSaved(false);
+    try {
+      await update.mutateAsync(trimmed);
+      setSaved(true);
+    } catch {
+      // error surfaced below
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Field
+        label={_(t`Display name`)}
+        value={name}
+        maxLength={80}
+        onChange={(e) => {
+          setName(e.currentTarget.value);
+          setSaved(false);
+        }}
+        error={update.isError ? _(t`Couldn't save. Please try again.`) : undefined}
+        hint={saved && !dirty ? <Trans>Saved</Trans> : undefined}
+      />
+      <Button onClick={onSave} disabled={!dirty || update.isPending}>
+        {update.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
+      </Button>
     </div>
   );
 }

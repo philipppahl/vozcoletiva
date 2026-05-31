@@ -1,0 +1,69 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+
+import { apiClient } from './api';
+import { useAuthStore } from './auth/store';
+import { qk } from './query';
+
+export interface Profile {
+  user_id: string;
+  display_name: string;
+  locale: string;
+  theme: string;
+  created_at: string;
+}
+
+/**
+ * The caller's backend profile (`GET /v1/me`). Cognito holds auth only, so this
+ * is the source of truth for the display name (decision 0019). Enabled only when
+ * signed in.
+ */
+export function useProfile() {
+  const status = useAuthStore((s) => s.status);
+  return useQuery({
+    queryKey: qk.me(),
+    enabled: status === 'signed-in',
+    queryFn: async (): Promise<Profile> => {
+      const { data, error } = await apiClient.GET('/v1/me');
+      if (error || !data) throw new Error('failed to load profile');
+      return data as Profile;
+    },
+  });
+}
+
+/** Set the caller's display name (`PATCH /v1/me`); syncs the auth session. */
+export function useUpdateDisplayName() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (displayName: string): Promise<Profile> => {
+      const { data, error } = await apiClient.PATCH('/v1/me', {
+        body: { display_name: displayName },
+      });
+      if (error || !data) throw new Error('failed to update display name');
+      return data as Profile;
+    },
+    onSuccess: (profile) => {
+      syncSessionName(profile.display_name);
+      qc.setQueryData(qk.me(), profile);
+    },
+  });
+}
+
+/**
+ * Keeps `session.displayName` in step with the canonical backend profile.
+ * Mount once near the app root. The placeholder set at sign-in (email
+ * local-part) is replaced as soon as `GET /v1/me` resolves.
+ */
+export function useSyncProfileName() {
+  const { data } = useProfile();
+  useEffect(() => {
+    if (data?.display_name) syncSessionName(data.display_name);
+  }, [data?.display_name]);
+}
+
+function syncSessionName(displayName: string) {
+  const store = useAuthStore.getState();
+  if (store.session && store.session.displayName !== displayName) {
+    store.setSession({ ...store.session, displayName });
+  }
+}

@@ -33,10 +33,9 @@ export interface SignUpInput {
 export async function signUp(input: SignUpInput): Promise<{ userId: string }> {
   if (isMockMode()) return mockSignUp(input);
   return new Promise((resolve, reject) => {
-    const attrs = [
-      new CognitoUserAttribute({ Name: 'email', Value: input.email }),
-      new CognitoUserAttribute({ Name: 'name', Value: input.displayName }),
-    ];
+    // Cognito holds auth only — the display name lives in the backend profile
+    // and is bootstrapped via `PATCH /v1/me` after confirmation (decision 0019).
+    const attrs = [new CognitoUserAttribute({ Name: 'email', Value: input.email })];
     pool().signUp(input.email, input.password, attrs, [], (err, result) => {
       if (err) return reject(err);
       const r = result as ISignUpResult | undefined;
@@ -98,7 +97,7 @@ function sessionToOutput(email: string, session: CognitoUserSession): SignInOutp
   const access = session.getAccessToken();
   const id = session.getIdToken();
   const refresh = session.getRefreshToken();
-  const payload = id.decodePayload() as { sub?: string; name?: string };
+  const payload = id.decodePayload() as { sub?: string };
   return {
     tokens: {
       accessToken: access.getJwtToken(),
@@ -108,7 +107,9 @@ function sessionToOutput(email: string, session: CognitoUserSession): SignInOutp
     },
     userId: payload.sub ?? '',
     email,
-    displayName: payload.name ?? email.split('@')[0] ?? email,
+    // Placeholder only — the canonical display name comes from `GET /v1/me`
+    // (the auth-only token no longer carries `name`). See lib/profile.ts.
+    displayName: email.split('@')[0] ?? email,
   };
 }
 

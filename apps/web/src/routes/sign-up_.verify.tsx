@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
 import { mapCognitoError } from '../lib/auth/cognito';
 import { useAuth } from '../lib/auth/hooks';
+import { useUpdateDisplayName } from '../lib/profile';
 
 interface VerifySearch {
   email: string;
@@ -29,6 +30,7 @@ function VerifyPage() {
   const navigate = useNavigate();
   const { email, displayName } = Route.useSearch();
   const { confirmSignUp, signIn } = useAuth();
+  const updateDisplayName = useUpdateDisplayName();
   const [formError, setFormError] = useState<string | null>(null);
 
   const schema = z.object({
@@ -50,6 +52,14 @@ function VerifyPage() {
     try {
       await confirmSignUp(email, values.code);
       await signIn(email, values.password);
+      // Bootstrap the backend profile with the chosen name (Cognito is auth-only).
+      if (displayName.trim()) {
+        try {
+          await updateDisplayName.mutateAsync(displayName.trim());
+        } catch {
+          // Non-fatal: the name can be set later in Preferences. Don't block sign-in.
+        }
+      }
       navigate({ to: '/' });
     } catch (err) {
       const { code } = mapCognitoError(err);

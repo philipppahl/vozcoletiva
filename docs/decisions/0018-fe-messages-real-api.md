@@ -75,15 +75,10 @@ in as marina, mobile 390×844 and desktop 1280×800, light **and** dark:
 
 ## Known limitations / anomalies
 
-- **Author names render as the user's UUID**, not a real name (avatars show the
-  first two hex chars). This is **pre-existing and app-wide** — it also affects
-  comments and member lists — not introduced here. Root cause:
-  `handlers/{projects,invites}.rs::display_name_for` seeds the user profile via
-  `user_repo::get_or_create_profile(state, user_id, user_id)`, i.e. it defaults
-  the display name to the user id and never reads the Cognito `name` claim (which
-  *is* set on the demo users). There is no profile-update endpoint, so the seed
-  can't fix it either. Fixing it is a separate slice (capture `name` from the
-  token at first sign-in, or add a profile-update API). Tracked as an open item.
+- ~~**Author names render as the user's UUID**~~ — **resolved in
+  [0019](0019-display-name-profile.md)**: the backend profile is now the single
+  source of truth for the display name (`PATCH /v1/me`), the FE syncs it from
+  `GET /me`, and the seed sets real names. Cognito is auth-only.
 - **Mock search results link to mock channel ids** (e.g. `ch-vmc-bikes`) that
   won't resolve against the real API if opened — search has no backend yet
   (0017 out-of-scope). Expected under the hybrid.

@@ -39,6 +39,7 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
     match (method.as_str(), segments.as_slice()) {
         ("GET", ["hello"]) => handlers::hello::handle().await,
         ("GET", ["me"]) => handlers::me::handle(&state, event).await,
+        ("PATCH", ["me"]) => handlers::me::update(&state, event).await,
 
         // Projects
         ("POST", ["projects"]) => handlers::projects::create(&state, event).await,

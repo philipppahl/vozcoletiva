@@ -15,6 +15,7 @@ export const queryClient = new QueryClient({
  * and invalidations are uniform.
  */
 export const qk = {
+  me: () => ['me'] as const,
   projects: {
     all: ['projects'] as const,
     list: () => ['projects', 'list'] as const,

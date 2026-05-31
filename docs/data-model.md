@@ -63,7 +63,10 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
 ### User profile
 - **PK** `USER#<userId>` · **SK** `PROFILE`
 - attrs: `displayName`, `locale`, `theme`, `notificationDefaults`, `createdAt`
-- Email stays in Cognito — never duplicated here.
+- Email + password stay in Cognito (**auth only**) — never duplicated here.
+- `displayName` is the single source of truth for how a user is shown; set via
+  `PATCH /v1/me` (bootstrapped at sign-up). Memberships and message authors
+  denormalise it at write time. See decision 0019.
 
 ### Push subscription / notification preference
 - **PK** `USER#<userId>` · **SK** `PUSHSUB#<endpointHash>` — `endpoint`, `p256dh`, `auth`, `userAgent`
@@ -225,6 +228,7 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
 | Endpoint | Approach |
 |---|---|
 | `GET /me` | `GetItem(USER#u, PROFILE)` |
+| `PATCH /me` | `UpdateItem(USER#u, PROFILE)` — upsert `displayName` |
 | `GET /me/inbox` | `Query(USER#u, INBOX#)` desc, limit N |
 | `POST /me/inbox/:id/read` | `UpdateItem(USER#u, INBOX#<id>)` set `readAt` |
 | `POST /me/inbox/read-all` | `Query(USER#u, INBOX#)` unread → batch `UpdateItem` |

@@ -7,7 +7,6 @@ import { Avatar } from '../components/shell/Avatar';
 import { BellButton } from '../components/shell/BellButton';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { apiClient } from '../lib/api';
 import { useAuth } from '../lib/auth/hooks';
 import { isOnboardingComplete } from '../lib/onboarding';
 import { useProjects } from '../lib/projects';
@@ -61,14 +60,6 @@ function SignedInView() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const projects = useProjects();
-
-  // First-launch profile seed.
-  useEffect(() => {
-    if (!session) return;
-    void apiClient.GET('/v1/me', {
-      params: { query: { display_name: session.displayName } },
-    });
-  }, [session]);
 
   // First-launch welcome: signed in, no memberships, never dismissed onboarding.
   // Gated on the projects query having actually returned (not loading) so we

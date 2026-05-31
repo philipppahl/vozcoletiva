@@ -379,6 +379,10 @@ msgstr "Não foi possível carregar o tópico."
 msgid "Could not save the comment. Please try again."
 msgstr "Não foi possível guardar o comentário. Tenta novamente."
 
+#: src/routes/preferences.tsx
+msgid "Couldn't save. Please try again."
+msgstr "Não foi possível guardar. Tente novamente."
+
 #: src/routes/index.tsx
 #: src/routes/projects.new.tsx
 #: src/routes/welcome.tsx
@@ -448,6 +452,7 @@ msgstr "Mensagens diretas"
 msgid "Discussion"
 msgstr "Discussão"
 
+#: src/routes/preferences.tsx
 #: src/routes/sign-up.tsx
 msgid "Display name"
 msgstr "Nome de exibição"
@@ -892,6 +897,10 @@ msgstr "Publicar comentário"
 msgid "Preferences"
 msgstr "Preferências"
 
+#: src/routes/preferences.tsx
+msgid "Profile"
+msgstr "Perfil"
+
 #: src/routes/projects.new.tsx
 msgid "Project name"
 msgstr "Nome do projeto"
@@ -1026,8 +1035,17 @@ msgstr "Duração"
 
 #: src/components/categories/CategoryManager.tsx
 #: src/components/CommentItem.tsx
+#: src/routes/preferences.tsx
 msgid "Save"
 msgstr "Guardar"
+
+#: src/routes/preferences.tsx
+msgid "Saved"
+msgstr "Guardado"
+
+#: src/routes/preferences.tsx
+msgid "Saving…"
+msgstr "A guardar…"
 
 #: src/components/shell/TabBar.tsx
 #: src/routes/p.$slug.search.tsx

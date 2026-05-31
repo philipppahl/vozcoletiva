@@ -17,13 +17,13 @@ bun apps/infra/scripts/deploy.ts --env dev
 
 # 2. Create the 5 demo Cognito users (idempotent — skips existing).
 #    Pool: eu-west-1_UtykCiLhC   Password: Vozcoletiva!2026
-for u in "marina@example.com|Marina Alves" "tomas@example.com|Tomás Ferreira" \
-         "lucia@example.com|Lúcia Pereira" "rafael@example.com|Rafael Costa" \
-         "sofia@example.com|Sofia Martins"; do
-  email=${u%%|*}; name=${u##*|}
+#    Cognito is auth-only (decision 0019) — display names are set by the seed via
+#    PATCH /v1/me, not the Cognito `name` attribute.
+for email in marina@example.com tomas@example.com lucia@example.com \
+             rafael@example.com sofia@example.com; do
   aws cognito-idp admin-create-user --user-pool-id eu-west-1_UtykCiLhC --region eu-west-1 \
     --username "$email" --message-action SUPPRESS \
-    --user-attributes Name=email,Value="$email" Name=email_verified,Value=true Name=name,Value="$name" 2>/dev/null
+    --user-attributes Name=email,Value="$email" Name=email_verified,Value=true 2>/dev/null
   aws cognito-idp admin-set-user-password --user-pool-id eu-west-1_UtykCiLhC --region eu-west-1 \
     --username "$email" --password 'Vozcoletiva!2026' --permanent
 done
@@ -69,5 +69,6 @@ Re-run `bun apps/web/scripts/seed-dev.ts` — it wipes the table and reseeds.
   SW heals on a fresh load; if not, clear site data for the CloudFront origin and
   sign in again. The API auth expects the **access** token (the **id** token
   fails with `missing field client_id`).
-- **Display names show as user UUIDs** everywhere (members, comments, messages) —
-  a pre-existing identity gap, not a messages bug. See `0018` § Known limitations.
+- **Display names** live in the backend profile (Cognito is auth-only). The seed
+  sets them via `PATCH /v1/me` before creating data; the FE reads the canonical
+  name from `GET /v1/me` and users can edit it in Preferences. See `0019`.

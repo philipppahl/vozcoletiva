@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use aws_sdk_dynamodb::types::AttributeValue;
+use aws_sdk_dynamodb::types::{AttributeValue, ReturnValue};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -94,6 +94,51 @@ pub async fn get_or_create_profile(
             Err(AppError::Internal(Box::new(raw)))
         }
     }
+}
+
+/// Set the caller's display name, creating the profile if it doesn't exist yet
+/// (upsert). `locale`/`theme`/`createdAt`/`userId`/`type` are initialised only
+/// on first write via `if_not_exists`, so an existing profile keeps its prefs.
+/// Returns the updated profile. This is the single bootstrap/edit path for the
+/// display name — see decision 0019.
+pub async fn upsert_display_name(
+    state: &AppState,
+    user_id: &str,
+    display_name: &str,
+) -> Result<UserProfile, AppError> {
+    let now = Utc::now();
+    let resp = state
+        .ddb
+        .update_item()
+        .table_name(&state.table_name)
+        .key("PK", AttributeValue::S(format!("USER#{user_id}")))
+        .key("SK", AttributeValue::S("PROFILE".into()))
+        .update_expression(
+            "SET displayName = :n, \
+                 #type = if_not_exists(#type, :user), \
+                 userId = if_not_exists(userId, :uid), \
+                 locale = if_not_exists(locale, :loc), \
+                 theme = if_not_exists(theme, :th), \
+                 createdAt = if_not_exists(createdAt, :now)",
+        )
+        .expression_attribute_names("#type", "type")
+        .expression_attribute_values(":n", AttributeValue::S(display_name.to_string()))
+        .expression_attribute_values(":user", AttributeValue::S("User".into()))
+        .expression_attribute_values(":uid", AttributeValue::S(user_id.to_string()))
+        .expression_attribute_values(":loc", AttributeValue::S("en".into()))
+        .expression_attribute_values(":th", AttributeValue::S("system".into()))
+        .expression_attribute_values(":now", AttributeValue::S(now.to_rfc3339()))
+        .return_values(ReturnValue::AllNew)
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(Box::new(e.into_service_error())))?;
+
+    let item = resp.attributes.ok_or_else(|| {
+        AppError::Internal(Box::new(std::io::Error::other(
+            "update_item returned no attributes",
+        )))
+    })?;
+    profile_from_item(&item)
 }
 
 fn profile_from_item(item: &HashMap<String, AttributeValue>) -> Result<UserProfile, AppError> {

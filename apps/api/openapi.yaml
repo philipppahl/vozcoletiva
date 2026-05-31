@@ -35,17 +35,42 @@ paths:
       operationId: getMe
       tags: [auth]
       security: [{ bearerAuth: [] }]
-      parameters:
-        - in: query
-          name: display_name
-          schema: { type: string, minLength: 1, maxLength: 80 }
-          required: false
       responses:
         '200':
-          description: User profile.
+          description: User profile (created on first call).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/UserProfile' }
+        '401':
+          description: Missing, malformed, or expired access token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+    patch:
+      summary: Update the caller's display name
+      description: >
+        Sets the caller's display name (upsert). Cognito holds auth only; this is
+        the single bootstrap/edit path for the display name. The sign-up flow
+        calls this once the account is confirmed.
+      operationId: updateMe
+      tags: [auth]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProfileBody' }
+      responses:
+        '200':
+          description: Updated user profile.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserProfile' }
+        '400':
+          description: Invalid display name.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
         '401':
           description: Missing, malformed, or expired access token.
           content:
@@ -989,6 +1014,13 @@ components:
         locale: { type: string, enum: [en, pt] }
         theme: { type: string, enum: [system, light, dark] }
         created_at: { type: string, format: date-time }
+
+    UpdateProfileBody:
+      type: object
+      required: [display_name]
+      additionalProperties: false
+      properties:
+        display_name: { type: string, minLength: 1, maxLength: 80 }
 
     Role:
       type: string

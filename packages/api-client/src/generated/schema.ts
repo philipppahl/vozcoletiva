@@ -154,7 +154,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update the caller's display name
+         * @description Sets the caller's display name (upsert). Cognito holds auth only; this is the single bootstrap/edit path for the display name. The sign-up flow calls this once the account is confirmed.
+         */
+        patch: operations["updateMe"];
         trace?: never;
     };
     "/v1/messages/{id}/thread": {
@@ -769,6 +773,9 @@ export interface components {
         UpdateCommentBody: {
             body: string;
         };
+        UpdateProfileBody: {
+            display_name: string;
+        };
         UserProfile: {
             /** Format: date-time */
             created_at: string;
@@ -1068,22 +1075,62 @@ export interface operations {
     };
     getMe: {
         parameters: {
-            query?: {
-                display_name?: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description User profile. */
+            /** @description User profile (created on first call). */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["UserProfile"];
+                };
+            };
+            /** @description Missing, malformed, or expired access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    updateMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProfileBody"];
+            };
+        };
+        responses: {
+            /** @description Updated user profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfile"];
+                };
+            };
+            /** @description Invalid display name. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
             /** @description Missing, malformed, or expired access token. */

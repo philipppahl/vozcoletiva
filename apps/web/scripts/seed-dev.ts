@@ -14,11 +14,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 
-import {
-  AuthenticationDetails,
-  CognitoUser,
-  CognitoUserPool,
-} from 'amazon-cognito-identity-js';
+import { AuthenticationDetails, CognitoUser, CognitoUserPool } from 'amazon-cognito-identity-js';
 
 const REGION = 'eu-west-1';
 const POOL_ID = 'eu-west-1_UtykCiLhC';
@@ -158,6 +154,14 @@ async function main() {
   }
   const S = (email: string) => sessions[email];
 
+  // Bootstrap each profile's display name via the API (Cognito is auth-only —
+  // decision 0019). Must run before projects/invites so memberships + messages
+  // denormalise the real name rather than the user id.
+  console.log('• setting display names…');
+  for (const u of USERS) {
+    await api(S(u.email), 'PATCH', '/me', { display_name: u.name });
+  }
+
   // ── helpers bound to a member's session ──────────────────────────────────
   const topicId = async (s: Session, slug: string, name: string): Promise<string> => {
     const { categories } = await api<{ categories: { id: string; name: string }[] }>(
@@ -173,11 +177,9 @@ async function main() {
   const propose = (s: Session, slug: string, body: Record<string, unknown>) =>
     api<Proposal>(s, 'POST', `/projects/${slug}/proposals`, body);
   const tree = (s: Session, slug: string, id: string) =>
-    api<{ proposals: { id: string; title: string; is_question: boolean; parent_id: string | null }[] }>(
-      s,
-      'GET',
-      `/projects/${slug}/proposals/${id}/tree`,
-    );
+    api<{
+      proposals: { id: string; title: string; is_question: boolean; parent_id: string | null }[];
+    }>(s, 'GET', `/projects/${slug}/proposals/${id}/tree`);
   const vote = (s: Session, slug: string, id: string, choice: string) =>
     api(s, 'POST', `/projects/${slug}/proposals/${id}/vote`, { choice });
   const comment = (s: Session, slug: string, id: string, bodyMd: string) =>
@@ -231,7 +233,12 @@ async function main() {
   await vote(S('tomas@example.com'), p1.slug, bici.id, bici.id);
   await vote(S('lucia@example.com'), p1.slug, bici.id, bici.id);
   await vote(S('rafael@example.com'), p1.slug, bici.id, '__none__');
-  await comment(S('tomas@example.com'), p1.slug, bici.id, 'Ótima ideia! Perto do metrô seria ideal.');
+  await comment(
+    S('tomas@example.com'),
+    p1.slug,
+    bici.id,
+    'Ótima ideia! Perto do metrô seria ideal.',
+  );
   await comment(S('lucia@example.com'), p1.slug, bici.id, 'Concordo, mas precisa de cobertura.');
   close(p1.id, bici.id);
 
@@ -266,7 +273,12 @@ async function main() {
     parent_id: parque.id,
   });
   await vote(marina, p1.slug, parque.id, parque.id);
-  await comment(marina, p1.slug, parque.id, 'As duas ideias são boas — vamos debater na próxima reunião.');
+  await comment(
+    marina,
+    p1.slug,
+    parque.id,
+    'As duas ideias são boas — vamos debater na próxima reunião.',
+  );
 
   // 4) document + amendment → two versions
   const doc1 = await propose(marina, p1.slug, {

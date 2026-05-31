@@ -379,6 +379,10 @@ msgstr "Could not load thread."
 msgid "Could not save the comment. Please try again."
 msgstr "Could not save the comment. Please try again."
 
+#: src/routes/preferences.tsx
+msgid "Couldn't save. Please try again."
+msgstr "Couldn't save. Please try again."
+
 #: src/routes/index.tsx
 #: src/routes/projects.new.tsx
 #: src/routes/welcome.tsx
@@ -448,6 +452,7 @@ msgstr "Direct messages"
 msgid "Discussion"
 msgstr "Discussion"
 
+#: src/routes/preferences.tsx
 #: src/routes/sign-up.tsx
 msgid "Display name"
 msgstr "Display name"
@@ -892,6 +897,10 @@ msgstr "Post comment"
 msgid "Preferences"
 msgstr "Preferences"
 
+#: src/routes/preferences.tsx
+msgid "Profile"
+msgstr "Profile"
+
 #: src/routes/projects.new.tsx
 msgid "Project name"
 msgstr "Project name"
@@ -1026,8 +1035,17 @@ msgstr "Runtime"
 
 #: src/components/categories/CategoryManager.tsx
 #: src/components/CommentItem.tsx
+#: src/routes/preferences.tsx
 msgid "Save"
 msgstr "Save"
+
+#: src/routes/preferences.tsx
+msgid "Saved"
+msgstr "Saved"
+
+#: src/routes/preferences.tsx
+msgid "Saving…"
+msgstr "Saving…"
 
 #: src/components/shell/TabBar.tsx
 #: src/routes/p.$slug.search.tsx
