@@ -41,6 +41,15 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
         ("GET", ["me"]) => handlers::me::handle(&state, event).await,
         ("PATCH", ["me"]) => handlers::me::update(&state, event).await,
 
+        // Inbox / notifications
+        ("GET", ["me", "inbox"]) => handlers::inbox::list(&state, event).await,
+        ("POST", ["me", "inbox", id, "read"]) => {
+            handlers::inbox::mark_read(&state, event, id).await
+        }
+        ("POST", ["me", "inbox", "read-all"]) => {
+            handlers::inbox::mark_all_read(&state, event).await
+        }
+
         // Projects
         ("POST", ["projects"]) => handlers::projects::create(&state, event).await,
         ("GET", ["projects"]) => handlers::projects::list_mine(&state, event).await,

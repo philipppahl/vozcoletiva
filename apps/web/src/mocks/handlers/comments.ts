@@ -2,7 +2,6 @@ import { HttpResponse, http } from 'msw';
 
 import { mockNowIso } from '../clock';
 import { commentsForProposal, getDb, projectBySlug } from '../db';
-import { emitProposalComment } from '../inboxEmit';
 import {
   listCommentsDtoForProposal,
   requireCurrentUser,
@@ -45,7 +44,6 @@ export const commentsHandlers = [
       deletedBy: null,
     };
     getDb().comments.set(id, comment);
-    emitProposalComment(comment, { nowIso: mockNowIso(), idFor: () => `ix-${ulid()}` });
     return HttpResponse.json(toCommentDto(comment), { status: 201 });
   }),
 

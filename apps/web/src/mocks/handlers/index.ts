@@ -1,7 +1,6 @@
 import { categoriesHandlers } from './categories';
 import { commentsHandlers } from './comments';
 import { documentsHandlers } from './documents';
-import { inboxHandlers } from './inbox';
 import { invitesHandlers } from './invites';
 import { meHandlers } from './me';
 import { membersHandlers } from './members';
@@ -19,7 +18,6 @@ export const handlers = [
   ...votesHandlers,
   ...commentsHandlers,
   ...documentsHandlers,
-  ...inboxHandlers,
   ...searchHandlers,
   ...categoriesHandlers,
 ];

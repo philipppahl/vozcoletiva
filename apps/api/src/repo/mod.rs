@@ -2,6 +2,7 @@ pub mod category;
 pub mod comment;
 pub mod conversation;
 pub mod document;
+pub mod inbox;
 pub mod invite;
 pub mod membership;
 pub mod message;

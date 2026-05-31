@@ -1,3 +1,4 @@
+use chrono::Utc;
 use lambda_http::{Body, Error, Request, Response};
 use serde::{Deserialize, Serialize};
 
@@ -62,7 +63,7 @@ pub async fn create(
             let user = authenticate(state, &req).await?;
             let auth = perms::require_member(state, &user, slug).await?;
             // Verify proposal exists in this project.
-            proposal::get(state, &auth.project.id, proposal_id).await?;
+            let proposal = proposal::get(state, &auth.project.id, proposal_id).await?;
 
             let raw: CreateCommentBody = parse_body(&req)?;
             let body = CommentBody::parse(raw.body)?;
@@ -74,6 +75,12 @@ pub async fn create(
                 proposal_id = %proposal_id,
                 comment_id = %c.id,
             );
+            // Best-effort notifications — never fail the comment.
+            if let Err(e) =
+                crate::notify::proposal_comment(state, &proposal, &c, &Utc::now().to_rfc3339()).await
+            {
+                tracing::warn!(event = "inbox_fanout_failed", trigger = "comment", error = %e);
+            }
             Ok(CommentView::from(c))
         },
         201,

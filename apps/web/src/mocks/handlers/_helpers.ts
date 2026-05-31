@@ -19,7 +19,6 @@ import {
   treeFlat,
   userVote,
 } from '../db';
-import { emitDeliberationClosed } from '../inboxEmit';
 import { decideOutcome } from '../outcome';
 
 type Project = components['schemas']['Project'];
@@ -145,10 +144,6 @@ export function autoCloseDuePoll(projectId?: string) {
       p.closedAt = closedAt;
       db.proposals.set(p.id, p);
     }
-    emitDeliberationClosed(root, outcome.winnerId, {
-      nowIso: closedAt,
-      idFor: () => `ix-${ulid()}`,
-    });
   }
 }
 

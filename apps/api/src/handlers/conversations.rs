@@ -369,6 +369,12 @@ pub async fn post_message(
                 has_parent = body.parent_message_id.is_some(),
                 by_user = %user.user_id,
             );
+            // Best-effort notifications — never fail the post.
+            if let Err(e) =
+                crate::notify::message_posted(state, &meta, &msg, &Utc::now().to_rfc3339()).await
+            {
+                tracing::warn!(event = "inbox_fanout_failed", trigger = "message", error = %e);
+            }
             Ok(message_view(&msg))
         },
         201,

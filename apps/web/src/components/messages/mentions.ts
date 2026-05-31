@@ -1,12 +1,14 @@
 /**
- * `@u-marina` style mentions live inline in the message body as tokens.
- * `parseMentions` splits the body into text + mention segments so the
- * renderer can style the mentions.
+ * `@<user-id>` mentions live inline in the message body as tokens, where the id
+ * is a Cognito `sub` (a lowercase UUID). The composer inserts these via the
+ * member picker. `parseMentions` splits the body into text + mention segments so
+ * the renderer can resolve and style them. The id is matched as a UUID so an
+ * ordinary `@word` (or an email's `a@b`) isn't mistaken for a mention.
  */
 
 export type Segment = { kind: 'text'; text: string } | { kind: 'mention'; userId: string };
 
-const MENTION_RE = /(@[a-z][a-z0-9-]*)/gi;
+const MENTION_RE = /@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
 
 export function parseMentions(body: string): Segment[] {
   if (!body) return [];
@@ -17,7 +19,7 @@ export function parseMentions(body: string): Segment[] {
     if (start > lastIdx) {
       out.push({ kind: 'text', text: body.slice(lastIdx, start) });
     }
-    out.push({ kind: 'mention', userId: m[0].slice(1) });
+    out.push({ kind: 'mention', userId: m[1] ?? '' });
     lastIdx = start + m[0].length;
   }
   if (lastIdx < body.length) {

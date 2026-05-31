@@ -37,6 +37,30 @@ pub async fn get(state: &AppState, root_id: &str, user_id: &str) -> Result<Optio
     }))
 }
 
+/// Every vote in a deliberation (keyed on the root). Used to fan out
+/// `proposal-closed` notifications to voters.
+pub async fn voters(state: &AppState, root_id: &str) -> Result<Vec<Vote>, AppError> {
+    let q = state
+        .ddb
+        .query()
+        .table_name(&state.table_name)
+        .key_condition_expression("PK = :pk AND begins_with(SK, :sk)")
+        .expression_attribute_values(":pk", AttributeValue::S(format!("DELIB#{root_id}")))
+        .expression_attribute_values(":sk", AttributeValue::S("VOTE#".into()))
+        .send()
+        .await?;
+    let mut out = Vec::new();
+    for item in q.items.unwrap_or_default() {
+        let choice: Choice = string_field(&item, "choice")?.parse()?;
+        out.push(Vote {
+            user_id: string_field(&item, "userId")?.to_string(),
+            choice,
+            voted_at: string_field(&item, "votedAt")?.to_string(),
+        });
+    }
+    Ok(out)
+}
+
 /// Cast a vote (or change it) in a deliberation. Atomic across:
 ///   * Vote item (current materialised choice) under `DELIB#<root>`
 ///   * VoteEvent item (append-only audit) under `DELIB#<root>`

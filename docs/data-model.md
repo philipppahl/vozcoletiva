@@ -75,11 +75,13 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
 ### Inbox item (denormalised "this needs you")
 - **PK** `USER#<userId>` · **SK** `INBOX#<ulid>`
 - attrs: `kind` (`mention` / `reply` / `comment-on-yours` / `proposal-closed` /
-  `document-amended`), `projectId`, `actorId` (`system` for closes),
-  `proposalId?` / `commentId?` / `conversationId?` / `messageId?` /
+  `document-amended`), `projectId`, **denormalised** `projectSlug` / `projectName`
+  / `actorId` (`system` for closes) / `actorDisplayName?` (so reads need no
+  joins), `proposalId?` / `commentId?` / `conversationId?` / `messageId?` /
   `documentName?` (kind-dependent), `preview` (≤120 chars), `readAt?`
-- **Fan-out on write**: the write path that creates the source event pushes one
-  `INBOX#` item per interested recipient.
+- **Fan-out on write**: the trigger (message + comment create in the API Lambda,
+  close in the worker) pushes one `INBOX#` item per entitled recipient, via the
+  shared `notify` module. Best-effort — never fails the trigger. See decision 0021.
 
 ### Conversation-read / thread-read markers
 - **PK** `USER#<userId>` · **SK** `CONVREAD#<conversationId>` — `lastReadMessageId`, `at`

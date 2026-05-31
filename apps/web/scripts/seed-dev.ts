@@ -356,6 +356,12 @@ async function main() {
   await postMsg(S('lucia@example.com'), c1, 'Concordo! Já votei a favor.', topic1.id);
   await postMsg(marina, c1, 'Vou levar para a próxima reunião também.', topic1.id);
   await postMsg(S('rafael@example.com'), c1, 'Boa noite a todos, acabei de entrar no grupo.');
+  // A mention → an inbox notification for Tomás.
+  await postMsg(
+    marina,
+    c1,
+    `@${S('tomas@example.com').sub} pode revisar a proposta do bicicletário? 🙏`,
+  );
   // marina has read up to her own last message; tomas/lucia leave some unread.
   await markRead(marina, c1, topic1.id);
 

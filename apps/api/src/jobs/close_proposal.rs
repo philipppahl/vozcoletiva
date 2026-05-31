@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use chrono::Utc;
+
 use crate::domain::outcome::{decide_outcome, OutcomeStatus};
 use crate::domain::proposal::{ProposalKind, ProposalStatus};
 use crate::error::AppError;
@@ -114,5 +116,16 @@ pub async fn close(
         tally_none = root.tally.none,
         tally_abstain = root.tally.abstain,
     );
+
+    // Best-effort: notify decisive voters that the deliberation closed.
+    let winner = outcome
+        .winner_id
+        .as_deref()
+        .and_then(|wid| nodes.iter().find(|n| n.id == wid));
+    if let Err(e) =
+        crate::notify::deliberation_closed(state, root, winner, &Utc::now().to_rfc3339()).await
+    {
+        tracing::warn!(event = "inbox_fanout_failed", trigger = "close", error = %e);
+    }
     Ok(true)
 }

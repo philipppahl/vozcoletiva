@@ -182,6 +182,57 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/v1/me/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller's inbox (notifications) */
+        get: operations["listInbox"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/inbox/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark one inbox item read */
+        post: operations["markInboxItemRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/inbox/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark all inbox items read */
+        post: operations["markAllInboxRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/messages/{id}/thread": {
         parameters: {
             query?: never;
@@ -645,6 +696,30 @@ export interface components {
             /** @constant */
             ok: true;
             version: string;
+        };
+        InboxItem: {
+            actor_display_name?: string | null;
+            actor_id: string;
+            comment_id?: string | null;
+            conversation_id?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            document_name?: string | null;
+            id: string;
+            /** @enum {string} */
+            kind: "mention" | "reply" | "comment-on-yours" | "proposal-closed" | "document-amended";
+            message_id?: string | null;
+            preview: string;
+            project_id: string;
+            project_name: string;
+            project_slug: string;
+            proposal_id?: string | null;
+            /** Format: date-time */
+            read_at?: string | null;
+        };
+        InboxListResponse: {
+            items: components["schemas"]["InboxItem"][];
+            unread_count: number;
         };
         Invite: {
             code: string;
@@ -1250,6 +1325,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listInbox: {
+        parameters: {
+            query?: {
+                /** @description Item id cursor — returns items older than it. */
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Inbox items, newest-first, with the unread count. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxListResponse"];
+                };
+            };
+            /** @description Missing or invalid auth. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    markInboxItemRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked read. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            /** @description No such item for this user. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    markAllInboxRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description All marked read. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
         };
