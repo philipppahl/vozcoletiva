@@ -703,12 +703,62 @@ paths:
         - $ref: '#/components/parameters/ConversationId'
       responses:
         '200':
-          description: Conversation.
+          description: Conversation — a channel or a DM, discriminated by `kind`.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Channel' }
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/Channel' }
+                  - { $ref: '#/components/schemas/DmConversation' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/dms:
+    get:
+      summary: List the caller's direct messages
+      operationId: listDms
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The caller's DMs across all projects.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmListResponse' }
+        '401':
+          description: Missing or invalid auth.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+    post:
+      summary: Start (or get) a direct message with another user
+      description: >
+        Idempotent per user pair — the same two users always resolve to the same
+        conversation. The peer must be an existing user.
+      operationId: startDm
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartDmBody' }
+      responses:
+        '200':
+          description: The (new or existing) DM conversation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DmConversation' }
+        '400':
+          description: Cannot DM yourself.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: Peer user does not exist.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 
   /v1/conversations/{id}/messages:
     get:
@@ -928,6 +978,45 @@ components:
         channels:
           type: array
           items: { $ref: '#/components/schemas/Channel' }
+
+    DmParticipant:
+      type: object
+      required: [user_id, display_name]
+      additionalProperties: false
+      properties:
+        user_id: { type: string }
+        display_name: { type: string }
+
+    DmConversation:
+      type: object
+      required: [kind, id, participants, unread_count]
+      additionalProperties: false
+      properties:
+        kind: { type: string, enum: [dm] }
+        id: { type: string }
+        participants:
+          type: array
+          items: { $ref: '#/components/schemas/DmParticipant' }
+        last_message:
+          oneOf: [{ $ref: '#/components/schemas/LastMessagePreview' }]
+          nullable: true
+        unread_count: { type: integer }
+
+    DmListResponse:
+      type: object
+      required: [dms]
+      additionalProperties: false
+      properties:
+        dms:
+          type: array
+          items: { $ref: '#/components/schemas/DmConversation' }
+
+    StartDmBody:
+      type: object
+      required: [user_id]
+      additionalProperties: false
+      properties:
+        user_id: { type: string }
 
     Message:
       type: object

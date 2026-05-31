@@ -55,6 +55,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/dms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the caller's direct messages */
+        get: operations["listDms"];
+        put?: never;
+        /**
+         * Start (or get) a direct message with another user
+         * @description Idempotent per user pair — the same two users always resolve to the same conversation. The peer must be an existing user.
+         */
+        post: operations["startDm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/hello": {
         parameters: {
             query?: never;
@@ -589,6 +610,21 @@ export interface components {
             /** @description Required for a root; inherited from the root for a fork. */
             voting_rule?: components["schemas"]["VotingRule"];
         };
+        DmConversation: {
+            id: string;
+            /** @enum {string} */
+            kind: "dm";
+            last_message?: components["schemas"]["LastMessagePreview"] | null;
+            participants: components["schemas"]["DmParticipant"][];
+            unread_count: number;
+        };
+        DmListResponse: {
+            dms: components["schemas"]["DmConversation"][];
+        };
+        DmParticipant: {
+            display_name: string;
+            user_id: string;
+        };
         DocumentDetail: {
             active_amendment?: components["schemas"]["Proposal"] | null;
             current_version: components["schemas"]["Proposal"];
@@ -766,6 +802,9 @@ export interface components {
         };
         /** @enum {string} */
         Role: "owner" | "admin" | "moderator" | "member" | "observer";
+        StartDmBody: {
+            user_id: string;
+        };
         ThreadResponse: {
             parent: components["schemas"]["Message"];
             replies: components["schemas"]["Message"][];
@@ -844,13 +883,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Conversation. */
+            /** @description Conversation — a channel or a DM, discriminated by `kind`. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Channel"];
+                    "application/json": components["schemas"]["Channel"] | components["schemas"]["DmConversation"];
                 };
             };
             403: components["responses"]["Forbidden"];
@@ -939,6 +978,77 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    listDms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's DMs across all projects. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DmListResponse"];
+                };
+            };
+            /** @description Missing or invalid auth. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    startDm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartDmBody"];
+            };
+        };
+        responses: {
+            /** @description The (new or existing) DM conversation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DmConversation"];
+                };
+            };
+            /** @description Cannot DM yourself. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Peer user does not exist. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     getHello: {

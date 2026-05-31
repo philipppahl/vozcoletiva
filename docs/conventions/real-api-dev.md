@@ -3,9 +3,9 @@
 By default `bun run dev` uses the MSW mock layer (`VITE_USE_MOCKS=1`). To run
 against the **real `voz-dev` backend** instead — with real Cognito auth and real
 data — use real-API mode. Projects, proposals, votes, documents, categories,
-comments, **and project channels/messages/threads** are real; **DMs, inbox, and
-search** keep mock data (no backend yet). See `docs/decisions/0016` (hybrid) and
-`0018` (messages wiring).
+comments, **and all messaging (channels, DMs, threads, reads)** are real; only
+**inbox + search** keep mock data (no backend yet). See `docs/decisions/0016`
+(hybrid), `0018` (messages wiring), `0020` (DMs).
 
 ## One-time
 
@@ -61,9 +61,10 @@ Re-run `bun apps/web/scripts/seed-dev.ts` — it wipes the table and reseeds.
 - Prod never ships mocks — `VITE_MOCK_COMMS` is unset for prod and the branch is
   dead-code-eliminated; the deploy script also scans the prod bundle for MSW
   residue.
-- The comms-mock now passthrough()es channel traffic to the real API and serves
-  **only mock DMs** (discriminated by conversation/message id). Channels,
-  messages, threads, and read markers are real (0018).
+- The comms-mock is retired for messaging — channels **and** DMs, threads, and
+  read markers are all real (0020). Only inbox + search are still mocked (served
+  by the hybrid worker). Full-mock mode (`VITE_USE_MOCKS=1`) no longer serves the
+  messaging surface; the maintained dev path is hybrid + real API.
 - **Stale client state**: a leftover full-mock session or an expired access
   token can leave the projects/messages lists looking empty. The self-destroying
   SW heals on a fresh load; if not, clear site data for the CloudFront origin and

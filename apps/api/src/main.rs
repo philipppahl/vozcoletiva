@@ -135,10 +135,13 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
             handlers::comments::delete(&state, event, slug, id, comment_id).await
         }
 
-        // Messaging — channels (project-scoped) + conversations/messages/threads
+        // Messaging — channels (project-scoped) + DMs (user-pair) +
+        // conversations/messages/threads
         ("GET", ["projects", slug, "channels"]) => {
             handlers::conversations::list_channels(&state, event, slug).await
         }
+        ("GET", ["dms"]) => handlers::conversations::list_dms(&state, event).await,
+        ("POST", ["dms"]) => handlers::conversations::create_dm(&state, event).await,
         ("GET", ["conversations", id]) => {
             handlers::conversations::get_conversation(&state, event, id).await
         }

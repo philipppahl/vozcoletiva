@@ -25,34 +25,8 @@ function unwrap<T>(data: T | undefined, error: unknown): T {
   return data;
 }
 
-// Channels / messages / threads / reads hit the real API via `apiClient`.
-// DMs (`/dms`) have no backend yet, so they stay on this relative mock helper —
-// MSW serves them while the comms-mock conversation handlers passthrough channel
-// ids to the real API. See docs/decisions/0018.
-
-async function mockGet<T>(path: string): Promise<T> {
-  const res = await fetch(`/v1${path}`, {
-    headers: { authorization: 'Bearer mock' },
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new Error(body.message ?? `HTTP ${res.status}`);
-  }
-  return (await res.json()) as T;
-}
-
-async function mockPost<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`/v1${path}`, {
-    method: 'POST',
-    headers: { authorization: 'Bearer mock', 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const errBody = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new Error(errBody.message ?? `HTTP ${res.status}`);
-  }
-  return (await res.json()) as T;
-}
+// Channels, DMs, messages, threads, and reads all hit the real API via
+// `apiClient`. Only inbox + search remain on the comms-mock. See decision 0020.
 
 // ── list queries ───────────────────────────────────────────────────────────
 
@@ -73,7 +47,10 @@ export function useChannels(slug: string | undefined) {
 export function useDms() {
   return useQuery({
     queryKey: qk.chat.dms(),
-    queryFn: () => mockGet<DmListResponse>('/dms'),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/v1/dms');
+      return unwrap(data, error) as unknown as DmListResponse;
+    },
     refetchOnWindowFocus: true,
   });
 }
@@ -161,7 +138,10 @@ export function useMarkRead(conversationId: string) {
 export function useStartDm() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (userId: string) => mockPost<DmConversation>('/dms', { user_id: userId }),
+    mutationFn: async (userId: string) => {
+      const { data, error } = await apiClient.POST('/v1/dms', { body: { user_id: userId } });
+      return unwrap(data, error) as unknown as DmConversation;
+    },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: qk.chat.dms() });
     },

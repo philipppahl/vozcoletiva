@@ -365,6 +365,20 @@ async function main() {
   const q2 = await postMsg(S('sofia@example.com'), c2, 'Qual a previsão de instalação?');
   await postMsg(tomas, c2, 'Em torno de 3 semanas após a aprovação.', q2.id);
 
+  // ── direct messages (slice DMs): user-pair conversations ─────────────────
+  console.log('• direct messages');
+  const startDm = (s: Session, peerSub: string) =>
+    api<{ id: string }>(s, 'POST', '/dms', { user_id: peerSub });
+  // marina ↔ tomás
+  const dm1 = await startDm(marina, S('tomas@example.com').sub);
+  await postMsg(marina, dm1.id, 'Oi Tomás! Viu minha proposta do bicicletário?');
+  await postMsg(S('tomas@example.com'), dm1.id, 'Vi sim, já votei a favor. 👍');
+  await postMsg(marina, dm1.id, 'Maravilha, obrigada!');
+  // marina ↔ lúcia (one unread for marina: lúcia sends last)
+  const dm2 = await startDm(marina, S('lucia@example.com').sub);
+  await postMsg(marina, dm2.id, 'Lúcia, topa apresentar a ideia da horta na reunião?');
+  await postMsg(S('lucia@example.com'), dm2.id, 'Claro! Vou preparar uns slides.');
+
   console.log('\n✓ seed complete.');
   console.log(`  Projects: ${p1.slug}, ${p2.slug}`);
   console.log('  Sign in at the app as marina@example.com / ' + PASSWORD);

@@ -1,7 +1,6 @@
 import { setupWorker } from 'msw/browser';
 import { getDb } from './db';
 import { handlers } from './handlers';
-import { conversationsHandlers } from './handlers/conversations';
 import { inboxHandlers } from './handlers/inbox';
 import { searchHandlers } from './handlers/search';
 import { applyScenario, loadScenarioId } from './scenarios';
@@ -25,11 +24,11 @@ export async function startMocks(): Promise<void> {
 }
 
 /**
- * Hybrid mode: the messages / DMs / inbox / search backends don't exist on the
- * real API yet, so MSW intercepts **only** those endpoints and serves mock
- * data; every other `/v1` request is bypassed to the real API
- * (`onUnhandledRequest: 'bypass'`). The mock db is seeded (demo project slug
- * `vila-madalena` + a demo current user) so those surfaces stay populated.
+ * Hybrid mode: messaging (channels, DMs, threads, reads) is now on the real API;
+ * only the **inbox + search** backends don't exist yet, so MSW intercepts only
+ * those endpoints and serves mock data; every other `/v1` request is bypassed to
+ * the real API (`onUnhandledRequest: 'bypass'`). The mock db is seeded so those
+ * two surfaces stay populated. See decision 0020.
  */
 export async function startCommsMocks(): Promise<void> {
   applyScenario(loadScenarioId());
@@ -39,7 +38,7 @@ export async function startCommsMocks(): Promise<void> {
     const demo = [...getDb().users.values()][0];
     if (demo) getDb().currentUserId = demo.userId;
   }
-  const commsWorker = setupWorker(...conversationsHandlers, ...inboxHandlers, ...searchHandlers);
+  const commsWorker = setupWorker(...inboxHandlers, ...searchHandlers);
   await commsWorker.start({
     onUnhandledRequest: 'bypass',
     serviceWorker: { url: '/mockServiceWorker.js' },

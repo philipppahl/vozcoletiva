@@ -96,6 +96,25 @@ pub async fn get_or_create_profile(
     }
 }
 
+/// Read a user's profile without creating one. `None` if it doesn't exist.
+pub async fn get_profile(
+    state: &AppState,
+    user_id: &str,
+) -> Result<Option<UserProfile>, AppError> {
+    let read = state
+        .ddb
+        .get_item()
+        .table_name(&state.table_name)
+        .key("PK", AttributeValue::S(format!("USER#{user_id}")))
+        .key("SK", AttributeValue::S("PROFILE".into()))
+        .send()
+        .await?;
+    match read.item {
+        Some(item) => Ok(Some(profile_from_item(&item)?)),
+        None => Ok(None),
+    }
+}
+
 /// Set the caller's display name, creating the profile if it doesn't exist yet
 /// (upsert). `locale`/`theme`/`createdAt`/`userId`/`type` are initialised only
 /// on first write via `if_not_exists`, so an existing profile keeps its prefs.

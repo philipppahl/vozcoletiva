@@ -1,6 +1,5 @@
 import { categoriesHandlers } from './categories';
 import { commentsHandlers } from './comments';
-import { conversationsHandlers } from './conversations';
 import { documentsHandlers } from './documents';
 import { inboxHandlers } from './inbox';
 import { invitesHandlers } from './invites';
@@ -19,7 +18,6 @@ export const handlers = [
   ...proposalsHandlers,
   ...votesHandlers,
   ...commentsHandlers,
-  ...conversationsHandlers,
   ...documentsHandlers,
   ...inboxHandlers,
   ...searchHandlers,

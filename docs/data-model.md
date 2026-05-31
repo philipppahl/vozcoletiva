@@ -86,9 +86,15 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
 - **PK** `USER#<userId>` · **SK** `THREADREAD#<parentMessageId>` — `lastReadMessageId`, `at`
 
 ### DM pointer (one per participant)
-- **PK** `USER#<userId>` · **SK** `DM#<conversationId>`
+- **PK** `USER#<userId>` · **SK** `DM#<conversationId>` — `peerId`, `createdAt`
 - Lets a user list their DMs with a single `Query`. The conversation body lives
-  under `CONV#<conversationId>`.
+  under `CONV#<conversationId>/META` (`type=DirectMessage`, `participantIds=[lo,hi]`).
+
+### DM pair sentinel (idempotency)
+- **PK** `DMPAIR#<lo>#<hi>` · **SK** `CLAIMED` — `conversationId`
+- Sorted pair `[lo, hi]`, so a DM is created once per pair regardless of who
+  starts it. Conditional `attribute_not_exists` create resolves the create race
+  (mirrors the slug claim). See decision 0020.
 
 ### Project (metadata)
 - **PK** `PROJECT#<projectId>` · **SK** `META`
@@ -188,8 +194,9 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
   listing a project's channels is one query, no per-channel `GetItem`).
 - A default **"Commons" channel** (meta + pointer) is created in the
   `project::create` transaction, matching the default topic name.
-- **DM id is deterministic** from the sorted participant pair, so find-or-create
-  is a `GetItem` — no lookup index needed (DMs are a later slice).
+- **DMs** find-or-create via a sorted-pair sentinel (`DMPAIR#<lo>#<hi>`), so a
+  pair maps to one conversation; per-user `DM#<convId>` pointers list a user's
+  DMs. No GSI. See decision 0020.
 
 ### Message (channel message or thread reply)
 - **PK** `CONV#<conversationId>` · **SK** `MSG#<ulid>` (top-level) or
@@ -239,6 +246,8 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
 | `GET /projects/:slug/categories` | `Query(PROJECT#p, TOPIC#)` |
 | `POST/PATCH/DELETE …/categories[/:id]` | CRUD `PROJECT#p / TOPIC#id` (delete gated by a `Select=COUNT` query of referencing proposals + last-topic check) |
 | `GET /projects/:slug/channels` | `Query(PROJECT#p, CONV#)` |
+| `GET /dms` | `Query(USER#u, DM#)` → per-DM peer profile + last/unread |
+| `POST /dms` | `GetItem(DMPAIR#lo#hi)` else `TransactWrite` (META + sentinel + 2 pointers) |
 | `GET /projects/:slug/invites` | `Query(PROJECT#p, INVITE#)` |
 | `POST /projects/:slug/invites` | put `INVITE#` + GSI1 token + GSI1 code |
 | `DELETE …/invites/:inviteId` | `UpdateItem(PROJECT#p, INVITE#id)` set `revokedAt` |

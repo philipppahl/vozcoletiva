@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use crate::auth::{bearer_token, perms, AuthenticatedUser};
 use crate::domain::message::validate_body;
 use crate::error::AppError;
-use crate::repo::conversation::Conversation;
+use crate::repo::conversation::{Conversation, ConversationMeta, DmConversation};
 use crate::repo::message::Message;
-use crate::repo::{conversation, membership, message};
+use crate::repo::{conversation, membership, message, user};
 use crate::state::AppState;
 
 const PAGE_LIMIT: usize = 50;
@@ -34,6 +34,31 @@ struct ChannelView {
 #[derive(Debug, Serialize)]
 struct ChannelListResponse {
     channels: Vec<ChannelView>,
+}
+
+#[derive(Debug, Serialize)]
+struct DmParticipantView {
+    user_id: String,
+    display_name: String,
+}
+
+#[derive(Debug, Serialize)]
+struct DmView {
+    kind: &'static str,
+    id: String,
+    participants: Vec<DmParticipantView>,
+    last_message: Option<LastMessage>,
+    unread_count: i64,
+}
+
+#[derive(Debug, Serialize)]
+struct DmListResponse {
+    dms: Vec<DmView>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StartDmBody {
+    user_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -123,6 +148,81 @@ async fn channel_view(
     })
 }
 
+async fn dm_view(
+    state: &AppState,
+    viewer_id: &str,
+    dm: DmConversation,
+) -> Result<DmView, AppError> {
+    let mut participants = Vec::with_capacity(2);
+    for uid in &dm.participant_ids {
+        let display_name = user::get_profile(state, uid)
+            .await?
+            .map(|p| p.display_name)
+            .unwrap_or_else(|| uid.clone());
+        participants.push(DmParticipantView {
+            user_id: uid.clone(),
+            display_name,
+        });
+    }
+    let marker = conversation::conversation_read(state, viewer_id, &dm.id).await?;
+    let unread = message::unread_count(state, &dm.id, marker.as_deref()).await?;
+    let last = message::last_message(state, &dm.id)
+        .await?
+        .map(|m| LastMessage {
+            author_display_name: m.author_display_name,
+            body_preview: preview(&m.body),
+            at: m.created_at,
+        });
+    Ok(DmView {
+        kind: "dm",
+        id: dm.id,
+        participants,
+        last_message: last,
+        unread_count: unread,
+    })
+}
+
+/// Authorize a read/write against a conversation: channel → project member;
+/// DM → one of the two participants. Forbidden otherwise.
+async fn authorize_conversation(
+    state: &AppState,
+    meta: &ConversationMeta,
+    user_id: &str,
+) -> Result<(), AppError> {
+    match meta {
+        ConversationMeta::Channel(c) => {
+            member_of(state, &c.project_id, user_id).await?;
+            Ok(())
+        }
+        ConversationMeta::Dm(d) => {
+            if d.participant_ids.iter().any(|p| p == user_id) {
+                Ok(())
+            } else {
+                Err(AppError::Forbidden(
+                    "not a participant of this conversation".into(),
+                ))
+            }
+        }
+    }
+}
+
+/// The display name to stamp on a posted message: a channel uses the poster's
+/// project-membership name; a DM uses their profile name (no project context).
+async fn poster_display_name(
+    state: &AppState,
+    meta: &ConversationMeta,
+    user_id: &str,
+) -> Result<String, AppError> {
+    match meta {
+        ConversationMeta::Channel(c) => {
+            Ok(member_of(state, &c.project_id, user_id).await?.display_name)
+        }
+        ConversationMeta::Dm(_) => Ok(user::get_or_create_profile(state, user_id, user_id)
+            .await?
+            .display_name),
+    }
+}
+
 /// The caller's membership in a conversation's project, or Forbidden.
 async fn member_of(
     state: &AppState,
@@ -166,10 +266,21 @@ pub async fn get_conversation(
     super::json_or_error(
         async {
             let user = authenticate(state, &req).await?;
-            let conv = conversation::get(state, id).await?;
-            member_of(state, &conv.project_id, &user.user_id).await?;
-            let member_count = membership::list(state, &conv.project_id).await?.len() as i64;
-            channel_view(state, &user.user_id, conv, member_count).await
+            let meta = conversation::get_meta(state, id).await?;
+            authorize_conversation(state, &meta, &user.user_id).await?;
+            // Channels and DMs serialise to different shapes (discriminated by
+            // `kind`); the FE's Conversation union handles both.
+            match meta {
+                ConversationMeta::Channel(c) => {
+                    let member_count = membership::list(state, &c.project_id).await?.len() as i64;
+                    let view = channel_view(state, &user.user_id, c, member_count).await?;
+                    serde_json::to_value(view).map_err(|e| AppError::Internal(Box::new(e)))
+                }
+                ConversationMeta::Dm(d) => {
+                    let view = dm_view(state, &user.user_id, d).await?;
+                    serde_json::to_value(view).map_err(|e| AppError::Internal(Box::new(e)))
+                }
+            }
         },
         200,
     )
@@ -184,11 +295,11 @@ pub async fn list_messages(
     super::json_or_error(
         async {
             let user = authenticate(state, &req).await?;
-            let conv = conversation::get(state, id).await?;
-            member_of(state, &conv.project_id, &user.user_id).await?;
+            let meta = conversation::get_meta(state, id).await?;
+            authorize_conversation(state, &meta, &user.user_id).await?;
             let before = query_param(&req, "before");
             let (messages, has_more) =
-                message::list_top_level(state, &conv.id, before.as_deref(), PAGE_LIMIT).await?;
+                message::list_top_level(state, meta.id(), before.as_deref(), PAGE_LIMIT).await?;
             Ok(MessageListResponse {
                 messages: messages.iter().map(message_view).collect(),
                 has_more,
@@ -207,8 +318,10 @@ pub async fn post_message(
     super::json_or_error(
         async {
             let user = authenticate(state, &req).await?;
-            let conv = conversation::get(state, id).await?;
-            let me = member_of(state, &conv.project_id, &user.user_id).await?;
+            let meta = conversation::get_meta(state, id).await?;
+            authorize_conversation(state, &meta, &user.user_id).await?;
+            let author_name = poster_display_name(state, &meta, &user.user_id).await?;
+            let conv_id = meta.id().to_string();
             let body: PostMessageBody = parse_body(&req)?;
             if !body.attachments.is_empty() {
                 return Err(AppError::BadRequest(
@@ -228,7 +341,7 @@ pub async fn post_message(
                     }
                     Err(e) => return Err(e),
                 };
-                if parent.conversation_id != conv.id {
+                if parent.conversation_id != conv_id {
                     return Err(AppError::BadRequest(
                         "parent message is not in this conversation".into(),
                     ));
@@ -237,9 +350,9 @@ pub async fn post_message(
 
             let msg = message::post(
                 state,
-                &conv.id,
+                &conv_id,
                 &user.user_id,
-                &me.display_name,
+                &author_name,
                 &text,
                 body.parent_message_id.as_deref(),
             )
@@ -248,8 +361,11 @@ pub async fn post_message(
             // Counts only — chat content is PII and is never logged.
             tracing::info!(
                 event = "message_posted",
-                project_id = %conv.project_id,
-                conversation_id = %conv.id,
+                conversation_kind = match &meta {
+                    ConversationMeta::Channel(_) => "channel",
+                    ConversationMeta::Dm(_) => "dm",
+                },
+                conversation_id = %conv_id,
                 has_parent = body.parent_message_id.is_some(),
                 by_user = %user.user_id,
             );
@@ -264,13 +380,13 @@ pub async fn mark_read(state: &AppState, req: Request, id: &str) -> Result<Respo
     super::json_or_error(
         async {
             let user = authenticate(state, &req).await?;
-            let conv = conversation::get(state, id).await?;
-            member_of(state, &conv.project_id, &user.user_id).await?;
+            let meta = conversation::get_meta(state, id).await?;
+            authorize_conversation(state, &meta, &user.user_id).await?;
             let body: ReadBody = parse_body(&req)?;
             conversation::set_conversation_read(
                 state,
                 &user.user_id,
-                &conv.id,
+                meta.id(),
                 &body.message_id,
                 &Utc::now().to_rfc3339(),
             )
@@ -291,8 +407,8 @@ pub async fn get_thread(
         async {
             let user = authenticate(state, &req).await?;
             let parent = message::top_level_by_id(state, message_id).await?;
-            let conv = conversation::get(state, &parent.conversation_id).await?;
-            member_of(state, &conv.project_id, &user.user_id).await?;
+            let meta = conversation::get_meta(state, &parent.conversation_id).await?;
+            authorize_conversation(state, &meta, &user.user_id).await?;
             let replies = message::thread_replies(state, &parent.id).await?;
             Ok(ThreadResponse {
                 parent: message_view(&parent),
@@ -313,8 +429,8 @@ pub async fn mark_thread_read(
         async {
             let user = authenticate(state, &req).await?;
             let parent = message::top_level_by_id(state, parent_id).await?;
-            let conv = conversation::get(state, &parent.conversation_id).await?;
-            member_of(state, &conv.project_id, &user.user_id).await?;
+            let meta = conversation::get_meta(state, &parent.conversation_id).await?;
+            authorize_conversation(state, &meta, &user.user_id).await?;
             let body: ReadBody = parse_body(&req)?;
             conversation::set_thread_read(
                 state,
@@ -325,6 +441,66 @@ pub async fn mark_thread_read(
             )
             .await?;
             Ok(serde_json::json!({ "ok": true }))
+        },
+        200,
+    )
+    .await
+}
+
+pub async fn list_dms(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
+    super::json_or_error(
+        async {
+            let user = authenticate(state, &req).await?;
+            let pointers = conversation::list_dms(state, &user.user_id).await?;
+            let mut dms = Vec::with_capacity(pointers.len());
+            for p in pointers {
+                let dm = DmConversation {
+                    id: p.conversation_id,
+                    participant_ids: conversation::dm_pair(&user.user_id, &p.peer_id),
+                    created_at: p.created_at,
+                };
+                dms.push(dm_view(state, &user.user_id, dm).await?);
+            }
+            // Most recent activity first (no last message → fall back to id).
+            dms.sort_by(|a, b| {
+                let a_at = a.last_message.as_ref().map(|m| m.at.as_str()).unwrap_or(&a.id);
+                let b_at = b.last_message.as_ref().map(|m| m.at.as_str()).unwrap_or(&b.id);
+                b_at.cmp(a_at)
+            });
+            Ok(DmListResponse { dms })
+        },
+        200,
+    )
+    .await
+}
+
+pub async fn create_dm(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
+    super::json_or_error(
+        async {
+            let user = authenticate(state, &req).await?;
+            let body: StartDmBody = parse_body(&req)?;
+            if body.user_id == user.user_id {
+                return Err(AppError::BadRequest("cannot DM yourself".into()));
+            }
+            // The peer must be a real user (have a profile). This also stops
+            // dm_view from materialising a UUID-named profile for a bad id.
+            if user::get_profile(state, &body.user_id).await?.is_none() {
+                return Err(AppError::NotFound);
+            }
+            let dm = conversation::create_or_get_dm(
+                state,
+                &user.user_id,
+                &body.user_id,
+                &Utc::now().to_rfc3339(),
+            )
+            .await?;
+            tracing::info!(
+                event = "dm_created",
+                conversation_id = %dm.id,
+                by_user = %user.user_id,
+                peer_user = %body.user_id,
+            );
+            dm_view(state, &user.user_id, dm).await
         },
         200,
     )
