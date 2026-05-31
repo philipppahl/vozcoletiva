@@ -33,8 +33,12 @@ describe('emitMessageMentions', () => {
       editedAt: null,
     };
     emitMessageMentions(message, ctx);
-    const marina = inboxForUser('u-marina').filter((i) => i.kind === 'mention' && i.id.startsWith('ix-test'));
-    const claudia = inboxForUser('u-claudia').filter((i) => i.kind === 'mention' && i.id.startsWith('ix-test'));
+    const marina = inboxForUser('u-marina').filter(
+      (i) => i.kind === 'mention' && i.id.startsWith('ix-test'),
+    );
+    const claudia = inboxForUser('u-claudia').filter(
+      (i) => i.kind === 'mention' && i.id.startsWith('ix-test'),
+    );
     const pedro = inboxForUser('u-pedro').filter((i) => i.id.startsWith('ix-test'));
     expect(marina).toHaveLength(1);
     expect(claudia).toHaveLength(1);
@@ -75,7 +79,7 @@ describe('emitMessageMentions', () => {
 });
 
 describe('emitProposalComment', () => {
-  it("notifies the proposal author when someone else comments", () => {
+  it('notifies the proposal author when someone else comments', () => {
     const proposal = getDb().proposals.get('pr-bike-racks')!;
     const comment = {
       id: 'c-test-1',
@@ -94,7 +98,7 @@ describe('emitProposalComment', () => {
     expect(claudia[0]?.kind).toBe('comment-on-yours');
   });
 
-  it("does nothing when the commenter IS the proposal author", () => {
+  it('does nothing when the commenter IS the proposal author', () => {
     const proposal = getDb().proposals.get('pr-bike-racks')!;
     const comment = {
       id: 'c-test-2',
@@ -136,7 +140,16 @@ describe('emitDeliberationClosed', () => {
     const root = getDb().proposals.get('pr-bike-racks')!;
     emitDeliberationClosed(root, 'pr-bike-racks', ctx);
     const counts: Record<string, number> = {};
-    for (const userId of ['u-pedro', 'u-claudia', 'u-bruno', 'u-tiago', 'u-ines', 'u-rui', 'u-helena', 'u-sofia']) {
+    for (const userId of [
+      'u-pedro',
+      'u-claudia',
+      'u-bruno',
+      'u-tiago',
+      'u-ines',
+      'u-rui',
+      'u-helena',
+      'u-sofia',
+    ]) {
       counts[userId] = inboxForUser(userId).filter((i) => i.id.startsWith('ix-test')).length;
     }
     expect(Object.values(counts).every((n) => n === 1)).toBe(true);

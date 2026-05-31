@@ -21,7 +21,9 @@
       "!**/test-results",
       "!apps/web/src/routeTree.gen.ts",
       "!packages/api-client/src/generated",
-      "!apps/web/src/styles/global.css"
+      "!apps/web/src/styles/global.css",
+      "!apps/web/public/mockServiceWorker.js",
+      "!docs/design/**"
     ]
   },
   "formatter": {

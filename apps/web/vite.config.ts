@@ -25,8 +25,7 @@ export default defineConfig({
       // + any previously-installed Workbox SW, so returning visitors aren't
       // stuck on a stale precache worker. MSW's own worker remains and satisfies
       // PWA installability.
-      selfDestroying:
-        process.env.VITE_USE_MOCKS === '1' || process.env.VITE_MOCK_COMMS === '1',
+      selfDestroying: process.env.VITE_USE_MOCKS === '1' || process.env.VITE_MOCK_COMMS === '1',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
         name: 'vozcoletiva',

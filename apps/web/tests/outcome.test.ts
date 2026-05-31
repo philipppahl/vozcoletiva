@@ -51,21 +51,11 @@ describe('decideOutcome', () => {
 
   describe('simple_majority', () => {
     it('needs more than 50% of decisive', () => {
-      const r = decideOutcome(
-        tree('a', 'b'),
-        tally({ a: 6, b: 4 }),
-        'simple_majority',
-        null,
-      );
+      const r = decideOutcome(tree('a', 'b'), tally({ a: 6, b: 4 }), 'simple_majority', null);
       expect(r.winnerId).toBe('a');
     });
     it('fails at exactly 50%', () => {
-      const r = decideOutcome(
-        tree('a', 'b'),
-        tally({ a: 5, b: 5 }),
-        'simple_majority',
-        null,
-      );
+      const r = decideOutcome(tree('a', 'b'), tally({ a: 5, b: 5 }), 'simple_majority', null);
       expect(r.winnerId).toBeNull();
     });
   });
@@ -98,12 +88,7 @@ describe('decideOutcome', () => {
 
   describe('quorum', () => {
     it('reports quorum_failed when decisive votes are below quorum', () => {
-      const r = decideOutcome(
-        tree('a'),
-        tally({ a: 3 }, 0, 0),
-        'simple_majority',
-        8,
-      );
+      const r = decideOutcome(tree('a'), tally({ a: 3 }, 0, 0), 'simple_majority', 8);
       expect(r.status).toBe('quorum_failed');
       expect(r.winnerId).toBeNull();
     });

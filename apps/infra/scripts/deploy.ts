@@ -228,10 +228,13 @@ async function main() {
   if (args.env === 'prod') {
     const distDir = resolve(root, 'apps/web/dist');
     if (existsSync(distDir)) {
-      const grep = spawnSync(`grep -rEl '(mockServiceWorker|setupWorker|msw/browser)' "${distDir}" || true`, {
-        shell: true,
-        encoding: 'utf8',
-      });
+      const grep = spawnSync(
+        `grep -rEl '(mockServiceWorker|setupWorker|msw/browser)' "${distDir}" || true`,
+        {
+          shell: true,
+          encoding: 'utf8',
+        },
+      );
       const offenders = (grep.stdout || '').split('\n').filter(Boolean);
       if (offenders.length > 0) {
         die(

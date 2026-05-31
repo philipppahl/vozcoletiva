@@ -39,11 +39,7 @@ export async function startCommsMocks(): Promise<void> {
     const demo = [...getDb().users.values()][0];
     if (demo) getDb().currentUserId = demo.userId;
   }
-  const commsWorker = setupWorker(
-    ...conversationsHandlers,
-    ...inboxHandlers,
-    ...searchHandlers,
-  );
+  const commsWorker = setupWorker(...conversationsHandlers, ...inboxHandlers, ...searchHandlers);
   await commsWorker.start({
     onUnhandledRequest: 'bypass',
     serviceWorker: { url: '/mockServiceWorker.js' },
