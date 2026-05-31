@@ -208,6 +208,7 @@ const PREF_KINDS = [
 ] as const;
 
 function NotificationsSection() {
+  const { _ } = useLingui();
   const supported = pushSupported();
   const subscribed = usePushSubscriptionState();
   const enablePush = useEnablePush();
@@ -231,8 +232,8 @@ function NotificationsSection() {
     } catch (e) {
       setError(
         e instanceof Error && e.message === 'notifications_denied'
-          ? 'Notifications are blocked in your browser settings.'
-          : "Couldn't change notifications. Please try again.",
+          ? _(t`Notifications are blocked in your browser settings.`)
+          : _(t`Couldn't change notifications. Please try again.`),
       );
     }
   }

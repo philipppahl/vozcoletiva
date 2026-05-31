@@ -317,6 +317,10 @@ msgstr "O comentário deve ter no máximo 10000 caracteres."
 msgid "Comments"
 msgstr "Comentários"
 
+#: src/routes/preferences.tsx
+msgid "Comments on your proposals"
+msgstr "Comentários nas suas propostas"
+
 #: src/components/forks/ForkModeBadge.tsx
 #: src/components/forks/ForkModePicker.tsx
 #~ msgid "Competing"
@@ -380,6 +384,10 @@ msgid "Could not save the comment. Please try again."
 msgstr "Não foi possível guardar o comentário. Tenta novamente."
 
 #: src/routes/preferences.tsx
+msgid "Couldn't change notifications. Please try again."
+msgstr "Não foi possível alterar as notificações. Tente novamente."
+
+#: src/routes/preferences.tsx
 msgid "Couldn't save. Please try again."
 msgstr "Não foi possível guardar. Tente novamente."
 
@@ -439,6 +447,10 @@ msgstr "Eliminar"
 msgid "Delete this comment?"
 msgstr "Eliminar este comentário?"
 
+#: src/routes/preferences.tsx
+msgid "Deliberations you voted in"
+msgstr "Deliberações em que você votou"
+
 #: src/components/messages/ConversationHeader.tsx
 msgid "Direct message"
 msgstr "Mensagem direta"
@@ -474,6 +486,10 @@ msgstr "Nome do documento"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Document text (Markdown)"
 msgstr "Texto do documento (Markdown)"
+
+#: src/routes/preferences.tsx
+msgid "Document updates"
+msgstr "Atualizações de documentos"
 
 #: src/components/search/SearchResults.tsx
 #: src/components/shell/TabBar.tsx
@@ -660,6 +676,10 @@ msgstr "Membro"
 msgid "Members"
 msgstr "Membros"
 
+#: src/routes/preferences.tsx
+msgid "Mentions"
+msgstr "Menções"
+
 #: src/components/messages/MessageComposer.tsx
 msgid "Message — @ to mention"
 msgstr "Mensagem — @ para mencionar"
@@ -773,11 +793,27 @@ msgstr "Agora não"
 msgid "Nothing waiting for you. Mentions, replies, comments on your proposals, and deliberation results will land here."
 msgstr "Nada esperando por você. Menções, respostas, comentários nas suas propostas e resultados de deliberações vão aparecer aqui."
 
+#: src/routes/preferences.tsx
+msgid "Notifications"
+msgstr "Notificações"
+
+#: src/routes/preferences.tsx
+msgid "Notifications are blocked in your browser settings."
+msgstr "As notificações estão bloqueadas nas configurações do seu navegador."
+
 #: src/components/RoleBadge.tsx
 #: src/components/shell/ProjectTopSheet.tsx
 #: src/routes/p.$slug.invites.tsx
 msgid "Observer"
 msgstr "Observador"
+
+#: src/routes/preferences.tsx
+msgid "Off"
+msgstr "Desligado"
+
+#: src/routes/preferences.tsx
+msgid "On for this device"
+msgstr "Ligado neste dispositivo"
 
 #: src/routes/p.$slug.invites.tsx
 msgid "Only owners and admins can issue invites."
@@ -952,6 +988,10 @@ msgstr "Propondo alternativa a"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Proposing an amendment to {0} (currently v{1})."
 msgstr "Propondo uma emenda a {0} (atualmente v{1})."
+
+#: src/routes/preferences.tsx
+msgid "Push notifications"
+msgstr "Notificações push"
 
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Question"
@@ -1201,6 +1241,10 @@ msgstr "Este slug já está em uso. Tenta outro."
 #: src/components/messages/ThreadOverlay.tsx
 msgid "Thread"
 msgstr "Tópico"
+
+#: src/routes/preferences.tsx
+msgid "Thread replies"
+msgstr "Respostas em threads"
 
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Title"
