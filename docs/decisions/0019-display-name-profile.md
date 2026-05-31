@@ -84,10 +84,17 @@ the **value is never logged**.
 
 ## Manual UI verification
 
-(filled in on the execution run — re-seed, then hosted CloudFront, mobile +
-desktop, light + dark: real names show on message authors, member lists, and
-comments; editing the name in Preferences persists and updates the avatar;
-console clean.)
+Re-seeded, then hosted CloudFront signed in as marina, mobile 390×844 + desktop
+1280×800, light + dark, EN + PT:
+
+- Channel message authors show real names (Marina Alves / Tomás Ferreira /
+  Rafael Costa) with correct avatar initials — was UUIDs.
+- Member list and a proposal's comment author both show real names.
+- Preferences shows a real-name header + an editable **Display name** field;
+  editing to "Marina Alves Silva" persisted (`PATCH /me`), updated the header +
+  avatar initials (→ "MS") via the session sync, then reverted cleanly.
+- New strings translate in PT (Perfil / Nome de exibição / Guardar / Guardado).
+- Console clean of errors throughout.
 
 ## Migration
 
