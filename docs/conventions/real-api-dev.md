@@ -73,3 +73,19 @@ Re-run `bun apps/web/scripts/seed-dev.ts` — it wipes the table and reseeds.
 - **Display names** live in the backend profile (Cognito is auth-only). The seed
   sets them via `PATCH /v1/me` before creating data; the FE reads the canonical
   name from `GET /v1/me` and users can edit it in Preferences. See `0019`.
+
+## Web Push (decision 0025)
+
+- **VAPID keys**: the **public** key is a per-env constant in
+  `apps/infra/scripts/deploy.ts` (`VAPID_PUBLIC_KEY`) and is baked into the
+  bundle as `VITE_VAPID_PUBLIC_KEY` (public, safe in git). The **private** key
+  lives in SSM SecureString `/voz/<env>/vapid-private-key` — **never commit it**.
+  Generate a pair with `bunx web-push generate-vapid-keys --json`; store the
+  private half with `aws ssm put-parameter --type SecureString`.
+- **Local dev**: add `VITE_VAPID_PUBLIC_KEY=<dev public key>` to
+  `apps/web/.env.development.local` to exercise the opt-in flow locally.
+- Push only works against a **persistent** service worker — i.e. a no-mock build
+  (the deployed dev/prod app). Full-offline mock mode self-destroys the SW, so
+  push is unavailable there.
+- Phase B (actual delivery via a DynamoDB-Stream push Lambda) is not built yet —
+  the opt-in + preferences are.
