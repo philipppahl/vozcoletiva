@@ -1,11 +1,14 @@
 import { setupWorker } from 'msw/browser';
-import { getDb } from './db';
 import { handlers } from './handlers';
-import { searchHandlers } from './handlers/search';
 import { applyScenario, loadScenarioId } from './scenarios';
 
 let worker: ReturnType<typeof setupWorker> | null = null;
 
+/**
+ * Full-offline mock mode (`VITE_USE_MOCKS=1`) — a local-dev convenience that
+ * serves every surface from MSW. The deployed app (dev + prod) runs fully real;
+ * the comms-hybrid is retired (decision 0024).
+ */
 export async function startMocks(): Promise<void> {
   // Seed the db before the worker starts handling requests so the first
   // tick doesn't race a request against an empty store.
@@ -20,27 +23,4 @@ export async function startMocks(): Promise<void> {
   (window as unknown as { __VOZ_MOCK__?: unknown }).__VOZ_MOCK__ = {
     applyScenario,
   };
-}
-
-/**
- * Hybrid mode: messaging (channels, DMs, threads, reads) and the inbox are now
- * on the real API; only **search** has no backend yet, so MSW intercepts only
- * the search endpoints and serves mock data; every other `/v1` request is
- * bypassed to the real API (`onUnhandledRequest: 'bypass'`). The mock db is
- * seeded so search stays populated. See decisions 0020 + 0021.
- */
-export async function startCommsMocks(): Promise<void> {
-  applyScenario(loadScenarioId());
-  // No mock sign-in in hybrid mode — `seed()` already pins a demo currentUserId,
-  // but guard in case a scenario leaves it unset.
-  if (!getDb().currentUserId) {
-    const demo = [...getDb().users.values()][0];
-    if (demo) getDb().currentUserId = demo.userId;
-  }
-  const commsWorker = setupWorker(...searchHandlers);
-  await commsWorker.start({
-    onUnhandledRequest: 'bypass',
-    serviceWorker: { url: '/mockServiceWorker.js' },
-    quiet: true,
-  });
 }

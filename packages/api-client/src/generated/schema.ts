@@ -564,6 +564,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{slug}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search a project (proposals, documents, members, channels) */
+        get: operations["searchProject"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -607,6 +624,11 @@ export interface components {
         };
         ChannelListResponse: {
             channels: components["schemas"]["Channel"][];
+        };
+        ChannelSearchHit: {
+            description: string | null;
+            id: string;
+            name: string;
         };
         /** @description A vote in a deliberation: the picked alternative's proposal id, or the special token `__none__` ("none of these") or `__abstain__`. */
         Choice: string;
@@ -685,6 +707,11 @@ export interface components {
         };
         DocumentListResponse: {
             documents: components["schemas"]["DocumentSummary"][];
+        };
+        DocumentSearchHit: {
+            name: string;
+            snippet: string;
+            version_count: number;
         };
         DocumentSummary: {
             active_amendment?: components["schemas"]["Proposal"] | null;
@@ -773,6 +800,11 @@ export interface components {
         };
         MemberListResponse: {
             members: components["schemas"]["Member"][];
+        };
+        MemberSearchHit: {
+            display_name: string;
+            role: string;
+            user_id: string;
         };
         Message: {
             /** @description Always empty for now — attachment upload is a later slice. */
@@ -870,6 +902,15 @@ export interface components {
         ProposalListResponse: {
             proposals: components["schemas"]["Proposal"][];
         };
+        ProposalSearchHit: {
+            id: string;
+            /** @enum {string} */
+            proposal_kind: "decision" | "document";
+            snippet: string;
+            /** @enum {string} */
+            status: "voting" | "passed" | "rejected" | "quorum_failed" | "withdrawn";
+            title: string;
+        };
         /** @enum {string} */
         ProposalStatus: "voting" | "passed" | "rejected" | "quorum_failed" | "withdrawn";
         ReadBody: {
@@ -877,6 +918,27 @@ export interface components {
         };
         /** @enum {string} */
         Role: "owner" | "admin" | "moderator" | "member" | "observer";
+        SearchResponse: {
+            query: string;
+            sections: {
+                channels: {
+                    has_more: boolean;
+                    hits: components["schemas"]["ChannelSearchHit"][];
+                };
+                documents: {
+                    has_more: boolean;
+                    hits: components["schemas"]["DocumentSearchHit"][];
+                };
+                members: {
+                    has_more: boolean;
+                    hits: components["schemas"]["MemberSearchHit"][];
+                };
+                proposals: {
+                    has_more: boolean;
+                    hits: components["schemas"]["ProposalSearchHit"][];
+                };
+            };
+        };
         StartDmBody: {
             user_id: string;
         };
@@ -2215,6 +2277,33 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+        };
+    };
+    searchProject: {
+        parameters: {
+            query?: {
+                /** @description Query string; under 2 chars returns empty sections. */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Grouped search hits. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

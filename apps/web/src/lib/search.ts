@@ -1,21 +1,11 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
+import { apiClient } from './api';
 import { qk } from './query';
 import type { SearchResponse } from './search/types';
 
 const DEBOUNCE_MS = 150;
-
-async function mockGet<T>(path: string): Promise<T> {
-  const res = await fetch(`/v1${path}`, {
-    headers: { authorization: 'Bearer mock' },
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new Error(body.message ?? `HTTP ${res.status}`);
-  }
-  return (await res.json()) as T;
-}
 
 /** Returns a value that lags `value` by DEBOUNCE_MS — used to coalesce
  *  fast keystrokes into one query. */
@@ -36,10 +26,13 @@ export function useSearch(slug: string | undefined, rawQuery: string) {
   return useQuery({
     queryKey: slug ? qk.projects.search(slug, query) : ['search', '_none_'],
     enabled: !!slug,
-    queryFn: () =>
-      mockGet<SearchResponse>(
-        `/projects/${encodeURIComponent(slug ?? '')}/search?q=${encodeURIComponent(query)}`,
-      ),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/v1/projects/{slug}/search', {
+        params: { path: { slug: slug ?? '' }, query: { q: query } },
+      });
+      if (error || !data) throw new Error('search failed');
+      return data as unknown as SearchResponse;
+    },
     placeholderData: keepPreviousData,
   });
 }

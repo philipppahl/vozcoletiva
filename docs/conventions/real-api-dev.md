@@ -1,11 +1,10 @@
 # Running the web app against the real dev API
 
 By default `bun run dev` uses the MSW mock layer (`VITE_USE_MOCKS=1`). To run
-against the **real `voz-dev` backend** instead — with real Cognito auth and real
-data — use real-API mode. Projects, proposals, votes, documents, categories,
-comments, **all messaging (channels, DMs, threads, reads), and the inbox** are
-real; only **search** keeps mock data (no backend yet). See `docs/decisions/0016`
-(hybrid), `0018` (messages), `0020` (DMs), `0021` (inbox).
+against the **real `voz-dev` backend** instead. As of decision **0024 the whole
+app is real — there are no mocks** in deployed builds (dev + prod); every surface
+(incl. search, 0023) has a backend. `VITE_MOCK_COMMS` is retired. A full-offline
+mock mode (`VITE_USE_MOCKS=1`) remains only as a local-dev convenience.
 
 ## One-time
 

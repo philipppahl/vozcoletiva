@@ -149,6 +149,9 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
         ("GET", ["projects", slug, "channels"]) => {
             handlers::conversations::list_channels(&state, event, slug).await
         }
+        ("GET", ["projects", slug, "search"]) => {
+            handlers::search::search(&state, event, slug).await
+        }
         ("GET", ["dms"]) => handlers::conversations::list_dms(&state, event).await,
         ("POST", ["dms"]) => handlers::conversations::create_dm(&state, event).await,
         ("GET", ["conversations", id]) => {

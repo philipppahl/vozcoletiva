@@ -18,14 +18,12 @@ export default defineConfig({
     tailwind(),
     VitePWA({
       registerType: 'autoUpdate',
-      // Whenever MSW runs (full mock OR the comms-hybrid), its service worker
-      // must be the sole controller of scope `/` — otherwise Workbox's sw.js
-      // wins, MSW never intercepts, and the conflicting workers also break the
-      // real-API auth calls. `selfDestroying` ships a SW that unregisters itself
-      // + any previously-installed Workbox SW, so returning visitors aren't
-      // stuck on a stale precache worker. MSW's own worker remains and satisfies
-      // PWA installability.
-      selfDestroying: process.env.VITE_USE_MOCKS === '1' || process.env.VITE_MOCK_COMMS === '1',
+      // In full-offline mock mode MSW's service worker must be the sole
+      // controller of scope `/` — otherwise Workbox's sw.js wins and MSW never
+      // intercepts. `selfDestroying` ships a SW that unregisters itself + any
+      // previously-installed Workbox SW. The deployed app (dev + prod) is fully
+      // real, so it ships the real (push-capable) SW. See decision 0024.
+      selfDestroying: process.env.VITE_USE_MOCKS === '1',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
         name: 'vozcoletiva',

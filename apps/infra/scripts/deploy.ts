@@ -85,10 +85,9 @@ function writeWebEnvFile(env: 'dev' | 'prod', outputs: StackOutputs, root: strin
     // higher-precedence mode file, so it must override or the build ships full
     // mocks instead of the real API.
     'VITE_USE_MOCKS=0',
-    // Dev only: messages / DMs / inbox / search have no backend yet, so MSW
-    // serves mock data for just those endpoints (real API for everything else).
-    // Never set for prod — the prod-mock guard would reject it anyway.
-    ...(env === 'dev' ? ['VITE_MOCK_COMMS=1'] : []),
+    // Both dev and prod are now fully real (no mocks) — every surface has a
+    // backend. This also lets the persistent PWA service worker ship (needed
+    // for Web Push); the comms-hybrid (VITE_MOCK_COMMS) is retired. See 0024.
     '',
   ];
   writeFileSync(path, lines.join('\n'), 'utf8');

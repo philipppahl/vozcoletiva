@@ -757,6 +757,28 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/projects/{slug}/search:
+    get:
+      summary: Search a project (proposals, documents, members, channels)
+      operationId: searchProject
+      tags: [projects]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - in: query
+          name: q
+          required: false
+          schema: { type: string }
+          description: Query string; under 2 chars returns empty sections.
+      responses:
+        '200':
+          description: Grouped search hits.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/conversations/{id}:
     get:
       summary: Get a conversation
@@ -1208,6 +1230,84 @@ components:
           type: array
           items: { $ref: '#/components/schemas/InboxItem' }
         unread_count: { type: integer }
+
+    ProposalSearchHit:
+      type: object
+      required: [id, title, snippet, status, proposal_kind]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        title: { type: string }
+        snippet: { type: string }
+        status: { type: string, enum: [voting, passed, rejected, quorum_failed, withdrawn] }
+        proposal_kind: { type: string, enum: [decision, document] }
+
+    DocumentSearchHit:
+      type: object
+      required: [name, version_count, snippet]
+      additionalProperties: false
+      properties:
+        name: { type: string }
+        version_count: { type: integer }
+        snippet: { type: string }
+
+    MemberSearchHit:
+      type: object
+      required: [user_id, display_name, role]
+      additionalProperties: false
+      properties:
+        user_id: { type: string }
+        display_name: { type: string }
+        role: { type: string }
+
+    ChannelSearchHit:
+      type: object
+      required: [id, name, description]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+
+    SearchResponse:
+      type: object
+      required: [query, sections]
+      additionalProperties: false
+      properties:
+        query: { type: string }
+        sections:
+          type: object
+          required: [proposals, documents, members, channels]
+          additionalProperties: false
+          properties:
+            proposals:
+              type: object
+              required: [hits, has_more]
+              additionalProperties: false
+              properties:
+                hits: { type: array, items: { $ref: '#/components/schemas/ProposalSearchHit' } }
+                has_more: { type: boolean }
+            documents:
+              type: object
+              required: [hits, has_more]
+              additionalProperties: false
+              properties:
+                hits: { type: array, items: { $ref: '#/components/schemas/DocumentSearchHit' } }
+                has_more: { type: boolean }
+            members:
+              type: object
+              required: [hits, has_more]
+              additionalProperties: false
+              properties:
+                hits: { type: array, items: { $ref: '#/components/schemas/MemberSearchHit' } }
+                has_more: { type: boolean }
+            channels:
+              type: object
+              required: [hits, has_more]
+              additionalProperties: false
+              properties:
+                hits: { type: array, items: { $ref: '#/components/schemas/ChannelSearchHit' } }
+                has_more: { type: boolean }
 
     Role:
       type: string
