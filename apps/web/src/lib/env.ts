@@ -11,6 +11,8 @@ interface Env {
   userPoolId: string;
   userPoolClientId: string;
   region: string;
+  /** Optional — Web Push is unavailable (gracefully) when unset. */
+  vapidPublicKey: string | undefined;
 }
 
 function required(key: string): string {
@@ -33,6 +35,10 @@ export function env(): Env {
     userPoolId: required('VITE_USER_POOL_ID'),
     userPoolClientId: required('VITE_USER_POOL_CLIENT_ID'),
     region: required('VITE_AWS_REGION'),
+    vapidPublicKey:
+      typeof import.meta.env.VITE_VAPID_PUBLIC_KEY === 'string'
+        ? import.meta.env.VITE_VAPID_PUBLIC_KEY
+        : undefined,
   };
   return cached;
 }

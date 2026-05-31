@@ -32,6 +32,17 @@ interface StackOutputs {
   region: string;
 }
 
+/**
+ * VAPID public keys for Web Push (0025) — public, safe to commit (every client
+ * receives it). The matching private keys live in SSM SecureString
+ * (`/voz/<env>/vapid-private-key`), never in git. Prod gets its own keypair
+ * before prod push ships.
+ */
+const VAPID_PUBLIC_KEY: Record<'dev' | 'prod', string> = {
+  dev: 'BIuekiXe68CL5-zG_q1d1ERuJ-Ia-LL_seXLk7ffdECxWnbckSYaSvS32wu-3UfePlfRu7CduU9Id1ReNCQDI-Y',
+  prod: '',
+};
+
 function readStackOutputs(env: 'dev' | 'prod'): StackOutputs | null {
   const region = env === 'dev' || env === 'prod' ? 'eu-west-1' : 'eu-west-1';
   const stackName = `voz-${env}`;
@@ -88,6 +99,9 @@ function writeWebEnvFile(env: 'dev' | 'prod', outputs: StackOutputs, root: strin
     // Both dev and prod are now fully real (no mocks) — every surface has a
     // backend. This also lets the persistent PWA service worker ship (needed
     // for Web Push); the comms-hybrid (VITE_MOCK_COMMS) is retired. See 0024.
+    // VAPID public key for Web Push (0025) — public, safe to bake into the
+    // bundle. The matching private key lives in SSM (never in git).
+    `VITE_VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY[env]}`,
     '',
   ];
   writeFileSync(path, lines.join('\n'), 'utf8');

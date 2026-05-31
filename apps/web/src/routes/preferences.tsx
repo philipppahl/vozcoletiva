@@ -11,6 +11,14 @@ import { Field } from '../components/ui/Field';
 import { setLocale } from '../i18n';
 import { useAuth } from '../lib/auth/hooks';
 import { useUpdateDisplayName } from '../lib/profile';
+import {
+  pushSupported,
+  useDisablePush,
+  useEnablePush,
+  useNotificationPrefs,
+  usePushSubscriptionState,
+  useUpdateNotificationPrefs,
+} from '../lib/push';
 import { useThemeStore } from '../lib/theme';
 import { ScenarioPicker } from '../mocks/ScenarioPicker';
 
@@ -114,6 +122,8 @@ function PreferencesPage() {
         </PrefCard>
       </section>
 
+      <NotificationsSection />
+
       <ScenarioPicker />
 
       <section className="px-4 pt-6">
@@ -186,6 +196,136 @@ function DisplayNameField() {
         {update.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
       </Button>
     </div>
+  );
+}
+
+const PREF_KINDS = [
+  'mention',
+  'reply',
+  'comment_on_yours',
+  'proposal_closed',
+  'document_amended',
+] as const;
+
+function NotificationsSection() {
+  const supported = pushSupported();
+  const subscribed = usePushSubscriptionState();
+  const enablePush = useEnablePush();
+  const disablePush = useDisablePush();
+  const prefs = useNotificationPrefs();
+  const updatePrefs = useUpdateNotificationPrefs();
+  const [error, setError] = useState<string | null>(null);
+
+  if (!supported) return null;
+
+  const busy = enablePush.isPending || disablePush.isPending || subscribed === null;
+  const data = prefs.data;
+
+  async function togglePush() {
+    setError(null);
+    try {
+      if (subscribed) await disablePush.mutateAsync();
+      else await enablePush.mutateAsync();
+      // Re-read the live subscription state on next render via the hook's effect.
+      window.location.reload();
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message === 'notifications_denied'
+          ? 'Notifications are blocked in your browser settings.'
+          : "Couldn't change notifications. Please try again.",
+      );
+    }
+  }
+
+  function setKind(kind: (typeof PREF_KINDS)[number], value: boolean) {
+    if (!data) return;
+    updatePrefs.mutate({ ...data, [kind]: value });
+  }
+
+  const kindLabels: Record<(typeof PREF_KINDS)[number], React.ReactNode> = {
+    mention: <Trans>Mentions</Trans>,
+    reply: <Trans>Thread replies</Trans>,
+    comment_on_yours: <Trans>Comments on your proposals</Trans>,
+    proposal_closed: <Trans>Deliberations you voted in</Trans>,
+    document_amended: <Trans>Document updates</Trans>,
+  };
+
+  return (
+    <section className="px-4 pt-6">
+      <PrefHeading>
+        <Trans>Notifications</Trans>
+      </PrefHeading>
+      <PrefCard>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-medium" style={{ color: 'var(--ink)' }}>
+              <Trans>Push notifications</Trans>
+            </div>
+            <div className="text-xs" style={{ color: 'var(--ink-soft)' }}>
+              {subscribed ? <Trans>On for this device</Trans> : <Trans>Off</Trans>}
+            </div>
+          </div>
+          <Toggle on={!!subscribed} disabled={busy} onChange={() => void togglePush()} />
+        </div>
+        {error && (
+          <p className="text-xs" style={{ color: 'var(--color-danger)' }}>
+            {error}
+          </p>
+        )}
+        {subscribed && data && (
+          <div className="flex flex-col gap-3 pt-1">
+            {PREF_KINDS.map((kind) => (
+              <div key={kind} className="flex items-center justify-between gap-3">
+                <div className="min-w-0 text-sm" style={{ color: 'var(--ink-soft)' }}>
+                  {kindLabels[kind]}
+                </div>
+                <Toggle
+                  on={data[kind]}
+                  disabled={updatePrefs.isPending}
+                  onChange={(v) => setKind(kind, v)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </PrefCard>
+    </section>
+  );
+}
+
+function Toggle({
+  on,
+  disabled,
+  onChange,
+}: {
+  on: boolean;
+  disabled?: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      disabled={disabled}
+      onClick={() => onChange(!on)}
+      className="relative h-[28px] w-[48px] flex-shrink-0 rounded-full transition-colors"
+      style={{
+        background: on ? 'var(--accent)' : 'var(--surface-2)',
+        border: '0.5px solid var(--border)',
+        opacity: disabled ? 0.5 : 1,
+        cursor: disabled ? 'default' : 'pointer',
+      }}
+    >
+      <span
+        className="absolute top-[2px] h-[22px] w-[22px] rounded-full transition-all"
+        style={{
+          left: on ? '23px' : '2px',
+          background: 'var(--surface)',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      />
+    </button>
   );
 }
 

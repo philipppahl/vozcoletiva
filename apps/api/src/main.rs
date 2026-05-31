@@ -50,6 +50,14 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
             handlers::inbox::mark_all_read(&state, event).await
         }
 
+        // Web Push — subscriptions + notification preferences
+        ("POST", ["me", "push-subscriptions"]) => handlers::push::subscribe(&state, event).await,
+        ("POST", ["me", "push-subscriptions", "remove"]) => {
+            handlers::push::unsubscribe(&state, event).await
+        }
+        ("GET", ["me", "notification-prefs"]) => handlers::push::get_prefs(&state, event).await,
+        ("PUT", ["me", "notification-prefs"]) => handlers::push::put_prefs(&state, event).await,
+
         // Projects
         ("POST", ["projects"]) => handlers::projects::create(&state, event).await,
         ("GET", ["projects"]) => handlers::projects::list_mine(&state, event).await,

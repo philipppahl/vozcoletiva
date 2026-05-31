@@ -16,6 +16,7 @@ export const queryClient = new QueryClient({
  */
 export const qk = {
   me: () => ['me'] as const,
+  notificationPrefs: () => ['notification-prefs'] as const,
   projects: {
     all: ['projects'] as const,
     list: () => ['projects', 'list'] as const,

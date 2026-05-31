@@ -8,5 +8,6 @@ pub mod membership;
 pub mod message;
 pub mod project;
 pub mod proposal;
+pub mod push;
 pub mod user;
 pub mod vote;

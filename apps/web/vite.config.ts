@@ -18,11 +18,19 @@ export default defineConfig({
     tailwind(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Custom service worker (src/sw.ts) so it can handle Web Push (0025).
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globIgnores: ['**/mockServiceWorker.js'],
+      },
       // In full-offline mock mode MSW's service worker must be the sole
-      // controller of scope `/` — otherwise Workbox's sw.js wins and MSW never
+      // controller of scope `/` — otherwise our sw.js wins and MSW never
       // intercepts. `selfDestroying` ships a SW that unregisters itself + any
       // previously-installed Workbox SW. The deployed app (dev + prod) is fully
-      // real, so it ships the real (push-capable) SW. See decision 0024.
+      // real, so it ships the real (push-capable) SW. See decisions 0024 + 0025.
       selfDestroying: process.env.VITE_USE_MOCKS === '1',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
@@ -45,12 +53,6 @@ export default defineConfig({
             purpose: 'maskable',
           },
         ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
-        globIgnores: ['**/mockServiceWorker.js'],
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/mockServiceWorker\.js$/],
       },
     }),
   ],

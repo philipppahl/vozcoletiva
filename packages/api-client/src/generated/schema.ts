@@ -233,6 +233,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me/notification-prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get notification preferences */
+        get: operations["getNotificationPrefs"];
+        /** Update notification preferences */
+        put: operations["putNotificationPrefs"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/push-subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a Web Push subscription */
+        post: operations["addPushSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/push-subscriptions/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove a Web Push subscription */
+        post: operations["removePushSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/messages/{id}/thread": {
         parameters: {
             query?: never;
@@ -827,6 +879,14 @@ export interface components {
             has_more: boolean;
             messages: components["schemas"]["Message"][];
         };
+        NotificationPrefs: {
+            comment_on_yours: boolean;
+            document_amended: boolean;
+            mention: boolean;
+            proposal_closed: boolean;
+            push_enabled: boolean;
+            reply: boolean;
+        };
         Ok: {
             ok: boolean;
         };
@@ -913,6 +973,16 @@ export interface components {
         };
         /** @enum {string} */
         ProposalStatus: "voting" | "passed" | "rejected" | "quorum_failed" | "withdrawn";
+        PushSubscribeBody: {
+            endpoint: string;
+            keys: {
+                auth: string;
+                p256dh: string;
+            };
+        };
+        PushUnsubscribeBody: {
+            endpoint: string;
+        };
         ReadBody: {
             message_id: string;
         };
@@ -1465,6 +1535,98 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description All marked read. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+        };
+    };
+    getNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's notification preferences. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPrefs"];
+                };
+            };
+        };
+    };
+    putNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationPrefs"];
+            };
+        };
+        responses: {
+            /** @description Updated preferences. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPrefs"];
+                };
+            };
+        };
+    };
+    addPushSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushSubscribeBody"];
+            };
+        };
+        responses: {
+            /** @description Subscribed. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+        };
+    };
+    removePushSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushUnsubscribeBody"];
+            };
+        };
+        responses: {
+            /** @description Removed. */
             200: {
                 headers: {
                     [name: string]: unknown;

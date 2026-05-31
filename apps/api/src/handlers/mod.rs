@@ -14,6 +14,7 @@ pub mod me;
 pub mod members;
 pub mod projects;
 pub mod proposals;
+pub mod push;
 pub mod search;
 pub mod votes;
 
