@@ -83,6 +83,25 @@ chat is PII).
   the messaging surface — it was already partial since channels went real at
   E-FE; the maintained dev path is hybrid + real API.
 
+## Manual UI verification
+
+Deployed to dev + re-seeded; hosted CloudFront, mobile 390×844, light + dark,
+**multiple real users** (separate Cognito logins / sessions):
+
+- Seeded DMs render with real peer names, previews, and unread badges.
+- Cross-session round-trip: Marina sends → Tomás (separate login) sees it in his
+  list + conversation → replies → Marina sees the reply with an unread badge.
+- Read marker clears unread on open (Tomás 4 → 0).
+- Member picker lists real co-members; starting a DM opens the empty state, then
+  the first message posts.
+- **Idempotency**: re-picking a peer returns the same conversation (UI); and on
+  the real backend Rafael→Marina and Marina→Rafael resolve to the **same id**
+  (cross-user, order-independent).
+- **Access control** (probed with a non-participant's real token): foreign-DM
+  read/list/post all **403**; self-DM **400**; unknown peer **404**; own empty
+  list **200**.
+- Console clean of app errors. Dark mode renders correctly.
+
 ## Out of scope
 
 Group DMs (3+), a `/v1/me/contacts` endpoint (the picker still aggregates
