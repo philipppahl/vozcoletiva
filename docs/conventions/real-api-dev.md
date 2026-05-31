@@ -2,8 +2,10 @@
 
 By default `bun run dev` uses the MSW mock layer (`VITE_USE_MOCKS=1`). To run
 against the **real `voz-dev` backend** instead — with real Cognito auth and real
-data — use real-API mode. Messages / DMs / inbox / search keep mock data (no
-backend yet); everything else is real. See `docs/decisions/0016`.
+data — use real-API mode. Projects, proposals, votes, documents, categories,
+comments, **and project channels/messages/threads** are real; **DMs, inbox, and
+search** keep mock data (no backend yet). See `docs/decisions/0016` (hybrid) and
+`0018` (messages wiring).
 
 ## One-time
 
@@ -26,7 +28,8 @@ for u in "marina@example.com|Marina Alves" "tomas@example.com|Tomás Ferreira" \
     --username "$email" --password 'Vozcoletiva!2026' --permanent
 done
 
-# 3. Seed data through the API (wipes the dev table, then recreates everything).
+# 3. Seed data through the API (wipes the dev table, then recreates everything,
+#    incl. each project's default Commons channel with seeded messages + a thread).
 bun apps/web/scripts/seed-dev.ts
 ```
 
@@ -58,3 +61,13 @@ Re-run `bun apps/web/scripts/seed-dev.ts` — it wipes the table and reseeds.
 - Prod never ships mocks — `VITE_MOCK_COMMS` is unset for prod and the branch is
   dead-code-eliminated; the deploy script also scans the prod bundle for MSW
   residue.
+- The comms-mock now passthrough()es channel traffic to the real API and serves
+  **only mock DMs** (discriminated by conversation/message id). Channels,
+  messages, threads, and read markers are real (0018).
+- **Stale client state**: a leftover full-mock session or an expired access
+  token can leave the projects/messages lists looking empty. The self-destroying
+  SW heals on a fresh load; if not, clear site data for the CloudFront origin and
+  sign in again. The API auth expects the **access** token (the **id** token
+  fails with `missing field client_id`).
+- **Display names show as user UUIDs** everywhere (members, comments, messages) —
+  a pre-existing identity gap, not a messages bug. See `0018` § Known limitations.

@@ -18,7 +18,8 @@ parity with the mock (the mock polls; no WebSocket yet).
   `project::create` transaction (matching the default topic name).
 - **Messages**: top-level at `CONV#<conv>/MSG#<ulid>`, replies at
   `CONV#<conv>/REPLY#<ulid>` — the split makes "list top-level" a clean range
-  query (`BETWEEN MSG# AND MSG$`, newest-first, `before` cursor) with no filter.
+  query (`BETWEEN MSG# AND MSG$`, scanned newest-first for the `before` cursor
+  but **returned oldest-first** for chat display — see 0018) with no filter.
 - **Threads**: a reply indexes on GSI3 `THREAD#<parentId>` and bumps the parent's
   `replyCount`/`lastReplyAt` in the same transaction.
 - **Message-id → conversation**: top-level messages index on GSI3 `MSG#<id>` →
@@ -51,7 +52,7 @@ OpenAPI + api-client regenerated. Channel/Message/Thread DTOs match the mock.
 
 - Unit (`domain/message.rs`): `validate_body`.
 - Integration (`tests/messages_it.rs`, DynamoDB-Local): default "Commons"
-  channel on project create; post + list (newest-first) + `before` pagination +
+  channel on project create; post + list (oldest-first page) + `before` pagination +
   `has_more`; replies form a thread + bump `reply_count` + a reply isn't
   resolvable as top-level; read marker → unread count; last-message is the newest
   top-level (a reply doesn't count).
