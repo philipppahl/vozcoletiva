@@ -1,6 +1,6 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-
+import { apiClient } from './api';
 import type {
   Attachment,
   ChannelListResponse,
@@ -13,10 +13,22 @@ import type {
 } from './messages/types';
 import { qk } from './query';
 
-// All endpoints are mock-only this slice. We bypass the openapi-fetch type
-// system with a tiny `mockGet`/`mockPost` helper that falls back to native
-// fetch for these unknown paths. Real BE wire-up regenerates the OpenAPI
-// schema and we delete this shim.
+function unwrap<T>(data: T | undefined, error: unknown): T {
+  if (error) {
+    throw new Error(
+      typeof error === 'object' && error && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : 'request failed',
+    );
+  }
+  if (data === undefined) throw new Error('empty response');
+  return data;
+}
+
+// Channels / messages / threads / reads hit the real API via `apiClient`.
+// DMs (`/dms`) have no backend yet, so they stay on this relative mock helper —
+// MSW serves them while the comms-mock conversation handlers passthrough channel
+// ids to the real API. See docs/decisions/0018.
 
 async function mockGet<T>(path: string): Promise<T> {
   const res = await fetch(`/v1${path}`, {
@@ -48,8 +60,12 @@ export function useChannels(slug: string | undefined) {
   return useQuery({
     queryKey: slug ? qk.projects.channels(slug) : ['channels', '_none_'],
     enabled: !!slug,
-    queryFn: () =>
-      mockGet<ChannelListResponse>(`/projects/${encodeURIComponent(slug ?? '')}/channels`),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/v1/projects/{slug}/channels', {
+        params: { path: { slug: slug ?? '' } },
+      });
+      return unwrap(data, error) as unknown as ChannelListResponse;
+    },
     refetchOnWindowFocus: true,
   });
 }
@@ -66,7 +82,14 @@ export function useConversation(id: string | undefined) {
   return useQuery({
     queryKey: id ? qk.chat.conversation(id) : ['conversation', '_none_'],
     enabled: !!id,
-    queryFn: () => mockGet<Conversation>(`/conversations/${encodeURIComponent(id ?? '')}`),
+    // The real API types this as a channel; a DM comes through the mock
+    // passthrough as the broader `Conversation` union.
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/v1/conversations/{id}', {
+        params: { path: { id: id ?? '' } },
+      });
+      return unwrap(data, error) as unknown as Conversation;
+    },
     refetchOnWindowFocus: true,
   });
 }
@@ -75,10 +98,12 @@ export function useMessages(conversationId: string | undefined) {
   return useQuery({
     queryKey: conversationId ? qk.chat.messages(conversationId) : ['messages', '_none_'],
     enabled: !!conversationId,
-    queryFn: () =>
-      mockGet<MessageListResponse>(
-        `/conversations/${encodeURIComponent(conversationId ?? '')}/messages?limit=100`,
-      ),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/v1/conversations/{id}/messages', {
+        params: { path: { id: conversationId ?? '' } },
+      });
+      return unwrap(data, error) as unknown as MessageListResponse;
+    },
   });
 }
 
@@ -86,8 +111,12 @@ export function useThread(parentMessageId: string | undefined) {
   return useQuery({
     queryKey: parentMessageId ? qk.chat.thread(parentMessageId) : ['thread', '_none_'],
     enabled: !!parentMessageId,
-    queryFn: () =>
-      mockGet<ThreadResponse>(`/messages/${encodeURIComponent(parentMessageId ?? '')}/thread`),
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET('/v1/messages/{id}/thread', {
+        params: { path: { id: parentMessageId ?? '' } },
+      });
+      return unwrap(data, error) as unknown as ThreadResponse;
+    },
   });
 }
 
@@ -102,8 +131,13 @@ export interface SendMessageInput {
 export function useSendMessage(conversationId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: SendMessageInput) =>
-      mockPost<Message>(`/conversations/${encodeURIComponent(conversationId)}/messages`, input),
+    mutationFn: async (input: SendMessageInput) => {
+      const { data, error } = await apiClient.POST('/v1/conversations/{id}/messages', {
+        params: { path: { id: conversationId } },
+        body: { body: input.body, parent_message_id: input.parent_message_id ?? null },
+      });
+      return unwrap(data, error) as unknown as Message;
+    },
     onSuccess: (msg) => {
       // The bus will also fire and merge into the cache via the subscriber;
       // but the optimistic merge ensures the composer feels instant.
@@ -114,10 +148,13 @@ export function useSendMessage(conversationId: string) {
 
 export function useMarkRead(conversationId: string) {
   return useMutation({
-    mutationFn: (messageId: string) =>
-      mockPost<{ ok: true }>(`/conversations/${encodeURIComponent(conversationId)}/read`, {
-        message_id: messageId,
-      }),
+    mutationFn: async (messageId: string) => {
+      const { data, error } = await apiClient.POST('/v1/conversations/{id}/read', {
+        params: { path: { id: conversationId } },
+        body: { message_id: messageId },
+      });
+      return unwrap(data, error);
+    },
   });
 }
 

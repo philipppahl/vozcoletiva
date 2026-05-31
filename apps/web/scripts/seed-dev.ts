@@ -186,6 +186,24 @@ async function main() {
     const inv = await api<{ token: string }>(owner, 'POST', `/projects/${slug}/invites`, { role });
     await api(invitee, 'POST', `/invites/${inv.token}/accept`);
   };
+  // ── messaging (slice E) ──────────────────────────────────────────────────
+  const commonsChannel = async (s: Session, slug: string): Promise<string> => {
+    const { channels } = await api<{ channels: { id: string; name: string }[] }>(
+      s,
+      'GET',
+      `/projects/${slug}/channels`,
+    );
+    const found = channels.find((c) => c.name === 'Commons') ?? channels[0];
+    if (!found) throw new Error(`no channels for ${slug}`);
+    return found.id;
+  };
+  const postMsg = (s: Session, convId: string, body: string, parent?: string) =>
+    api<{ id: string }>(s, 'POST', `/conversations/${convId}/messages`, {
+      body,
+      parent_message_id: parent ?? null,
+    });
+  const markRead = (s: Session, convId: string, messageId: string) =>
+    api(s, 'POST', `/conversations/${convId}/read`, { message_id: messageId });
 
   // ── Project 1: Vila Madalena (owner: marina) ─────────────────────────────
   console.log('• project: Vila Madalena');
@@ -313,6 +331,27 @@ async function main() {
   await vote(S('sofia@example.com'), p2.slug, estatuto.id, estatuto.id);
   await vote(marina, p2.slug, estatuto.id, estatuto.id);
   close(p2.id, estatuto.id);
+
+  // ── channel chat (slice E): seed each project's default Commons channel ───
+  console.log('• channel chat: Vila Madalena #Commons');
+  const c1 = await commonsChannel(marina, p1.slug);
+  await postMsg(marina, c1, 'Bem-vindos ao canal da Vila Madalena! 👋');
+  const topic1 = await postMsg(
+    S('tomas@example.com'),
+    c1,
+    'Alguém viu a proposta do bicicletário? Acho que vale a pena debater aqui.',
+  );
+  await postMsg(S('lucia@example.com'), c1, 'Concordo! Já votei a favor.', topic1.id);
+  await postMsg(marina, c1, 'Vou levar para a próxima reunião também.', topic1.id);
+  await postMsg(S('rafael@example.com'), c1, 'Boa noite a todos, acabei de entrar no grupo.');
+  // marina has read up to her own last message; tomas/lucia leave some unread.
+  await markRead(marina, c1, topic1.id);
+
+  console.log('• channel chat: Cooperativa Solar #Commons');
+  const c2 = await commonsChannel(tomas, p2.slug);
+  await postMsg(tomas, c2, 'Orçamento dos painéis chegou — R$ 58.400 fechado. 🎉');
+  const q2 = await postMsg(S('sofia@example.com'), c2, 'Qual a previsão de instalação?');
+  await postMsg(tomas, c2, 'Em torno de 3 semanas após a aprovação.', q2.id);
 
   console.log('\n✓ seed complete.');
   console.log(`  Projects: ${p1.slug}, ${p2.slug}`);

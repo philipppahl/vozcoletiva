@@ -89,22 +89,24 @@ async fn post_list_and_paginate_top_level_messages() {
         ids.push(m.id);
     }
 
-    // Newest-first, full page.
+    // The newest page (3 of 5), returned oldest-first: [m2, m3, m4].
     let (page, has_more) = message::list_top_level(&ddb.state, &conv, None, 3)
         .await
         .unwrap();
     assert_eq!(page.len(), 3);
     assert!(has_more);
-    assert_eq!(page[0].id, ids[4], "newest first");
-    assert_eq!(page[2].id, ids[2]);
+    assert_eq!(
+        page.iter().map(|m| m.id.clone()).collect::<Vec<_>>(),
+        vec![ids[2].clone(), ids[3].clone(), ids[4].clone()]
+    );
 
-    // Next page via the `before` cursor.
+    // Older page via the `before` cursor (before m2): [m0, m1].
     let (page2, has_more2) = message::list_top_level(&ddb.state, &conv, Some(&ids[2]), 3)
         .await
         .unwrap();
     assert_eq!(
         page2.iter().map(|m| m.id.clone()).collect::<Vec<_>>(),
-        vec![ids[1].clone(), ids[0].clone()]
+        vec![ids[0].clone(), ids[1].clone()]
     );
     assert!(!has_more2);
 }

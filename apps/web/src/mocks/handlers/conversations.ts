@@ -1,15 +1,13 @@
-import { HttpResponse, http } from 'msw';
+import { HttpResponse, http, passthrough } from 'msw';
 
 import { mockNowIso } from '../clock';
 import {
-  channelsForProject,
   dmPair,
   dmsForUser,
   findDmBetween,
   getDb,
   type MockAttachment,
   type MockMessage,
-  projectBySlug,
   repliesTo,
   setConversationRead,
   setThreadRead,
@@ -20,26 +18,28 @@ import { emit } from '../messageBus';
 import {
   canAccessConversation,
   requireCurrentUser,
-  requireMember,
   toConversationDto,
   toMessageDto,
   ulid,
 } from './_helpers';
 
+/**
+ * Comms hybrid (decision 0018): channels + their messages/threads/reads now have
+ * a real backend, so the FE calls the real API and MSW only mocks **DMs**. These
+ * guards passthrough anything that isn't a mock DM. Real channel ids are ULIDs
+ * (not in the mock db), so they passthrough; mock DM ids (`dm-…`) are served.
+ */
+function isMockDmConversation(id: string): boolean {
+  return getDb().conversations.get(id)?.kind === 'dm';
+}
+function isMockDmMessage(messageId: string): boolean {
+  const m = getDb().messages.get(messageId);
+  return m ? isMockDmConversation(m.conversationId) : false;
+}
+
 export const conversationsHandlers = [
-  // List channels for a project
-  http.get('*/v1/projects/:slug/channels', ({ params }) => {
-    const me = requireCurrentUser();
-    if (!me) return HttpResponse.json({ error: 'unauthorized' }, { status: 401 });
-    const slug = String(params.slug);
-    const project = projectBySlug(slug);
-    if (!project) return HttpResponse.json({ error: 'not_found' }, { status: 404 });
-    if (!requireMember(slug, me.userId)) {
-      return HttpResponse.json({ error: 'forbidden' }, { status: 403 });
-    }
-    const channels = channelsForProject(project.id).map((c) => toConversationDto(c, me.userId));
-    return HttpResponse.json({ channels });
-  }),
+  // Channels are real now — never mock them.
+  http.get('*/v1/projects/:slug/channels', () => passthrough()),
 
   // List my DMs across all projects
   http.get('*/v1/dms', () => {
@@ -51,6 +51,7 @@ export const conversationsHandlers = [
 
   // Get one conversation
   http.get('*/v1/conversations/:id', ({ params }) => {
+    if (!isMockDmConversation(String(params.id))) return passthrough();
     const me = requireCurrentUser();
     if (!me) return HttpResponse.json({ error: 'unauthorized' }, { status: 401 });
     const conv = getDb().conversations.get(String(params.id));
@@ -63,6 +64,7 @@ export const conversationsHandlers = [
 
   // Paginated top-level messages
   http.get('*/v1/conversations/:id/messages', ({ params, request }) => {
+    if (!isMockDmConversation(String(params.id))) return passthrough();
     const me = requireCurrentUser();
     if (!me) return HttpResponse.json({ error: 'unauthorized' }, { status: 401 });
     const conv = getDb().conversations.get(String(params.id));
@@ -83,6 +85,7 @@ export const conversationsHandlers = [
 
   // Thread: parent + all replies
   http.get('*/v1/messages/:id/thread', ({ params }) => {
+    if (!isMockDmMessage(String(params.id))) return passthrough();
     const me = requireCurrentUser();
     if (!me) return HttpResponse.json({ error: 'unauthorized' }, { status: 401 });
     const parent = getDb().messages.get(String(params.id));
@@ -99,6 +102,7 @@ export const conversationsHandlers = [
 
   // Post a message (top-level or thread reply)
   http.post('*/v1/conversations/:id/messages', async ({ params, request }) => {
+    if (!isMockDmConversation(String(params.id))) return passthrough();
     const me = requireCurrentUser();
     if (!me) return HttpResponse.json({ error: 'unauthorized' }, { status: 401 });
     const conv = getDb().conversations.get(String(params.id));
@@ -154,6 +158,7 @@ export const conversationsHandlers = [
 
   // Mark a conversation as read up to a message id
   http.post('*/v1/conversations/:id/read', async ({ params, request }) => {
+    if (!isMockDmConversation(String(params.id))) return passthrough();
     const me = requireCurrentUser();
     if (!me) return HttpResponse.json({ error: 'unauthorized' }, { status: 401 });
     const conv = getDb().conversations.get(String(params.id));
@@ -178,6 +183,7 @@ export const conversationsHandlers = [
 
   // Mark a thread as read up to a reply id
   http.post('*/v1/messages/:parentId/thread/read', async ({ params, request }) => {
+    if (!isMockDmMessage(String(params.parentId))) return passthrough();
     const me = requireCurrentUser();
     if (!me) return HttpResponse.json({ error: 'unauthorized' }, { status: 401 });
     const parent = getDb().messages.get(String(params.parentId));

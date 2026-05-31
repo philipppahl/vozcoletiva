@@ -139,8 +139,9 @@ pub async fn post(
     Ok(message)
 }
 
-/// Top-level messages, newest-first, with a `before` cursor (a message id) and a
-/// limit. Returns `(messages, has_more)`.
+/// The newest page of top-level messages, returned **oldest-first** (chat
+/// display order). `before` (a message id) fetches the page of older messages;
+/// `has_more` is true when older messages remain. `limit` caps the page size.
 pub async fn list_top_level(
     state: &AppState,
     conversation_id: &str,
@@ -170,6 +171,8 @@ pub async fn list_top_level(
     }
     let has_more = msgs.len() > limit;
     msgs.truncate(limit);
+    // Collected newest-first for the cursor; return oldest-first for display.
+    msgs.reverse();
     Ok((msgs, has_more))
 }
 
