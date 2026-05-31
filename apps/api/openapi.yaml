@@ -651,6 +651,147 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  /v1/projects/{slug}/channels:
+    get:
+      summary: List a project's channels
+      operationId: listChannels
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200':
+          description: Channels with unread counts + last-message previews.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChannelListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/conversations/{id}:
+    get:
+      summary: Get a conversation
+      operationId: getConversation
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      responses:
+        '200':
+          description: Conversation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Channel' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/conversations/{id}/messages:
+    get:
+      summary: List top-level messages (newest-first, cursor)
+      operationId: listMessages
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - in: query
+          name: before
+          required: false
+          description: Return messages older than this message id.
+          schema: { type: string }
+      responses:
+        '200':
+          description: Messages page.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessageListResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      summary: Post a message (a reply sets parent_message_id)
+      operationId: postMessage
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PostMessageBody' }
+      responses:
+        '201':
+          description: Message posted.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/conversations/{id}/read:
+    post:
+      summary: Advance the conversation read marker
+      operationId: markConversationRead
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReadBody' }
+      responses:
+        '200':
+          description: Marker advanced.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/messages/{id}/thread:
+    get:
+      summary: Get a thread (parent + replies)
+      operationId: getThread
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/MessageId'
+      responses:
+        '200':
+          description: Thread.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ThreadResponse' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/messages/{parentId}/thread/read:
+    post:
+      summary: Advance the thread read marker
+      operationId: markThreadRead
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: parentId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReadBody' }
+      responses:
+        '200':
+          description: Marker advanced.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -682,6 +823,18 @@ components:
       name: name
       required: true
       description: Document name (percent-encoded).
+      schema: { type: string }
+
+    ConversationId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+
+    MessageId:
+      in: path
+      name: id
+      required: true
       schema: { type: string }
 
   responses:
@@ -716,6 +869,107 @@ components:
       additionalProperties: false
       properties:
         ok: { type: boolean }
+
+    LastMessagePreview:
+      type: object
+      required: [author_display_name, body_preview, at]
+      additionalProperties: false
+      properties:
+        author_display_name: { type: string }
+        body_preview: { type: string }
+        at: { type: string, format: date-time }
+
+    Channel:
+      type: object
+      required: [kind, id, project_id, name, member_count, unread_count]
+      additionalProperties: false
+      properties:
+        kind: { type: string, enum: [channel] }
+        id: { type: string }
+        project_id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        member_count: { type: integer }
+        last_message:
+          oneOf: [{ $ref: '#/components/schemas/LastMessagePreview' }]
+          nullable: true
+        unread_count: { type: integer }
+
+    ChannelListResponse:
+      type: object
+      required: [channels]
+      additionalProperties: false
+      properties:
+        channels:
+          type: array
+          items: { $ref: '#/components/schemas/Channel' }
+
+    Message:
+      type: object
+      required:
+        - id
+        - conversation_id
+        - author_id
+        - author_display_name
+        - body
+        - attachments
+        - created_at
+        - reply_count
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        conversation_id: { type: string }
+        parent_message_id: { type: string, nullable: true }
+        author_id: { type: string }
+        author_display_name: { type: string }
+        body: { type: string }
+        attachments:
+          type: array
+          items: { type: object }
+          description: Always empty for now — attachment upload is a later slice.
+        created_at: { type: string, format: date-time }
+        edited_at: { type: string, format: date-time, nullable: true }
+        reply_count: { type: integer }
+        last_reply_at: { type: string, format: date-time, nullable: true }
+
+    MessageListResponse:
+      type: object
+      required: [messages, has_more]
+      additionalProperties: false
+      properties:
+        messages:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+        has_more: { type: boolean }
+
+    ThreadResponse:
+      type: object
+      required: [parent, replies]
+      additionalProperties: false
+      properties:
+        parent: { $ref: '#/components/schemas/Message' }
+        replies:
+          type: array
+          items: { $ref: '#/components/schemas/Message' }
+
+    PostMessageBody:
+      type: object
+      required: [body]
+      additionalProperties: false
+      properties:
+        body: { type: string, minLength: 1, maxLength: 4000 }
+        parent_message_id: { type: string, nullable: true }
+        attachments:
+          type: array
+          items: { type: object }
+          description: Must be empty — attachment upload is a later slice.
+
+    ReadBody:
+      type: object
+      required: [message_id]
+      additionalProperties: false
+      properties:
+        message_id: { type: string }
 
     ApiError:
       type: object

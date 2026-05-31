@@ -181,16 +181,30 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
 - channel attrs: `kind:'channel'`, `projectId`, `name`, `description?`, `createdAt`
 - dm attrs: `kind:'dm'`, `participantIds:[lo,hi]` (sorted), `createdAt`
 - **Channel pointer** for project listing: **PK** `PROJECT#<projectId>` ·
-  **SK** `CONV#<conversationId>` — `name`, `isDefault`
+  **SK** `CONV#<conversationId>` — denormalised `name`, `description?` (so
+  listing a project's channels is one query, no per-channel `GetItem`).
+- A default **"Commons" channel** (meta + pointer) is created in the
+  `project::create` transaction, matching the default topic name.
 - **DM id is deterministic** from the sorted participant pair, so find-or-create
-  is a `GetItem` — no lookup index needed.
+  is a `GetItem` — no lookup index needed (DMs are a later slice).
 
 ### Message (channel message or thread reply)
-- **PK** `CONV#<conversationId>` · **SK** `MSG#<ulid>`
-- attrs: `authorId`, `body`, `attachments[]` (S3 keys for image / voice),
-  `parentMessageId?` (set on thread replies), `createdAt`, `editedAt?`
-- **GSI3PK** `THREAD#<parentMessageId>` · **GSI3SK** `<ulid>` —
-  *sparse, replies only* — a thread's replies without scanning the conversation
+- **PK** `CONV#<conversationId>` · **SK** `MSG#<ulid>` (top-level) or
+  `REPLY#<ulid>` (a thread reply) — the split keeps "list top-level messages" a
+  clean range query (`BETWEEN MSG# AND MSG$`) with no filter, and pagination via
+  a `before` cursor.
+- attrs: `authorId`, `authorDisplayName` (denormalised from the poster's
+  membership), `body`, `parentMessageId?` (replies), `createdAt`, `editedAt?`;
+  top-level carries `replyCount` + `lastReplyAt?` (bumped transactionally when a
+  reply is posted).
+- **Reply → GSI3PK** `THREAD#<parentMessageId>` · **GSI3SK** `<ulid>` —
+  *sparse, replies only* — a thread's replies without scanning the conversation.
+- **Top-level → GSI3PK** `MSG#<id>` · **GSI3SK** `<conversationId>` —
+  *sparse, top-level only* — resolves a message id to its conversation for the
+  `…/messages/{id}/thread` and `…/thread/read` endpoints (which carry only the id).
+- Read markers + unread: see Conversation-read / thread-read markers above;
+  unread = `Select=COUNT` over `MSG#` newer than the marker. Attachments and
+  WebSocket live-push are later slices.
 
 ### Audit event
 - **PK** `PROJECT#<projectId>` · **SK** `AUDIT#<ulid>`
@@ -204,7 +218,7 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
 |---|---|---|
 | **GSI1** — secondary-id lookups | `SLUG#<slug>`/`PROJECT` · `USER#<uid>`/`MEMBER#<pid>` · `INVITETOKEN#<t>`/`INVITE` · `INVITECODE#<c>`/`INVITE` | slug→project; my projects (switcher); invite token→invite; short code→invite |
 | **GSI2** — by root / by user | `DELIB#<rootId>`/`PROPOSAL#<created>#<id>` · `USER#<uid>`/`VOTE#<rootId>` | deliberation tree; a user's vote history |
-| **GSI3** — time/status windows | `PROJECT#<pid>#VOTING`/`<endsAt>` · `PROJECT#<pid>#DOC`/`<name>#<closedAt>` · `THREAD#<parentMsgId>`/`<ulid>` | closing-soon roots; document library by name; thread replies |
+| **GSI3** — time/status windows + lookups | `PROJECT#<pid>#VOTING`/`<endsAt>` · `PROJECT#<pid>#DOC`/`<name>#<closedAt>` · `THREAD#<parentMsgId>`/`<ulid>` · `MSG#<id>`/`<convId>` | closing-soon roots; document library by name; thread replies; top-level message → conversation |
 
 ## Access patterns covered (all 42 endpoints)
 

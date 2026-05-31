@@ -1,8 +1,10 @@
 pub mod category;
 pub mod comment;
+pub mod conversation;
 pub mod document;
 pub mod invite;
 pub mod membership;
+pub mod message;
 pub mod project;
 pub mod proposal;
 pub mod user;

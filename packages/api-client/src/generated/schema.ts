@@ -3,6 +3,58 @@
 // Regenerate with: bun run api:generate
 
 export interface paths {
+    "/v1/conversations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a conversation */
+        get: operations["getConversation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List top-level messages (newest-first, cursor) */
+        get: operations["listMessages"];
+        put?: never;
+        /** Post a message (a reply sets parent_message_id) */
+        post: operations["postMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Advance the conversation read marker */
+        post: operations["markConversationRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/hello": {
         parameters: {
             query?: never;
@@ -105,6 +157,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/messages/{id}/thread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a thread (parent + replies) */
+        get: operations["getThread"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messages/{parentId}/thread/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Advance the thread read marker */
+        post: operations["markThreadRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects": {
         parameters: {
             query?: never;
@@ -174,6 +260,23 @@ export interface paths {
         head?: never;
         /** Rename a category (owner/admin) */
         patch: operations["renameCategory"];
+        trace?: never;
+    };
+    "/v1/projects/{slug}/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a project's channels */
+        get: operations["listChannels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/projects/{slug}/documents": {
@@ -415,6 +518,20 @@ export interface components {
         CategoryNameBody: {
             name: string;
         };
+        Channel: {
+            description?: string | null;
+            id: string;
+            /** @enum {string} */
+            kind: "channel";
+            last_message?: components["schemas"]["LastMessagePreview"] | null;
+            member_count: number;
+            name: string;
+            project_id: string;
+            unread_count: number;
+        };
+        ChannelListResponse: {
+            channels: components["schemas"]["Channel"][];
+        };
         /** @description A vote in a deliberation: the picked alternative's proposal id, or the special token `__none__` ("none of these") or `__abstain__`. */
         Choice: string;
         Comment: {
@@ -526,6 +643,12 @@ export interface components {
             note?: string;
             role: components["schemas"]["Role"];
         };
+        LastMessagePreview: {
+            /** Format: date-time */
+            at: string;
+            author_display_name: string;
+            body_preview: string;
+        };
         Member: {
             display_name: string;
             /** Format: date-time */
@@ -536,8 +659,35 @@ export interface components {
         MemberListResponse: {
             members: components["schemas"]["Member"][];
         };
+        Message: {
+            /** @description Always empty for now — attachment upload is a later slice. */
+            attachments: Record<string, never>[];
+            author_display_name: string;
+            author_id: string;
+            body: string;
+            conversation_id: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            edited_at?: string | null;
+            id: string;
+            /** Format: date-time */
+            last_reply_at?: string | null;
+            parent_message_id?: string | null;
+            reply_count: number;
+        };
+        MessageListResponse: {
+            has_more: boolean;
+            messages: components["schemas"]["Message"][];
+        };
         Ok: {
             ok: boolean;
+        };
+        PostMessageBody: {
+            /** @description Must be empty — attachment upload is a later slice. */
+            attachments?: Record<string, never>[];
+            body: string;
+            parent_message_id?: string | null;
         };
         Project: {
             /** Format: date-time */
@@ -607,8 +757,15 @@ export interface components {
         };
         /** @enum {string} */
         ProposalStatus: "voting" | "passed" | "rejected" | "quorum_failed" | "withdrawn";
+        ReadBody: {
+            message_id: string;
+        };
         /** @enum {string} */
         Role: "owner" | "admin" | "moderator" | "member" | "observer";
+        ThreadResponse: {
+            parent: components["schemas"]["Message"];
+            replies: components["schemas"]["Message"][];
+        };
         UpdateCommentBody: {
             body: string;
         };
@@ -656,8 +813,10 @@ export interface components {
     };
     parameters: {
         CategoryId: string;
+        ConversationId: string;
         /** @description Document name (percent-encoded). */
         DocumentName: string;
+        MessageId: string;
         ProposalId: string;
         Slug: string;
     };
@@ -667,6 +826,114 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conversation. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMessages: {
+        parameters: {
+            query?: {
+                /** @description Return messages older than this message id. */
+                before?: string;
+            };
+            header?: never;
+            path: {
+                id: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Messages page. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageListResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    postMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostMessageBody"];
+            };
+        };
+        responses: {
+            /** @description Message posted. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    markConversationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ConversationId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadBody"];
+            };
+        };
+        responses: {
+            /** @description Marker advanced. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getHello: {
         parameters: {
             query?: never;
@@ -828,6 +1095,58 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+        };
+    };
+    getThread: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["MessageId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Thread. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThreadResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    markThreadRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                parentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadBody"];
+            };
+        };
+        responses: {
+            /** @description Marker advanced. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listMyProjects: {
@@ -1073,6 +1392,30 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+        };
+    };
+    listChannels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Channels with unread counts + last-message previews. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelListResponse"];
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listDocuments: {

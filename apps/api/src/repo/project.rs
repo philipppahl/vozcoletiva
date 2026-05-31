@@ -121,6 +121,21 @@ pub async fn create(
         .build()
         .map_err(|e| AppError::Internal(Box::new(e)))?;
 
+    // …and one default "Commons" channel (meta + project pointer), matching the
+    // default topic name.
+    let (_chan, chan_meta, chan_pointer) =
+        crate::repo::conversation::default_channel_items(&project_id, &now.to_rfc3339());
+    let put_channel_meta = Put::builder()
+        .table_name(&state.table_name)
+        .set_item(Some(chan_meta))
+        .build()
+        .map_err(|e| AppError::Internal(Box::new(e)))?;
+    let put_channel_pointer = Put::builder()
+        .table_name(&state.table_name)
+        .set_item(Some(chan_pointer))
+        .build()
+        .map_err(|e| AppError::Internal(Box::new(e)))?;
+
     let result = state
         .ddb
         .transact_write_items()
@@ -128,6 +143,12 @@ pub async fn create(
         .transact_items(TransactWriteItem::builder().put(put_slug).build())
         .transact_items(TransactWriteItem::builder().put(put_member).build())
         .transact_items(TransactWriteItem::builder().put(put_category).build())
+        .transact_items(TransactWriteItem::builder().put(put_channel_meta).build())
+        .transact_items(
+            TransactWriteItem::builder()
+                .put(put_channel_pointer)
+                .build(),
+        )
         .send()
         .await;
 

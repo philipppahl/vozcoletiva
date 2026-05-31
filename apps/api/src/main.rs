@@ -134,6 +134,29 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
             handlers::comments::delete(&state, event, slug, id, comment_id).await
         }
 
+        // Messaging — channels (project-scoped) + conversations/messages/threads
+        ("GET", ["projects", slug, "channels"]) => {
+            handlers::conversations::list_channels(&state, event, slug).await
+        }
+        ("GET", ["conversations", id]) => {
+            handlers::conversations::get_conversation(&state, event, id).await
+        }
+        ("GET", ["conversations", id, "messages"]) => {
+            handlers::conversations::list_messages(&state, event, id).await
+        }
+        ("POST", ["conversations", id, "messages"]) => {
+            handlers::conversations::post_message(&state, event, id).await
+        }
+        ("POST", ["conversations", id, "read"]) => {
+            handlers::conversations::mark_read(&state, event, id).await
+        }
+        ("GET", ["messages", id, "thread"]) => {
+            handlers::conversations::get_thread(&state, event, id).await
+        }
+        ("POST", ["messages", parent_id, "thread", "read"]) => {
+            handlers::conversations::mark_thread_read(&state, event, parent_id).await
+        }
+
         _ => not_found(),
     }
 }

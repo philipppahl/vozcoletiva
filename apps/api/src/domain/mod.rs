@@ -1,6 +1,7 @@
 pub mod category;
 pub mod code;
 pub mod comment;
+pub mod message;
 pub mod outcome;
 pub mod proposal;
 pub mod role;
