@@ -5,7 +5,7 @@
 //! Callers treat these as **best-effort**: a fan-out failure is logged but must
 //! never fail the user's underlying action. See decision 0021.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::domain::proposal::ProposalKind;
 use crate::domain::vote::Choice;
@@ -54,6 +54,41 @@ fn extract_mentions(body: &str) -> Vec<String> {
         }
         i = if j > start { j } else { i + 1 };
     }
+    out
+}
+
+/// Replace `@<sub>` mention tokens with `@<display name>` for the stored preview,
+/// so a notification reads "@Marina Alves …" rather than a raw UUID. Unknown ids
+/// are left as-is. Slices on ASCII token boundaries — UTF-8 safe.
+fn resolve_mention_names(body: &str, names: &HashMap<String, String>) -> String {
+    let bytes = body.as_bytes();
+    let mut out = String::with_capacity(body.len());
+    let mut last = 0;
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] != b'@' {
+            i += 1;
+            continue;
+        }
+        let start = i + 1;
+        let mut j = start;
+        while j < bytes.len() && matches!(bytes[j], b'0'..=b'9' | b'a'..=b'f' | b'-') {
+            j += 1;
+        }
+        let token = &body[start..j];
+        if is_uuid(token) {
+            if let Some(name) = names.get(token) {
+                out.push_str(&body[last..i]);
+                out.push('@');
+                out.push_str(name);
+                last = j;
+            }
+            i = j;
+        } else {
+            i = if j > start { j } else { i + 1 };
+        }
+    }
+    out.push_str(&body[last..]);
     out
 }
 
@@ -107,18 +142,19 @@ pub async fn message_posted(
         return Ok(());
     };
     let project = project::get_by_slug_from_id(state, &c.project_id).await?;
-    let members: HashSet<String> = membership::list(state, &c.project_id)
+    let names: HashMap<String, String> = membership::list(state, &c.project_id)
         .await?
         .into_iter()
-        .map(|m| m.user_id)
+        .map(|m| (m.user_id, m.display_name))
         .collect();
+    let body_preview = preview(&resolve_mention_names(&msg.body, &names));
 
     let mut items: Vec<NewInboxItem> = Vec::new();
     let mut notified: HashSet<String> = HashSet::new();
 
     // Mentions — only members (who can see the message), never the author.
     for uid in extract_mentions(&msg.body) {
-        if uid == msg.author_id || !members.contains(&uid) {
+        if uid == msg.author_id || !names.contains_key(&uid) {
             continue;
         }
         let mut it = base(
@@ -127,7 +163,7 @@ pub async fn message_posted(
             &project,
             &msg.author_id,
             Some(msg.author_display_name.clone()),
-            preview(&msg.body),
+            body_preview.clone(),
             now,
         );
         it.conversation_id = Some(msg.conversation_id.clone());
@@ -160,7 +196,7 @@ pub async fn message_posted(
                 &project,
                 &msg.author_id,
                 Some(msg.author_display_name.clone()),
-                preview(&msg.body),
+                body_preview.clone(),
                 now,
             );
             it.conversation_id = Some(msg.conversation_id.clone());
@@ -185,6 +221,12 @@ pub async fn proposal_comment(
         return Ok(());
     }
     let project = project::get_by_slug_from_id(state, &proposal.project_id).await?;
+    let names: HashMap<String, String> = membership::list(state, &proposal.project_id)
+        .await?
+        .into_iter()
+        .map(|m| (m.user_id, m.display_name))
+        .collect();
+    let body_preview = preview(&resolve_mention_names(body, &names));
     let mut items: Vec<NewInboxItem> = Vec::new();
 
     if proposal.author_id != comment.author_id {
@@ -194,7 +236,7 @@ pub async fn proposal_comment(
             &project,
             &comment.author_id,
             Some(comment.author_display_name.clone()),
-            preview(body),
+            body_preview.clone(),
             now,
         );
         it.proposal_id = Some(proposal.id.clone());
@@ -202,14 +244,9 @@ pub async fn proposal_comment(
         items.push(it);
     }
 
-    let members: HashSet<String> = membership::list(state, &proposal.project_id)
-        .await?
-        .into_iter()
-        .map(|m| m.user_id)
-        .collect();
     for uid in extract_mentions(body) {
         // The proposal author already got `comment-on-yours`; don't double-notify.
-        if uid == comment.author_id || uid == proposal.author_id || !members.contains(&uid) {
+        if uid == comment.author_id || uid == proposal.author_id || !names.contains_key(&uid) {
             continue;
         }
         let mut it = base(
@@ -218,7 +255,7 @@ pub async fn proposal_comment(
             &project,
             &comment.author_id,
             Some(comment.author_display_name.clone()),
-            preview(body),
+            body_preview.clone(),
             now,
         );
         it.proposal_id = Some(proposal.id.clone());
@@ -321,6 +358,24 @@ mod tests {
         let sub = "c2b554e4-a091-7013-dffd-0ccc4a5b82fc";
         let body = format!("@{sub} @{sub}");
         assert_eq!(extract_mentions(&body).len(), 1);
+    }
+
+    #[test]
+    fn resolves_mention_names_keeping_unicode() {
+        let sub = "32b514e4-60c1-70cc-d616-77326d610b5b";
+        let mut names = HashMap::new();
+        names.insert(sub.to_string(), "Marina Alves".to_string());
+        let body = format!("@{sub} pode revisar? 🙏");
+        assert_eq!(
+            resolve_mention_names(&body, &names),
+            "@Marina Alves pode revisar? 🙏"
+        );
+        // Unknown id is left as-is.
+        let other = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+        assert_eq!(
+            resolve_mention_names(&format!("hi @{other}"), &names),
+            format!("hi @{other}")
+        );
     }
 
     #[test]
