@@ -88,6 +88,22 @@ trigger site also logs `inbox_fanout_failed` on a best-effort failure.
 - Seed: re-seeding generates a realistic inbox from the existing comments /
   thread reply / closes, plus one seeded `@mention`.
 
+## Manual UI verification
+
+Deployed to dev + re-seeded; hosted CloudFront, mobile, **multiple real users**:
+
+- **All five kinds** populated from the real fan-out, with real actor + project
+  names and content previews:
+  - Tomás: `mention` ("Marina Alves mentioned you", preview "@Tomás Ferreira …"
+    — token resolved to the name, emoji intact), two `reply` (Marina, Lúcia),
+    five `proposal-closed`, three `document-amended`.
+  - Marina: two `comment-on-yours` ("Tomás Ferreira / Lúcia Pereira commented on
+    your proposal") + her closes/versions.
+- The `@mention` renders as a styled `@Tomás Ferreira` chip in the channel;
+  clicking the inbox mention navigates to that message.
+- `Mark all read` clears the app-wide unread badge.
+- Console clean.
+
 ## Out of scope (later)
 
 Notification **preferences / muting** (`NOTIFPREF#` — with the Web Push slice),
