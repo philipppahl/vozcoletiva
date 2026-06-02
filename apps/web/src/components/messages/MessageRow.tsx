@@ -48,6 +48,11 @@ export function MessageRow({
   // Media-only messages drop the coloured bubble — the attachment carries its
   // own frame (an indigo wrapper around a photo looks heavy).
   const mediaOnly = !hasText && message.attachments.length > 0;
+  // Telegram-style: for a pure-text bubble the time + status sit inline after
+  // the text (flowing onto the last line when it fits), so messages pack
+  // tighter. Bubbles with attachments keep the time on a row below.
+  const inlineTime = hasText && message.attachments.length === 0;
+  const metaColor = own ? 'rgba(255,255,255,0.72)' : 'var(--ink-muted)';
 
   return (
     <div
@@ -88,6 +93,23 @@ export function MessageRow({
           }}
         >
           {hasText && <MessageMarkdown body={message.body} projectSlug={projectSlug} own={own} />}
+          {inlineTime && (
+            <span
+              className="select-none"
+              style={{
+                marginLeft: 7,
+                fontSize: 10.5,
+                color: metaColor,
+                whiteSpace: 'nowrap',
+                verticalAlign: '-1px',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              <RelativeTime iso={message.created_at} />
+              {own && pending && <ClockIcon />}
+              {own && !pending && !failed && <CheckIcon />}
+            </span>
+          )}
           {message.attachments.map((a, i) => (
             <div
               // biome-ignore lint/suspicious/noArrayIndexKey: attachments are append-only within a message
@@ -99,17 +121,12 @@ export function MessageRow({
           ))}
         </div>
 
-        {tail && (
+        {tail && !inlineTime && (
           <div
             className="mt-0.5 flex items-center gap-1 px-1 text-[11px]"
             style={{ color: 'var(--ink-muted)' }}
           >
             <RelativeTime iso={message.created_at} />
-            {message.edited_at && (
-              <span style={{ fontStyle: 'italic' }}>
-                · <Trans>edited</Trans>
-              </span>
-            )}
             {own && pending && <ClockIcon />}
             {own && !pending && !failed && <CheckIcon />}
           </div>
@@ -197,7 +214,7 @@ function CheckIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      style={{ opacity: 0.7 }}
+      style={{ opacity: 0.85, marginLeft: 3, verticalAlign: 'middle' }}
     >
       <path d="M20 6L9 17l-5-5" />
     </svg>
@@ -216,7 +233,7 @@ function ClockIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      style={{ opacity: 0.6 }}
+      style={{ opacity: 0.7, marginLeft: 3, verticalAlign: 'middle' }}
     >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
