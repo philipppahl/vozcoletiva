@@ -92,6 +92,7 @@ export function MessageList({
             key={it.message.id}
             message={it.message}
             grouped={it.grouped}
+            tail={it.tail}
             onOpenThread={onOpenThread}
             projectSlug={projectSlug}
             onRetry={onRetry}
@@ -103,10 +104,11 @@ export function MessageList({
   );
 }
 
+type MsgItem = { kind: 'msg'; message: Message; grouped: boolean; tail: boolean };
 type Item =
   | { kind: 'day-divider'; dayKey: string; iso: string }
   | { kind: 'unread'; beforeId: string }
-  | { kind: 'msg'; message: Message; grouped: boolean };
+  | MsgItem;
 
 function decorate(messages: Message[], lastReadId: string | null): Item[] {
   const out: Item[] = [];
@@ -114,6 +116,9 @@ function decorate(messages: Message[], lastReadId: string | null): Item[] {
   let lastAuthor: string | null = null;
   let lastAtMs = 0;
   let unreadInserted = false;
+  // The most recent msg item — cleared to false (no tail) when the next msg
+  // groups onto it. The last of any same-author run keeps tail = true.
+  let lastMsgItem: MsgItem | null = null;
   const readIdx = lastReadId ? messages.findIndex((m) => m.id === lastReadId) : -1;
   for (let i = 0; i < messages.length; i += 1) {
     const m = messages[i]!;
@@ -131,7 +136,10 @@ function decorate(messages: Message[], lastReadId: string | null): Item[] {
     const atMs = Date.parse(m.created_at);
     const grouped =
       lastAuthor === m.author_id && atMs - lastAtMs < 5 * 60_000 && !m.parent_message_id;
-    out.push({ kind: 'msg', message: m, grouped });
+    const item: MsgItem = { kind: 'msg', message: m, grouped, tail: true };
+    if (grouped && lastMsgItem) lastMsgItem.tail = false;
+    out.push(item);
+    lastMsgItem = item;
     lastAuthor = m.author_id;
     lastAtMs = atMs;
   }

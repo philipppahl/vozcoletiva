@@ -5,6 +5,8 @@ interface MessageMarkdownProps {
   body: string;
   /** Used to resolve `@u-id` mention tokens to display names. */
   projectSlug?: string;
+  /** True inside the viewer's own (accent) bubble → light text + chips. */
+  own?: boolean;
 }
 
 /**
@@ -12,13 +14,13 @@ interface MessageMarkdownProps {
  * (headings, lists, blockquotes) — chat bubbles shouldn't carry that weight.
  * Supports **bold**, *italic*, `code`, [links](…), and @user-id mentions.
  */
-export function MessageMarkdown({ body, projectSlug }: MessageMarkdownProps) {
+export function MessageMarkdown({ body, projectSlug, own = false }: MessageMarkdownProps) {
   const members = useMembers(projectSlug);
   const directory = members.data?.members ?? [];
   return (
     <span
       style={{
-        color: 'var(--ink)',
+        color: own ? 'var(--accent-ink)' : 'var(--ink)',
         fontFamily: 'var(--font-sans)',
         fontSize: 14.5,
         lineHeight: 1.5,
@@ -31,6 +33,7 @@ export function MessageMarkdown({ body, projectSlug }: MessageMarkdownProps) {
           key={`${seg.kind}-${idx}-${seg.kind === 'mention' ? seg.userId : seg.text.slice(0, 8)}`}
           seg={seg}
           directory={directory}
+          own={own}
         />
       ))}
     </span>
@@ -42,22 +45,31 @@ interface DirectoryEntry {
   display_name: string;
 }
 
-function SegmentView({ seg, directory }: { seg: Segment; directory: DirectoryEntry[] }) {
+function SegmentView({
+  seg,
+  directory,
+  own,
+}: {
+  seg: Segment;
+  directory: DirectoryEntry[];
+  own: boolean;
+}) {
   if (seg.kind === 'mention') {
     const u = directory.find((d) => d.user_id === seg.userId);
     return (
       <span
         className="rounded px-1 font-medium"
-        style={{
-          background: 'var(--accent-soft)',
-          color: 'var(--accent)',
-        }}
+        style={
+          own
+            ? { background: 'rgba(255,255,255,0.22)', color: 'var(--accent-ink)' }
+            : { background: 'var(--accent-soft)', color: 'var(--accent)' }
+        }
       >
         @{u?.display_name ?? seg.userId}
       </span>
     );
   }
-  return <RenderInline text={seg.text} />;
+  return <RenderInline text={seg.text} own={own} />;
 }
 
 /**
@@ -65,7 +77,7 @@ function SegmentView({ seg, directory }: { seg: Segment; directory: DirectoryEnt
  * boundary; we deliberately don't import remark/rehype here to keep bubbles
  * cheap. **bold**, *italic*, `code`, [text](url) only.
  */
-function RenderInline({ text }: { text: string }) {
+function RenderInline({ text, own }: { text: string; own: boolean }) {
   // We split on the canonical markers, render each token as its element.
   // Greedy enough for chat; not a full parser. Order matters: code first
   // (the contents shouldn't be re-tokenised), then links, then bold, italic.
@@ -83,8 +95,8 @@ function RenderInline({ text }: { text: string }) {
                 style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: '0.92em',
-                  background: 'var(--surface-2)',
-                  color: 'var(--ink-soft)',
+                  background: own ? 'rgba(255,255,255,0.18)' : 'var(--surface-2)',
+                  color: own ? 'var(--accent-ink)' : 'var(--ink-soft)',
                 }}
               >
                 {t.text}
@@ -97,7 +109,10 @@ function RenderInline({ text }: { text: string }) {
                 href={t.url}
                 target="_blank"
                 rel="noreferrer noopener"
-                style={{ color: 'var(--accent)', textDecoration: 'underline' }}
+                style={{
+                  color: own ? 'var(--accent-ink)' : 'var(--accent)',
+                  textDecoration: 'underline',
+                }}
               >
                 {t.text}
               </a>

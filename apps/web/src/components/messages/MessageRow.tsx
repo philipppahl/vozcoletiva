@@ -1,5 +1,6 @@
 import { Trans } from '@lingui/macro';
 
+import { useAuth } from '../../lib/auth/hooks';
 import type { Message } from '../../lib/messages/types';
 import { RelativeTime } from '../RelativeTime';
 import { Avatar } from '../shell/Avatar';
@@ -9,9 +10,10 @@ import { VoiceNoteBlock } from './VoiceNoteBlock';
 
 interface MessageRowProps {
   message: Message;
-  /** When true, this message is in a same-author group with the previous row;
-   *  the avatar + name + timestamp are suppressed to tighten the visual. */
+  /** Grouped with the previous row (same author, < 5 min) — hides avatar/name. */
   grouped: boolean;
+  /** Last message of a same-author run — carries the time + the bubble "tail". */
+  tail?: boolean;
   /** When set, the "N replies" affordance opens this thread overlay. */
   onOpenThread?: (messageId: string) => void;
   /** Optional slug, threaded through the markdown renderer for @mentions. */
@@ -22,61 +24,104 @@ interface MessageRowProps {
   avatarUrl?: string | null;
 }
 
+/**
+ * One chat message as a messenger bubble: the viewer's own messages align right
+ * in an accent bubble (no avatar); everyone else aligns left in a surface bubble
+ * with their avatar. Consecutive same-author messages group; the last of a run
+ * shows the time + a subtle tail.
+ */
 export function MessageRow({
   message,
   grouped,
+  tail = true,
   onOpenThread,
   projectSlug,
   onRetry,
   avatarUrl,
 }: MessageRowProps) {
+  const { session } = useAuth();
+  const own = !!session && message.author_id === session.userId;
   const pending = message._optimistic === 'pending';
   const failed = message._optimistic === 'failed';
+  // Channels (projectSlug set) name the sender above others' bubbles; DMs don't.
+  const showName = !own && !grouped && !!projectSlug;
+  const hasText = !!message.body;
+
   return (
-    <article
-      className="flex items-start gap-3 px-4"
-      style={{ paddingTop: grouped ? 2 : 12, opacity: pending ? 0.6 : 1 }}
+    <div
+      className="flex w-full px-3"
+      style={{ justifyContent: own ? 'flex-end' : 'flex-start', paddingTop: grouped ? 2 : 10 }}
     >
-      <div className="flex-shrink-0" style={{ width: 32 }}>
-        {grouped ? null : (
-          <Avatar displayName={message.author_display_name} size={32} imageUrl={avatarUrl} />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        {!grouped && (
+      {!own && (
+        <div style={{ width: 28, marginRight: 8, flexShrink: 0 }}>
+          {grouped ? null : (
+            <Avatar displayName={message.author_display_name} size={28} imageUrl={avatarUrl} />
+          )}
+        </div>
+      )}
+
+      <div
+        className="flex min-w-0 flex-col"
+        style={{ maxWidth: '76%', alignItems: own ? 'flex-end' : 'flex-start' }}
+      >
+        {showName && (
           <div
-            className="mb-0.5 flex items-baseline gap-2 text-[12.5px]"
+            className="mb-0.5 px-1 text-[11.5px] font-semibold"
             style={{ color: 'var(--ink-soft)' }}
           >
-            <span className="font-semibold" style={{ color: 'var(--ink)' }}>
-              {message.author_display_name}
-            </span>
-            <span style={{ color: 'var(--ink-muted)' }}>
-              <RelativeTime iso={message.created_at} />
-            </span>
+            {message.author_display_name}
+          </div>
+        )}
+
+        <div
+          style={{
+            background: own ? 'var(--accent)' : 'var(--surface-2)',
+            color: own ? 'var(--accent-ink)' : 'var(--ink)',
+            borderRadius: 18,
+            borderBottomRightRadius: own && tail ? 6 : 18,
+            borderBottomLeftRadius: !own && tail ? 6 : 18,
+            padding: hasText ? '7px 11px' : 4,
+            opacity: pending ? 0.75 : 1,
+            maxWidth: '100%',
+          }}
+        >
+          {hasText && <MessageMarkdown body={message.body} projectSlug={projectSlug} own={own} />}
+          {message.attachments.map((a, i) => (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: attachments are append-only within a message
+              key={`${message.id}-att-${i}-${a.kind}`}
+              className={hasText ? 'mt-2' : ''}
+            >
+              {a.kind === 'image' ? (
+                <AttachmentImage attachment={a} />
+              ) : (
+                <VoiceNoteBlock attachment={a} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        {tail && (
+          <div
+            className="mt-0.5 flex items-center gap-1 px-1 text-[11px]"
+            style={{ color: 'var(--ink-muted)' }}
+          >
+            <RelativeTime iso={message.created_at} />
             {message.edited_at && (
-              <span style={{ color: 'var(--ink-muted)', fontStyle: 'italic' }}>
+              <span style={{ fontStyle: 'italic' }}>
                 · <Trans>edited</Trans>
               </span>
             )}
+            {own && pending && <ClockIcon />}
+            {own && !pending && !failed && <CheckIcon />}
           </div>
         )}
-        {message.body && <MessageMarkdown body={message.body} projectSlug={projectSlug} />}
-        {message.attachments.map((a, i) => (
-          <div
-            // biome-ignore lint/suspicious/noArrayIndexKey: attachments are append-only within a message
-            key={`${message.id}-att-${i}-${a.kind}`}
-            className="mt-2"
-          >
-            {a.kind === 'image' ? (
-              <AttachmentImage attachment={a} />
-            ) : (
-              <VoiceNoteBlock attachment={a} />
-            )}
-          </div>
-        ))}
+
         {failed && (
-          <div className="mt-1 flex items-center gap-2 text-[12px]" style={{ color: 'var(--no)' }}>
+          <div
+            className="mt-0.5 flex items-center gap-2 px-1 text-[12px]"
+            style={{ color: 'var(--no)' }}
+          >
             <Trans>Couldn't send.</Trans>
             {onRetry && (
               <button
@@ -96,11 +141,12 @@ export function MessageRow({
             )}
           </div>
         )}
+
         {message.reply_count > 0 && onOpenThread && (
           <button
             type="button"
             onClick={() => onOpenThread(message.id)}
-            className="mt-1.5 inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[12px] font-semibold"
+            className="mt-1 inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[12px] font-semibold"
             style={{
               background: 'transparent',
               border: 'none',
@@ -137,6 +183,45 @@ export function MessageRow({
           </button>
         )}
       </div>
-    </article>
+    </div>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ opacity: 0.7 }}
+    >
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={{ opacity: 0.6 }}
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
   );
 }
