@@ -214,7 +214,7 @@ function CheckIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      style={{ opacity: 0.85, marginLeft: 3, verticalAlign: 'middle' }}
+      style={{ opacity: 0.85, marginLeft: 3, display: 'inline-block', verticalAlign: 'middle' }}
     >
       <path d="M20 6L9 17l-5-5" />
     </svg>
@@ -233,7 +233,7 @@ function ClockIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      style={{ opacity: 0.7, marginLeft: 3, verticalAlign: 'middle' }}
+      style={{ opacity: 0.7, marginLeft: 3, display: 'inline-block', verticalAlign: 'middle' }}
     >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
