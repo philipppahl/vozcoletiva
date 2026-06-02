@@ -87,6 +87,15 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
 - **PK** `USER#<userId>` · **SK** `CONVREAD#<conversationId>` — `lastReadMessageId`, `at`
 - **PK** `USER#<userId>` · **SK** `THREADREAD#<parentMessageId>` — `lastReadMessageId`, `at`
 
+### WebSocket connection (live delivery, decision 0028)
+- **PK** `CONN#<connectionId>` · **SK** `META` — `userId`, `connectedAt`, `ttl`
+- **PK** `USER#<userId>` · **SK** `CONN#<connectionId>` — `connectionId`, `ttl`
+- Two directional items per open socket: resolve a connection's owner, and list
+  a user's open sockets for fan-out. `$disconnect` deletes both; the broadcaster
+  prunes a 410-Gone socket; `ttl` is a backstop for a missed `$disconnect`.
+- The table has a **stream** (`NEW_IMAGE`); the `voz-realtime` Lambda consumes
+  INSERTs to broadcast new messages over WebSockets and send Web Push.
+
 ### DM pointer (one per participant)
 - **PK** `USER#<userId>` · **SK** `DM#<conversationId>` — `peerId`, `createdAt`
 - Lets a user list their DMs with a single `Query`. The conversation body lives

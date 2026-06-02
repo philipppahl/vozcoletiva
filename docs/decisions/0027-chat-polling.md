@@ -1,6 +1,8 @@
 # 0027 — Live-ish chat via polling (interim, pre-WebSocket)
 
-**Status:** accepted (interim)
+**Status:** superseded as primary by 0028 — polling is now the **fallback**
+(WebSockets carry live delivery; polling backs off to a slow safety net while
+the socket is up, and resumes fast intervals when it drops).
 **Date:** 2026-06-02
 **Builds on:** 0020/0021 (messaging), 0026 (optimistic updates)
 

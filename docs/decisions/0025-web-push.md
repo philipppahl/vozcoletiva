@@ -1,7 +1,11 @@
 # 0025 — Web Push (VAPID) + notification preferences
 
-**Status:** phase A accepted + shipped; phase B (delivery) specified, not yet built
+**Status:** phase A + phase B accepted + shipped. Phase B (delivery) was built as
+part of the realtime stream consumer — see decision **0028** for the as-built
+design (the push fan-out shares the WebSocket consumer rather than a standalone
+`voz-push` Lambda, and adds a `direct_message` trigger for DMs).
 **Date:** 2026-05-31
+**Updated:** 2026-06-02 (phase B shipped via 0028)
 **Builds on:** 0021 (inbox fan-out), 0024 (go no-mock → persistent SW)
 
 ## Context

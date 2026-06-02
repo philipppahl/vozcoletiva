@@ -87,5 +87,24 @@ Re-run `bun apps/web/scripts/seed-dev.ts` — it wipes the table and reseeds.
 - Push only works against a **persistent** service worker — i.e. a no-mock build
   (the deployed dev/prod app). Full-offline mock mode self-destroys the SW, so
   push is unavailable there.
-- Phase B (actual delivery via a DynamoDB-Stream push Lambda) is not built yet —
-  the opt-in + preferences are.
+- **Delivery is shipped** (decision 0028, completing 0025 Phase B): the
+  `voz-realtime` Lambda consumes the table's DynamoDB stream and sends Web Push
+  for inbox items + DMs. It reads the VAPID private key from
+  `/voz/<env>/vapid-private-key` at cold start, so that SSM param **must exist**
+  before push works (the IAM grant is scoped to it). If it's missing the Lambda
+  logs `vapid_unavailable` and push is skipped — WS broadcast still works.
+
+## Real-time WebSocket (decision 0028)
+
+- The deploy injects `VITE_WS_URL` (the `wss://…` stage URL, stack output
+  `WsUrl`) into `.env.production`. **Chicken-and-egg:** the first deploy that
+  *creates* the WS API can't bake the URL into that same build, so the FE stays
+  on polling until the **next** deploy. The FE tolerates an empty `VITE_WS_URL`.
+- Local dev: set `VITE_WS_URL=wss://di0lqitjnj.execute-api.eu-west-1.amazonaws.com/v1`
+  in `.env.development.local` to exercise live delivery against dev.
+- The socket authenticates with the Cognito **access token** as `?token=` on the
+  handshake. After deploying realtime changes, clear the stale SW + caches and
+  reload (live connections only pick up the new bundle on reload).
+- Inspect live state: connection rows are `CONN#<id>/META` +
+  `USER#<uid>/CONN#<id>`; the realtime Lambda logs `ws_broadcast` / `push_sent`
+  (counts only — never message bodies).
