@@ -654,6 +654,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Get a presigned URL to upload chat media
+         * @description Returns a short-lived presigned S3 PUT URL. The client uploads the bytes directly to S3 with the exact Content-Type, then posts a message referencing the returned `key`.
+         */
+        post: operations["createUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -669,6 +689,28 @@ export interface components {
         ApiError: {
             error: string;
             message: string;
+        };
+        Attachment: {
+            duration_ms?: number;
+            height?: number;
+            /** @enum {string} */
+            kind: "image" | "doc" | "voice";
+            mime: string;
+            name?: string;
+            size?: number;
+            url: string;
+            width?: number;
+        };
+        AttachmentInput: {
+            duration_ms?: number;
+            height?: number;
+            key: string;
+            /** @enum {string} */
+            kind: "image" | "doc" | "voice";
+            mime?: string;
+            name?: string;
+            size?: number;
+            width?: number;
         };
         AvatarResponse: {
             avatar_url: string;
@@ -889,8 +931,7 @@ export interface components {
             user_id: string;
         };
         Message: {
-            /** @description Always empty for now — attachment upload is a later slice. */
-            attachments: Record<string, never>[];
+            attachments: components["schemas"]["Attachment"][];
             author_display_name: string;
             author_id: string;
             body: string;
@@ -922,8 +963,7 @@ export interface components {
             ok: boolean;
         };
         PostMessageBody: {
-            /** @description Must be empty — attachment upload is a later slice. */
-            attachments?: Record<string, never>[];
+            attachments?: components["schemas"]["AttachmentInput"][];
             body: string;
             parent_message_id?: string | null;
         };
@@ -1052,6 +1092,17 @@ export interface components {
         };
         UpdateProfileBody: {
             display_name: string;
+        };
+        UploadRequest: {
+            content_type: string;
+            ext: string;
+        };
+        UploadResponse: {
+            key: string;
+            /** @description Presigned S3 PUT URL (short-lived). */
+            put_url: string;
+            /** @description Public CDN URL once uploaded. */
+            url: string;
         };
         UserProfile: {
             avatar_url?: string | null;
@@ -2569,6 +2620,48 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    createUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UploadRequest"];
+            };
+        };
+        responses: {
+            /** @description Presigned upload URL. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadResponse"];
+                };
+            };
+            /** @description Unsupported content type. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing, malformed, or expired access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
 }

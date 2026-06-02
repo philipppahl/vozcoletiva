@@ -45,6 +45,9 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
         ("POST", ["me", "avatar"]) => handlers::avatar::upload(&state, event).await,
         ("DELETE", ["me", "avatar"]) => handlers::avatar::delete(&state, event).await,
 
+        // Presigned upload URL for chat media
+        ("POST", ["uploads"]) => handlers::uploads::create(&state, event).await,
+
         // Inbox / notifications
         ("GET", ["me", "inbox"]) => handlers::inbox::list(&state, event).await,
         ("POST", ["me", "inbox", id, "read"]) => {

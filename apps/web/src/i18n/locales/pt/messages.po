@@ -237,8 +237,16 @@ msgid "An account with this email already exists."
 msgstr "Já existe uma conta com este email."
 
 #: src/components/messages/MessageComposer.tsx
-msgid "Attach image (placeholder)"
-msgstr "Anexar imagem (provisório)"
+msgid "Attach file"
+msgstr "Anexar ficheiro"
+
+#: src/components/messages/MessageComposer.tsx
+#~ msgid "Attach image (placeholder)"
+#~ msgstr "Anexar imagem (provisório)"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Attach photo"
+msgstr "Anexar foto"
 
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Body (Markdown)"
@@ -1067,6 +1075,10 @@ msgstr "Rejeitada"
 msgid "Remove"
 msgstr "Remover"
 
+#: src/components/messages/MessageComposer.tsx
+msgid "Remove attachment"
+msgstr "Remover anexo"
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Remove option"
 msgstr "Remover opção"
@@ -1360,8 +1372,8 @@ msgstr "Versão"
 #~ msgstr "Visibilidade"
 
 #: src/components/messages/MessageComposer.tsx
-msgid "Voice note (placeholder)"
-msgstr "Nota de voz (provisório)"
+#~ msgid "Voice note (placeholder)"
+#~ msgstr "Nota de voz (provisório)"
 
 #: src/components/forks/ForkModePicker.tsx
 #~ msgid "Voters rank the alternatives together. One winner; the others rejected."

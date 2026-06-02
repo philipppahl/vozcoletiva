@@ -3,14 +3,22 @@
  * OpenAPI spec will declare. See docs/decisions/0003-messages-mock-first.md.
  */
 
-export type AttachmentKind = 'image' | 'voice';
+export type AttachmentKind = 'image' | 'doc' | 'voice';
 
 export interface Attachment {
   kind: AttachmentKind;
+  /** Public CDN URL — present on received attachments + after upload. */
   url: string;
+  /** S3 key — present on outgoing attachments (used to post the message). */
+  key?: string;
+  mime?: string;
+  name?: string;
+  size?: number;
   width?: number;
   height?: number;
-  durationMs?: number;
+  duration_ms?: number;
+  /** Client-only: the attachment is still uploading (composer state). */
+  _uploading?: boolean;
 }
 
 export interface MessagePreview {

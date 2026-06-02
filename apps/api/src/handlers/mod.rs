@@ -17,6 +17,7 @@ pub mod projects;
 pub mod proposals;
 pub mod push;
 pub mod search;
+pub mod uploads;
 pub mod votes;
 
 /// Run `f` and shape its result into a JSON response. Successful results return

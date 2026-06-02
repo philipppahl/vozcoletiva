@@ -154,9 +154,26 @@ export function useSendMessage(conversationId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: SendMessageInput) => {
+      // Send only the fields the API needs (key + metadata, never the url).
+      const attachments = (input.attachments ?? [])
+        .filter((a) => a.key && !a._uploading)
+        .map((a) => ({
+          kind: a.kind,
+          key: a.key as string,
+          mime: a.mime,
+          name: a.name,
+          size: a.size,
+          width: a.width,
+          height: a.height,
+          duration_ms: a.duration_ms,
+        }));
       const { data, error } = await apiClient.POST('/v1/conversations/{id}/messages', {
         params: { path: { id: conversationId } },
-        body: { body: input.body, parent_message_id: input.parent_message_id ?? null },
+        body: {
+          body: input.body,
+          parent_message_id: input.parent_message_id ?? null,
+          ...(attachments.length ? { attachments } : {}),
+        },
       });
       return unwrap(data, error) as unknown as Message;
     },

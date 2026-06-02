@@ -83,6 +83,7 @@ async fn post_list_and_paginate_top_level_messages() {
             "Owner",
             &format!("msg {i}"),
             None,
+            vec![],
         )
         .await
         .unwrap();
@@ -116,12 +117,20 @@ async fn replies_form_a_thread_and_bump_the_parent() {
     let ddb = ddb_or_skip!("replies_form_a_thread_and_bump_the_parent");
     let (_pid, conv) = project_with_channel(&ddb, "gamma").await;
 
-    let parent = message::post(&ddb.state, &conv, "owner", "Owner", "topic", None)
+    let parent = message::post(&ddb.state, &conv, "owner", "Owner", "topic", None, vec![])
         .await
         .unwrap();
-    let r1 = message::post(&ddb.state, &conv, "u2", "Bob", "reply 1", Some(&parent.id))
-        .await
-        .unwrap();
+    let r1 = message::post(
+        &ddb.state,
+        &conv,
+        "u2",
+        "Bob",
+        "reply 1",
+        Some(&parent.id),
+        vec![],
+    )
+    .await
+    .unwrap();
     message::post(
         &ddb.state,
         &conv,
@@ -129,6 +138,7 @@ async fn replies_form_a_thread_and_bump_the_parent() {
         "Owner",
         "reply 2",
         Some(&parent.id),
+        vec![],
     )
     .await
     .unwrap();
@@ -179,10 +189,18 @@ async fn read_marker_drives_unread_count() {
     let mut ids = Vec::new();
     for i in 0..3 {
         ids.push(
-            message::post(&ddb.state, &conv, "owner", "Owner", &format!("m{i}"), None)
-                .await
-                .unwrap()
-                .id,
+            message::post(
+                &ddb.state,
+                &conv,
+                "owner",
+                "Owner",
+                &format!("m{i}"),
+                None,
+                vec![],
+            )
+            .await
+            .unwrap()
+            .id,
         );
     }
 
@@ -245,10 +263,10 @@ async fn last_message_is_the_newest_top_level() {
         .unwrap()
         .is_none());
 
-    message::post(&ddb.state, &conv, "owner", "Owner", "first", None)
+    message::post(&ddb.state, &conv, "owner", "Owner", "first", None, vec![])
         .await
         .unwrap();
-    let second = message::post(&ddb.state, &conv, "owner", "Owner", "second", None)
+    let second = message::post(&ddb.state, &conv, "owner", "Owner", "second", None, vec![])
         .await
         .unwrap();
     // A reply must not become the "last message".
@@ -259,6 +277,7 @@ async fn last_message_is_the_newest_top_level() {
         "Owner",
         "a reply",
         Some(&second.id),
+        vec![],
     )
     .await
     .unwrap();

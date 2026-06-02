@@ -6,9 +6,9 @@ use crate::auth::{bearer_token, perms, AuthenticatedUser};
 use crate::domain::message::validate_body;
 use crate::error::AppError;
 use crate::repo::conversation::{Conversation, ConversationMeta, DmConversation};
-use crate::repo::message::Message;
+use crate::repo::message::{Attachment, Message};
 use crate::repo::{conversation, membership, message, user};
-use crate::state::AppState;
+use crate::state::{AppState, MediaConfig};
 
 const PAGE_LIMIT: usize = 50;
 
@@ -63,6 +63,41 @@ struct StartDmBody {
 }
 
 #[derive(Debug, Serialize)]
+struct AttachmentView {
+    kind: String,
+    url: String,
+    mime: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    size: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    width: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    height: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    duration_ms: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AttachmentInput {
+    kind: String,
+    key: String,
+    #[serde(default)]
+    mime: String,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    size: Option<i64>,
+    #[serde(default)]
+    width: Option<i64>,
+    #[serde(default)]
+    height: Option<i64>,
+    #[serde(default)]
+    duration_ms: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
 struct MessageView {
     id: String,
     conversation_id: String,
@@ -70,7 +105,7 @@ struct MessageView {
     author_id: String,
     author_display_name: String,
     body: String,
-    attachments: Vec<serde_json::Value>,
+    attachments: Vec<AttachmentView>,
     created_at: String,
     edited_at: Option<String>,
     reply_count: i64,
@@ -94,7 +129,40 @@ struct PostMessageBody {
     body: String,
     parent_message_id: Option<String>,
     #[serde(default)]
-    attachments: Vec<serde_json::Value>,
+    attachments: Vec<AttachmentInput>,
+}
+
+const ALLOWED_KINDS: [&str; 3] = ["image", "doc", "voice"];
+const MAX_ATTACHMENTS: usize = 10;
+
+/// Validate + convert incoming attachment refs to stored attachments. The key
+/// must be one we issued (under `chat/`); kinds are constrained. The bytes were
+/// uploaded via a server-issued presigned PUT, so we trust the metadata.
+fn to_attachments(input: Vec<AttachmentInput>) -> Result<Vec<Attachment>, AppError> {
+    if input.len() > MAX_ATTACHMENTS {
+        return Err(AppError::BadRequest("too many attachments".into()));
+    }
+    input
+        .into_iter()
+        .map(|a| {
+            if !ALLOWED_KINDS.contains(&a.kind.as_str()) {
+                return Err(AppError::BadRequest("unknown attachment kind".into()));
+            }
+            if !a.key.starts_with("chat/") || a.key.contains("..") {
+                return Err(AppError::BadRequest("invalid attachment key".into()));
+            }
+            Ok(Attachment {
+                kind: a.kind,
+                key: a.key,
+                mime: a.mime,
+                name: a.name,
+                size: a.size,
+                width: a.width,
+                height: a.height,
+                duration_ms: a.duration_ms,
+            })
+        })
+        .collect()
 }
 
 #[derive(Debug, Deserialize)]
@@ -106,7 +174,21 @@ fn preview(body: &str) -> String {
     body.chars().take(80).collect()
 }
 
-fn message_view(m: &Message) -> MessageView {
+fn message_view(m: &Message, media: Option<&MediaConfig>) -> MessageView {
+    let attachments = m
+        .attachments
+        .iter()
+        .map(|a| AttachmentView {
+            kind: a.kind.clone(),
+            url: media.map(|cfg| cfg.url_for(&a.key)).unwrap_or_default(),
+            mime: a.mime.clone(),
+            name: a.name.clone(),
+            size: a.size,
+            width: a.width,
+            height: a.height,
+            duration_ms: a.duration_ms,
+        })
+        .collect();
     MessageView {
         id: m.id.clone(),
         conversation_id: m.conversation_id.clone(),
@@ -114,7 +196,7 @@ fn message_view(m: &Message) -> MessageView {
         author_id: m.author_id.clone(),
         author_display_name: m.author_display_name.clone(),
         body: m.body.clone(),
-        attachments: Vec::new(),
+        attachments,
         created_at: m.created_at.clone(),
         edited_at: None,
         reply_count: m.reply_count,
@@ -308,8 +390,9 @@ pub async fn list_messages(
             let before = query_param(&req, "before");
             let (messages, has_more) =
                 message::list_top_level(state, meta.id(), before.as_deref(), PAGE_LIMIT).await?;
+            let media = state.media.as_ref();
             Ok(MessageListResponse {
-                messages: messages.iter().map(message_view).collect(),
+                messages: messages.iter().map(|m| message_view(m, media)).collect(),
                 has_more,
             })
         },
@@ -331,12 +414,13 @@ pub async fn post_message(
             let author_name = poster_display_name(state, &meta, &user.user_id).await?;
             let conv_id = meta.id().to_string();
             let body: PostMessageBody = parse_body(&req)?;
-            if !body.attachments.is_empty() {
-                return Err(AppError::BadRequest(
-                    "attachments are not supported yet".into(),
-                ));
-            }
-            let text = validate_body(&body.body)?;
+            let attachments = to_attachments(body.attachments)?;
+            // A message must carry text or at least one attachment.
+            let text = if body.body.trim().is_empty() && !attachments.is_empty() {
+                String::new()
+            } else {
+                validate_body(&body.body)?
+            };
 
             if let Some(parent_id) = body.parent_message_id.as_deref() {
                 // The parent must be a top-level message in this conversation.
@@ -363,6 +447,7 @@ pub async fn post_message(
                 &author_name,
                 &text,
                 body.parent_message_id.as_deref(),
+                attachments,
             )
             .await?;
 
@@ -383,7 +468,7 @@ pub async fn post_message(
             {
                 tracing::warn!(event = "inbox_fanout_failed", trigger = "message", error = %e);
             }
-            Ok(message_view(&msg))
+            Ok(message_view(&msg, state.media.as_ref()))
         },
         201,
     )
@@ -424,9 +509,10 @@ pub async fn get_thread(
             let meta = conversation::get_meta(state, &parent.conversation_id).await?;
             authorize_conversation(state, &meta, &user.user_id).await?;
             let replies = message::thread_replies(state, &parent.id).await?;
+            let media = state.media.as_ref();
             Ok(ThreadResponse {
-                parent: message_view(&parent),
-                replies: replies.iter().map(message_view).collect(),
+                parent: message_view(&parent, media),
+                replies: replies.iter().map(|m| message_view(m, media)).collect(),
             })
         },
         200,

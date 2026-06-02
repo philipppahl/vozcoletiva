@@ -87,10 +87,10 @@ async fn messages_work_in_a_dm_via_the_shared_repo() {
         .await
         .unwrap();
 
-    message::post(&ddb.state, &dm.id, "alice", "Alice", "hi bob", None)
+    message::post(&ddb.state, &dm.id, "alice", "Alice", "hi bob", None, vec![])
         .await
         .unwrap();
-    let m2 = message::post(&ddb.state, &dm.id, "bob", "Bob", "hey alice", None)
+    let m2 = message::post(&ddb.state, &dm.id, "bob", "Bob", "hey alice", None, vec![])
         .await
         .unwrap();
 
@@ -104,7 +104,9 @@ async fn messages_work_in_a_dm_via_the_shared_repo() {
 
     // Read marker → unread count, reusing the conversation read machinery.
     assert_eq!(
-        message::unread_count(&ddb.state, &dm.id, None).await.unwrap(),
+        message::unread_count(&ddb.state, &dm.id, None)
+            .await
+            .unwrap(),
         2
     );
     conversation::set_conversation_read(&ddb.state, "alice", &dm.id, &m2.id, NOW)

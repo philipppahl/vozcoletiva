@@ -1,8 +1,10 @@
 import { Trans, t } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
-import { useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useMemo, useRef, useState } from 'react';
 
 import type { Attachment } from '../../lib/messages/types';
+import { toast } from '../../lib/toast';
+import { compressImage, extOf, uploadBlob } from '../../lib/uploads';
 import type { MentionCandidate } from './MentionPopover';
 import { MentionPopover } from './MentionPopover';
 
@@ -16,11 +18,6 @@ interface MessageComposerProps {
   placeholder?: string;
 }
 
-const PLACEHOLDER_GRADIENTS = [
-  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0%" stop-color="%23F472B6"/><stop offset="100%" stop-color="%237C3AED"/></linearGradient></defs><rect width="320" height="180" fill="url(%23g)"/></svg>',
-  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><defs><linearGradient id="g" x1="0" x2="1" y2="1"><stop offset="0%" stop-color="%2360A5FA"/><stop offset="100%" stop-color="%23047857"/></linearGradient></defs><rect width="320" height="180" fill="url(%23g)"/></svg>',
-];
-
 export function MessageComposer({
   mentionCandidates,
   onSubmit,
@@ -29,10 +26,15 @@ export function MessageComposer({
 }: MessageComposerProps) {
   const { _ } = useLingui();
   const ref = useRef<HTMLTextAreaElement | null>(null);
+  const imgInputRef = useRef<HTMLInputElement | null>(null);
+  const docInputRef = useRef<HTMLInputElement | null>(null);
+  const tempIdRef = useRef(0);
   const [value, setValue] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [activeMention, setActiveMention] = useState(0);
+
+  const uploading = attachments.some((a) => a._uploading);
 
   const filtered = useMemo(() => {
     if (mentionQuery == null) return [];
@@ -44,7 +46,6 @@ export function MessageComposer({
 
   function updateValue(next: string) {
     setValue(next);
-    // Detect the `@token-being-typed` at the current caret position.
     const caret = ref.current?.selectionStart ?? next.length;
     const upToCaret = next.slice(0, caret);
     const m = /@([a-z0-9-]*)$/i.exec(upToCaret);
@@ -68,36 +69,86 @@ export function MessageComposer({
     setMentionQuery(null);
     requestAnimationFrame(() => {
       ta?.focus();
-      const newCaret = tokenStart + c.user_id.length + 2; // @ + id + space
+      const newCaret = tokenStart + c.user_id.length + 2;
       ta?.setSelectionRange(newCaret, newCaret);
     });
   }
 
-  function addImage() {
-    const grad = PLACEHOLDER_GRADIENTS[Math.floor(Math.random() * PLACEHOLDER_GRADIENTS.length)]!;
-    setAttachments((prev) => [
-      ...prev,
-      { kind: 'image' as const, url: grad, width: 320, height: 180 },
-    ]);
+  // Upload picked images (downscaled to WebP) — the chip shows a local preview
+  // while the upload runs, then swaps to the CDN URL.
+  async function onPickImage(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    for (const file of files) {
+      const tempKey = `pending-${tempIdRef.current++}`;
+      let previewUrl = '';
+      try {
+        const { blob, width, height, ext } = await compressImage(file);
+        previewUrl = URL.createObjectURL(blob);
+        setAttachments((prev) => [
+          ...prev,
+          {
+            kind: 'image',
+            url: previewUrl,
+            key: tempKey,
+            mime: blob.type,
+            size: blob.size,
+            width,
+            height,
+            _uploading: true,
+          },
+        ]);
+        const { key, url } = await uploadBlob(blob, ext);
+        setAttachments((prev) =>
+          prev.map((a) => (a.key === tempKey ? { ...a, key, url, _uploading: false } : a)),
+        );
+        URL.revokeObjectURL(previewUrl);
+      } catch {
+        setAttachments((prev) => prev.filter((a) => a.key !== tempKey));
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+        toast.error('Couldn’t add that image.');
+      }
+    }
   }
 
-  function addVoice() {
-    setAttachments((prev) => [
-      ...prev,
-      { kind: 'voice' as const, url: '', durationMs: 12_000 + Math.floor(Math.random() * 30_000) },
-    ]);
+  async function onPickDoc(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    for (const file of files) {
+      const tempKey = `pending-${tempIdRef.current++}`;
+      setAttachments((prev) => [
+        ...prev,
+        {
+          kind: 'doc',
+          url: '',
+          key: tempKey,
+          mime: file.type || 'application/octet-stream',
+          name: file.name,
+          size: file.size,
+          _uploading: true,
+        },
+      ]);
+      try {
+        const { key, url } = await uploadBlob(file, extOf(file.name));
+        setAttachments((prev) =>
+          prev.map((a) => (a.key === tempKey ? { ...a, key, url, _uploading: false } : a)),
+        );
+      } catch {
+        setAttachments((prev) => prev.filter((a) => a.key !== tempKey));
+        toast.error('Couldn’t add that file.');
+      }
+    }
   }
 
   function submit() {
     const body = value.trim();
-    if (!body && attachments.length === 0) return;
-    const sent = attachments;
-    // Clear immediately — the message shows optimistically, so the composer
-    // shouldn't wait for the server round-trip to feel responsive.
+    const ready = attachments.filter((a) => !a._uploading);
+    if (!body && ready.length === 0) return;
+    if (uploading) return; // wait for in-flight uploads
     setValue('');
     setAttachments([]);
     setMentionQuery(null);
-    void onSubmit(body, sent);
+    void onSubmit(body, ready);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -125,73 +176,68 @@ export function MessageComposer({
     }
     if (e.key === 'Enter' && !e.shiftKey && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      void submit();
+      submit();
     }
   }
+
+  const canSend = !pending && !uploading && (value.trim().length > 0 || attachments.length > 0);
 
   return (
     <div
       className="relative flex flex-col gap-2 border-t px-3 pt-3 pb-[max(env(safe-area-inset-bottom),12px)]"
-      style={{
-        background: 'var(--bg)',
-        borderColor: 'var(--border)',
-      }}
+      style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
     >
       {attachments.length > 0 && (
         <ul className="flex flex-wrap gap-2 px-1">
-          {attachments.map((a, idx) => (
+          {attachments.map((a) => (
             <li
-              // biome-ignore lint/suspicious/noArrayIndexKey: attachments are local-only state, not user-reorderable
-              key={`att-${idx}-${a.kind}`}
-              className="relative overflow-hidden rounded-lg"
-              style={{
-                background: 'var(--surface-2)',
-                border: '0.5px solid var(--border)',
-              }}
+              key={a.key}
+              className="relative flex items-center gap-2 overflow-hidden rounded-lg"
+              style={{ background: 'var(--surface-2)', border: '0.5px solid var(--border)' }}
             >
               {a.kind === 'image' ? (
                 <img
                   src={a.url}
                   alt=""
-                  style={{
-                    display: 'block',
-                    width: 56,
-                    height: 56,
-                    objectFit: 'cover',
-                  }}
+                  style={{ display: 'block', width: 56, height: 56, objectFit: 'cover' }}
                 />
               ) : (
                 <div
-                  className="flex items-center justify-center text-[10px] font-medium uppercase"
-                  style={{
-                    width: 56,
-                    height: 56,
-                    color: 'var(--ink-soft)',
-                    fontFamily: 'var(--font-mono)',
-                    letterSpacing: 1,
-                  }}
+                  className="flex items-center gap-2 px-2.5 py-2"
+                  style={{ maxWidth: 180, color: 'var(--ink-soft)' }}
                 >
-                  voice
+                  <DocIcon />
+                  <span className="truncate text-[12px]" style={{ color: 'var(--ink)' }}>
+                    {a.name ?? 'file'}
+                  </span>
                 </div>
               )}
-              <button
-                type="button"
-                aria-label="Remove attachment"
-                onClick={() =>
-                  setAttachments((prev) => prev.filter((_, otherIdx) => otherIdx !== idx))
-                }
-                className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full"
-                style={{
-                  background: 'rgba(0,0,0,0.55)',
-                  color: '#fff',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  lineHeight: 1,
-                }}
-              >
-                ×
-              </button>
+              {a._uploading && (
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ background: 'rgba(0,0,0,0.35)' }}
+                >
+                  <Spinner />
+                </div>
+              )}
+              {!a._uploading && (
+                <button
+                  type="button"
+                  aria-label={_(t`Remove attachment`)}
+                  onClick={() => setAttachments((prev) => prev.filter((x) => x.key !== a.key))}
+                  className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full"
+                  style={{
+                    background: 'rgba(0,0,0,0.55)',
+                    color: '#fff',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -199,8 +245,8 @@ export function MessageComposer({
       <div className="relative flex items-end gap-2">
         <button
           type="button"
-          onClick={addImage}
-          aria-label={_(t`Attach image (placeholder)`)}
+          onClick={() => imgInputRef.current?.click()}
+          aria-label={_(t`Attach photo`)}
           className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
           style={{
             background: 'var(--surface-2)',
@@ -209,19 +255,30 @@ export function MessageComposer({
             cursor: 'pointer',
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect
+              x="3"
+              y="5"
+              width="18"
+              height="14"
+              rx="2.5"
+              stroke="currentColor"
+              strokeWidth="1.6"
+            />
+            <circle cx="8.5" cy="10" r="1.6" fill="currentColor" />
             <path
-              d="M9 4v10M4 9h10"
+              d="M5 17l4.5-4 3 2.5L16 12l3 3"
               stroke="currentColor"
               strokeWidth="1.6"
               strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </svg>
         </button>
         <button
           type="button"
-          onClick={addVoice}
-          aria-label={_(t`Voice note (placeholder)`)}
+          onClick={() => docInputRef.current?.click()}
+          aria-label={_(t`Attach file`)}
           className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
           style={{
             background: 'var(--surface-2)',
@@ -230,16 +287,32 @@ export function MessageComposer({
             cursor: 'pointer',
           }}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <rect x="5" y="1" width="4" height="8" rx="2" stroke="currentColor" strokeWidth="1.4" />
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
-              d="M2 7a5 5 0 0010 0M7 12v1.5"
+              d="M19 11l-7.5 7.5a4 4 0 01-5.7-5.7L13 5.6a2.6 2.6 0 113.7 3.7L9.3 16.7a1.2 1.2 0 11-1.7-1.7L15 7.6"
               stroke="currentColor"
-              strokeWidth="1.4"
+              strokeWidth="1.6"
               strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </svg>
         </button>
+        <input
+          ref={imgInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={onPickImage}
+          style={{ display: 'none' }}
+        />
+        <input
+          ref={docInputRef}
+          type="file"
+          multiple
+          onChange={onPickDoc}
+          style={{ display: 'none' }}
+        />
+
         <div className="relative min-w-0 flex-1">
           {mentionQuery !== null && (
             <MentionPopover
@@ -271,16 +344,16 @@ export function MessageComposer({
         </div>
         <button
           type="button"
-          onClick={() => void submit()}
-          disabled={pending || (value.trim().length === 0 && attachments.length === 0)}
+          onClick={() => submit()}
+          disabled={!canSend}
           aria-label={_(t`Send message`)}
           className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
           style={{
             background: 'var(--accent)',
             color: 'var(--accent-ink)',
             border: 'none',
-            cursor: 'pointer',
-            opacity: pending || (value.trim().length === 0 && attachments.length === 0) ? 0.5 : 1,
+            cursor: canSend ? 'pointer' : 'default',
+            opacity: canSend ? 1 : 0.5,
           }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -290,14 +363,61 @@ export function MessageComposer({
       </div>
       <div
         className="px-1 text-[10.5px]"
-        style={{
-          color: 'var(--ink-muted)',
-          fontFamily: 'var(--font-mono)',
-          letterSpacing: 0.5,
-        }}
+        style={{ color: 'var(--ink-muted)', fontFamily: 'var(--font-mono)', letterSpacing: 0.5 }}
       >
         <Trans>**bold** *italic* `code` [link](url) — @ to mention</Trans>
       </div>
     </div>
+  );
+}
+
+function DocIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <path
+        d="M14 3v4a1 1 0 001 1h4"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5 3h9l5 5v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.35)" strokeWidth="2.5" fill="none" />
+      <path
+        d="M21 12a9 9 0 00-9-9"
+        stroke="#fff"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        fill="none"
+      >
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 12 12"
+          to="360 12 12"
+          dur="0.7s"
+          repeatCount="indefinite"
+        />
+      </path>
+    </svg>
   );
 }

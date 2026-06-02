@@ -8,7 +8,7 @@ import {
   ViewerProtocolPolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
 import { S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
-import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
+import { BlockPublicAccess, Bucket, BucketEncryption, HttpMethods } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
 export interface MediaProps {
@@ -38,6 +38,16 @@ export class Media extends Construct {
       encryption: BucketEncryption.S3_MANAGED,
       removalPolicy: props.env === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
       autoDeleteObjects: props.env !== 'prod',
+      // Browsers PUT chat media directly to S3 via server-issued presigned URLs
+      // (the signature is the real auth; CORS just permits the cross-origin PUT).
+      cors: [
+        {
+          allowedMethods: [HttpMethods.PUT, HttpMethods.GET, HttpMethods.HEAD],
+          allowedOrigins: ['*'],
+          allowedHeaders: ['*'],
+          maxAge: 3000,
+        },
+      ],
     });
 
     const distribution = new Distribution(this, 'MediaDistribution', {

@@ -2,11 +2,31 @@ use std::collections::HashMap;
 
 use aws_sdk_dynamodb::types::{AttributeValue, Put, Select, TransactWriteItem, Update};
 use chrono::Utc;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 use crate::error::AppError;
 use crate::state::AppState;
+
+/// A media attachment on a message. `key` is the S3 object key; the public URL
+/// is derived at the DTO layer. Stored on the message item as a JSON blob.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Attachment {
+    pub kind: String, // "image" | "doc" | "voice"
+    pub key: String,
+    #[serde(default)]
+    pub mime: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub size: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub width: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub height: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub duration_ms: Option<i64>,
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Message {
@@ -19,6 +39,7 @@ pub struct Message {
     pub created_at: String,
     pub reply_count: i64,
     pub last_reply_at: Option<String>,
+    pub attachments: Vec<Attachment>,
 }
 
 /// Top-level messages live at `MSG#<ulid>`, replies at `REPLY#<ulid>` — so
@@ -42,6 +63,7 @@ pub async fn post(
     author_display_name: &str,
     body: &str,
     parent_message_id: Option<&str>,
+    attachments: Vec<Attachment>,
 ) -> Result<Message, AppError> {
     let id = Ulid::new().to_string();
     let now = Utc::now().to_rfc3339();
@@ -69,6 +91,13 @@ pub async fn post(
         ("createdAt".to_string(), AttributeValue::S(now.clone())),
     ]);
 
+    // Attachments are stored as a JSON blob (a list of small maps) on the item.
+    if !attachments.is_empty() {
+        let json =
+            serde_json::to_string(&attachments).map_err(|e| AppError::Internal(Box::new(e)))?;
+        item.insert("attachments".to_string(), AttributeValue::S(json));
+    }
+
     let message = Message {
         id: id.clone(),
         conversation_id: conversation_id.to_string(),
@@ -79,6 +108,7 @@ pub async fn post(
         created_at: now.clone(),
         reply_count: 0,
         last_reply_at: None,
+        attachments,
     };
 
     match parent_message_id {
@@ -302,5 +332,8 @@ fn message_from_item(item: &HashMap<String, AttributeValue>) -> Result<Message, 
             .and_then(|n| n.parse().ok())
             .unwrap_or(0),
         last_reply_at: s_opt(item, "lastReplyAt").map(String::from),
+        attachments: s_opt(item, "attachments")
+            .and_then(|j| serde_json::from_str(j).ok())
+            .unwrap_or_default(),
     })
 }

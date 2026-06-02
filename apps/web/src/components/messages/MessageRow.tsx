@@ -4,9 +4,8 @@ import { useAuth } from '../../lib/auth/hooks';
 import type { Message } from '../../lib/messages/types';
 import { RelativeTime } from '../RelativeTime';
 import { Avatar } from '../shell/Avatar';
-import { AttachmentImage } from './AttachmentImage';
+import { AttachmentBlock } from './DocCard';
 import { MessageMarkdown } from './messageMarkdown';
-import { VoiceNoteBlock } from './VoiceNoteBlock';
 
 interface MessageRowProps {
   message: Message;
@@ -90,13 +89,9 @@ export function MessageRow({
             <div
               // biome-ignore lint/suspicious/noArrayIndexKey: attachments are append-only within a message
               key={`${message.id}-att-${i}-${a.kind}`}
-              className={hasText ? 'mt-2' : ''}
+              className={hasText || i > 0 ? 'mt-2' : ''}
             >
-              {a.kind === 'image' ? (
-                <AttachmentImage attachment={a} />
-              ) : (
-                <VoiceNoteBlock attachment={a} />
-              )}
+              <AttachmentBlock attachment={a} />
             </div>
           ))}
         </div>

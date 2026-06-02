@@ -125,6 +125,38 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  /v1/uploads:
+    post:
+      summary: Get a presigned URL to upload chat media
+      description: >
+        Returns a short-lived presigned S3 PUT URL. The client uploads the bytes
+        directly to S3 with the exact Content-Type, then posts a message
+        referencing the returned `key`.
+      operationId: createUpload
+      tags: [messages]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UploadRequest' }
+      responses:
+        '200':
+          description: Presigned upload URL.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UploadResponse' }
+        '400':
+          description: Unsupported content type.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401':
+          description: Missing, malformed, or expired access token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
   /v1/me/inbox:
     get:
       summary: The caller's inbox (notifications)
@@ -1239,8 +1271,7 @@ components:
         body: { type: string }
         attachments:
           type: array
-          items: { type: object }
-          description: Always empty for now — attachment upload is a later slice.
+          items: { $ref: '#/components/schemas/Attachment' }
         created_at: { type: string, format: date-time }
         edited_at: { type: string, format: date-time, nullable: true }
         reply_count: { type: integer }
@@ -1271,12 +1302,56 @@ components:
       required: [body]
       additionalProperties: false
       properties:
-        body: { type: string, minLength: 1, maxLength: 4000 }
+        body: { type: string, minLength: 0, maxLength: 4000 }
         parent_message_id: { type: string, nullable: true }
         attachments:
           type: array
-          items: { type: object }
-          description: Must be empty — attachment upload is a later slice.
+          items: { $ref: '#/components/schemas/AttachmentInput' }
+
+    Attachment:
+      type: object
+      required: [kind, url, mime]
+      additionalProperties: false
+      properties:
+        kind: { type: string, enum: [image, doc, voice] }
+        url: { type: string }
+        mime: { type: string }
+        name: { type: string }
+        size: { type: integer }
+        width: { type: integer }
+        height: { type: integer }
+        duration_ms: { type: integer }
+
+    AttachmentInput:
+      type: object
+      required: [kind, key]
+      additionalProperties: false
+      properties:
+        kind: { type: string, enum: [image, doc, voice] }
+        key: { type: string }
+        mime: { type: string }
+        name: { type: string }
+        size: { type: integer }
+        width: { type: integer }
+        height: { type: integer }
+        duration_ms: { type: integer }
+
+    UploadRequest:
+      type: object
+      required: [content_type, ext]
+      additionalProperties: false
+      properties:
+        content_type: { type: string }
+        ext: { type: string }
+
+    UploadResponse:
+      type: object
+      required: [put_url, key, url]
+      additionalProperties: false
+      properties:
+        put_url: { type: string, description: Presigned S3 PUT URL (short-lived). }
+        key: { type: string }
+        url: { type: string, description: Public CDN URL once uploaded. }
 
     ReadBody:
       type: object

@@ -8,7 +8,7 @@ interface VoiceNoteBlockProps {
 
 export function VoiceNoteBlock({ attachment }: VoiceNoteBlockProps) {
   if (attachment.kind !== 'voice') return null;
-  const seconds = Math.round((attachment.durationMs ?? 0) / 1000);
+  const seconds = Math.round((attachment.duration_ms ?? 0) / 1000);
   const mm = Math.floor(seconds / 60);
   const ss = String(seconds % 60).padStart(2, '0');
   return (
