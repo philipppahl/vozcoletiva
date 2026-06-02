@@ -45,6 +45,9 @@ export function MessageRow({
   // Channels (projectSlug set) name the sender above others' bubbles; DMs don't.
   const showName = !own && !grouped && !!projectSlug;
   const hasText = !!message.body;
+  // Media-only messages drop the coloured bubble — the attachment carries its
+  // own frame (an indigo wrapper around a photo looks heavy).
+  const mediaOnly = !hasText && message.attachments.length > 0;
 
   return (
     <div
@@ -74,12 +77,12 @@ export function MessageRow({
 
         <div
           style={{
-            background: own ? 'var(--accent)' : 'var(--surface-2)',
+            background: mediaOnly ? 'transparent' : own ? 'var(--accent)' : 'var(--surface-2)',
             color: own ? 'var(--accent-ink)' : 'var(--ink)',
             borderRadius: 18,
-            borderBottomRightRadius: own && tail ? 6 : 18,
-            borderBottomLeftRadius: !own && tail ? 6 : 18,
-            padding: hasText ? '7px 11px' : 4,
+            borderBottomRightRadius: !mediaOnly && own && tail ? 6 : 18,
+            borderBottomLeftRadius: !mediaOnly && !own && tail ? 6 : 18,
+            padding: mediaOnly ? 0 : hasText ? '7px 11px' : 4,
             opacity: pending ? 0.75 : 1,
             maxWidth: '100%',
           }}

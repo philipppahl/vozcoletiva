@@ -261,6 +261,10 @@ msgstr "Desenho calmo. Notificações só quando vale a sua atenção."
 msgid "Cancel"
 msgstr "Cancelar"
 
+#: src/components/messages/MessageComposer.tsx
+msgid "Cancel recording"
+msgstr "Cancelar gravação"
+
 #: src/routes/p.$slug.categories.tsx
 #: src/routes/p.$slug.manage.tsx
 #~ msgid "Categories"
@@ -925,8 +929,8 @@ msgstr "A senha deve ter pelo menos 12 caracteres."
 #~ msgstr "Canais por projeto para conversas rápidas e informais. Texto, imagens e notas de voz. Não substitui a deliberação — só agiliza o que está ao lado dela."
 
 #: src/components/messages/VoiceNoteBlock.tsx
-msgid "Planned"
-msgstr "Previsto"
+#~ msgid "Planned"
+#~ msgstr "Previsto"
 
 #: src/routes/sign-up.tsx
 msgid "Please enter a display name."
@@ -1062,6 +1066,14 @@ msgstr "O quórum deve ser um número inteiro."
 #: src/routes/p.$slug.index.tsx
 msgid "Recently closed"
 msgstr "Recentemente fechadas"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Record voice note"
+msgstr "Gravar nota de voz"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Recording…"
+msgstr "A gravar…"
 
 #: src/components/forks/DeliberationCard.tsx
 msgid "rejected"
@@ -1220,6 +1232,10 @@ msgstr "Algo correu mal. Por favor, tente novamente."
 #: src/routes/welcome.tsx
 msgid "Stay accountable"
 msgstr "Manter responsabilidade"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Stop recording"
+msgstr "Parar gravação"
 
 #: src/routes/index.tsx
 msgid "Structured collective decision-making."

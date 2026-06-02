@@ -261,6 +261,10 @@ msgstr "Calm-by-design. Notifications only when it's worth your attention."
 msgid "Cancel"
 msgstr "Cancel"
 
+#: src/components/messages/MessageComposer.tsx
+msgid "Cancel recording"
+msgstr "Cancel recording"
+
 #: src/routes/p.$slug.categories.tsx
 #: src/routes/p.$slug.manage.tsx
 #~ msgid "Categories"
@@ -925,8 +929,8 @@ msgstr "Password must be at least 12 characters."
 #~ msgstr "Per-project channels for fast, informal talk. Text, images and voice notes. Not a replacement for deliberation — just lighter chatter alongside it."
 
 #: src/components/messages/VoiceNoteBlock.tsx
-msgid "Planned"
-msgstr "Planned"
+#~ msgid "Planned"
+#~ msgstr "Planned"
 
 #: src/routes/sign-up.tsx
 msgid "Please enter a display name."
@@ -1062,6 +1066,14 @@ msgstr "Quorum must be a whole number."
 #: src/routes/p.$slug.index.tsx
 msgid "Recently closed"
 msgstr "Recently closed"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Record voice note"
+msgstr "Record voice note"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Recording…"
+msgstr "Recording…"
 
 #: src/components/forks/DeliberationCard.tsx
 msgid "rejected"
@@ -1220,6 +1232,10 @@ msgstr "Something went wrong. Please try again."
 #: src/routes/welcome.tsx
 msgid "Stay accountable"
 msgstr "Stay accountable"
+
+#: src/components/messages/MessageComposer.tsx
+msgid "Stop recording"
+msgstr "Stop recording"
 
 #: src/routes/index.tsx
 msgid "Structured collective decision-making."

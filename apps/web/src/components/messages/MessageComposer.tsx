@@ -1,6 +1,6 @@
 import { Trans, t } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
-import { type ChangeEvent, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Attachment } from '../../lib/messages/types';
 import { toast } from '../../lib/toast';
@@ -33,8 +33,27 @@ export function MessageComposer({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [activeMention, setActiveMention] = useState(0);
+  const [recording, setRecording] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const startMsRef = useRef(0);
+  const cancelRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const uploading = attachments.some((a) => a._uploading);
+
+  // Release the mic + timer if the composer unmounts mid-recording.
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      streamRef.current?.getTracks().forEach((tr) => {
+        tr.stop();
+      });
+    },
+    [],
+  );
 
   const filtered = useMemo(() => {
     if (mentionQuery == null) return [];
@@ -140,6 +159,83 @@ export function MessageComposer({
     }
   }
 
+  function pickAudioMime(): string {
+    const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+    for (const m of candidates) {
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported?.(m)) return m;
+    }
+    return '';
+  }
+
+  async function startRecording() {
+    if (recording) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mime = pickAudioMime();
+      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunksRef.current = [];
+      cancelRef.current = false;
+      rec.ondataavailable = (e) => {
+        if (e.data.size) chunksRef.current.push(e.data);
+      };
+      rec.onstop = () => void finishRecording();
+      recorderRef.current = rec;
+      rec.start();
+      startMsRef.current = Date.now();
+      setElapsedMs(0);
+      setRecording(true);
+      timerRef.current = setInterval(() => setElapsedMs(Date.now() - startMsRef.current), 200);
+    } catch {
+      toast.error('Couldn’t access the microphone.');
+    }
+  }
+
+  function stopRecording(cancel: boolean) {
+    cancelRef.current = cancel;
+    const rec = recorderRef.current;
+    if (rec && rec.state !== 'inactive') rec.stop();
+  }
+
+  async function finishRecording() {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setRecording(false);
+    streamRef.current?.getTracks().forEach((tr) => {
+      tr.stop();
+    });
+    streamRef.current = null;
+    const durationMs = Date.now() - startMsRef.current;
+    const chunks = chunksRef.current;
+    chunksRef.current = [];
+    // Discard cancels + accidental sub-half-second taps.
+    if (cancelRef.current || chunks.length === 0 || durationMs < 500) return;
+    const type = chunks[0]?.type || 'audio/webm';
+    const blob = new Blob(chunks, { type });
+    const ext = type.includes('mp4') || type.includes('mpeg') ? 'm4a' : 'webm';
+    const tempKey = `pending-${tempIdRef.current++}`;
+    setAttachments((prev) => [
+      ...prev,
+      {
+        kind: 'voice',
+        url: '',
+        key: tempKey,
+        mime: type,
+        size: blob.size,
+        duration_ms: durationMs,
+        _uploading: true,
+      },
+    ]);
+    try {
+      const { key, url } = await uploadBlob(blob, ext);
+      setAttachments((prev) =>
+        prev.map((a) => (a.key === tempKey ? { ...a, key, url, _uploading: false } : a)),
+      );
+    } catch {
+      setAttachments((prev) => prev.filter((a) => a.key !== tempKey));
+      toast.error('Couldn’t add that voice note.');
+    }
+  }
+
   function submit() {
     const body = value.trim();
     const ready = attachments.filter((a) => !a._uploading);
@@ -206,9 +302,9 @@ export function MessageComposer({
                   className="flex items-center gap-2 px-2.5 py-2"
                   style={{ maxWidth: 180, color: 'var(--ink-soft)' }}
                 >
-                  <DocIcon />
+                  {a.kind === 'voice' ? <MicIcon /> : <DocIcon />}
                   <span className="truncate text-[12px]" style={{ color: 'var(--ink)' }}>
-                    {a.name ?? 'file'}
+                    {a.kind === 'voice' ? fmtClock(a.duration_ms ?? 0) : (a.name ?? 'file')}
                   </span>
                 </div>
               )}
@@ -297,6 +393,88 @@ export function MessageComposer({
             />
           </svg>
         </button>
+        <button
+          type="button"
+          onClick={() => void startRecording()}
+          aria-label={_(t`Record voice note`)}
+          className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+          style={{
+            background: 'var(--surface-2)',
+            border: '0.5px solid var(--border)',
+            color: 'var(--ink-soft)',
+            cursor: 'pointer',
+          }}
+        >
+          <MicIcon />
+        </button>
+        {recording && (
+          <div
+            className="absolute inset-0 z-10 flex items-center gap-3"
+            style={{ background: 'var(--bg)' }}
+          >
+            <button
+              type="button"
+              onClick={() => stopRecording(true)}
+              aria-label={_(t`Cancel recording`)}
+              className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+              style={{
+                background: 'var(--surface-2)',
+                border: '0.5px solid var(--border)',
+                color: 'var(--ink-soft)',
+                cursor: 'pointer',
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+            <span
+              className="flex items-center gap-2 text-[14px] font-medium"
+              style={{ color: 'var(--no)' }}
+            >
+              <span
+                className="inline-block animate-pulse"
+                style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--no)' }}
+              />
+              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtClock(elapsedMs)}</span>
+            </span>
+            <span className="text-[12px]" style={{ color: 'var(--ink-muted)' }}>
+              <Trans>Recording…</Trans>
+            </span>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={() => stopRecording(false)}
+              aria-label={_(t`Stop recording`)}
+              className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+              style={{
+                background: 'var(--accent)',
+                color: 'var(--accent-ink)',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            </button>
+          </div>
+        )}
         <input
           ref={imgInputRef}
           type="file"
@@ -369,6 +547,32 @@ export function MessageComposer({
       </div>
     </div>
   );
+}
+
+function MicIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M5 11a7 7 0 0014 0M12 18v3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function fmtClock(ms: number): string {
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 function DocIcon() {
