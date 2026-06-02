@@ -23,6 +23,10 @@ pub struct PushContent {
     pub url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tag: Option<String>,
+    /// Sender/actor avatar URL → the notification's large icon (the SW falls
+    /// back to the app icon when absent).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 impl PushContent {

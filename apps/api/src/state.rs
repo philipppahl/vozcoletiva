@@ -1,10 +1,28 @@
 use std::sync::Arc;
 
 use aws_sdk_dynamodb::Client as DdbClient;
+use aws_sdk_s3::Client as S3Client;
 use aws_sdk_scheduler::Client as SchedulerClient;
 
 use crate::auth::jwt::JwtVerifier;
 use crate::scheduler::SchedulerConfig;
+
+/// Media (avatars) configuration. `base_url` builds a public CDN URL from an
+/// object key; `bucket` + `s3` are present only where the context writes media
+/// (the API), absent where it only reads URLs (the stream consumer).
+#[derive(Clone)]
+pub struct MediaConfig {
+    pub base_url: String,
+    pub bucket: Option<String>,
+    pub s3: Option<Arc<S3Client>>,
+}
+
+impl MediaConfig {
+    /// The public URL for a stored object key (`avatars/<uid>/<ver>.webp`).
+    pub fn url_for(&self, key: &str) -> String {
+        format!("{}/{}", self.base_url.trim_end_matches('/'), key)
+    }
+}
 
 /// Per-process state passed into every handler. Built once at Lambda cold start.
 #[derive(Clone)]
@@ -13,6 +31,7 @@ pub struct AppState {
     pub jwt: Arc<JwtVerifier>,
     pub table_name: String,
     pub scheduler: Option<Arc<SchedulerConfig>>,
+    pub media: Option<MediaConfig>,
 }
 
 impl AppState {
@@ -25,6 +44,7 @@ impl AppState {
             jwt: Arc::new(crate::auth::jwt::JwtVerifier::stub()),
             table_name,
             scheduler: None,
+            media: None,
         }
     }
 
@@ -33,11 +53,20 @@ impl AppState {
     /// also needs it for the API-Gateway management client) and skips the JWKS
     /// fetch entirely, so cold start doesn't depend on Cognito being reachable.
     pub fn for_stream(aws_config: &aws_config::SdkConfig, table_name: String) -> Self {
+        // The consumer only needs the base URL to build avatar links for push.
+        let media = std::env::var("MEDIA_BASE_URL")
+            .ok()
+            .map(|base_url| MediaConfig {
+                base_url,
+                bucket: None,
+                s3: None,
+            });
         Self {
             ddb: Arc::new(DdbClient::new(aws_config)),
             jwt: Arc::new(JwtVerifier::offline()),
             table_name,
             scheduler: None,
+            media,
         }
     }
 
@@ -75,11 +104,25 @@ impl AppState {
             _ => None,
         };
 
+        // Media: present iff both the bucket + base URL are configured.
+        let media = match (
+            std::env::var("MEDIA_BUCKET"),
+            std::env::var("MEDIA_BASE_URL"),
+        ) {
+            (Ok(bucket), Ok(base_url)) => Some(MediaConfig {
+                base_url,
+                bucket: Some(bucket),
+                s3: Some(Arc::new(S3Client::new(&aws_config))),
+            }),
+            _ => None,
+        };
+
         Ok(Self {
             ddb: Arc::new(DdbClient::new(&aws_config)),
             jwt: Arc::new(jwt),
             table_name,
             scheduler,
+            media,
         })
     }
 }

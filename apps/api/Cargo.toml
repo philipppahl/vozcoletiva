@@ -59,6 +59,7 @@ rand = { workspace = true }
 ulid = { workspace = true }
 aws-sdk-apigatewaymanagement = { workspace = true }
 aws-sdk-ssm = { workspace = true }
+aws-sdk-s3 = { workspace = true }
 web-push-native = { workspace = true }
 base64ct = { workspace = true }
 

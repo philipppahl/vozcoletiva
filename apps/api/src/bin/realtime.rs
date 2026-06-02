@@ -151,7 +151,15 @@ async fn deliver_message(ctx: &Ctx, ev: &MessageEvent) {
                 }
             };
             if prefs.allows_dm() {
-                push_to_user(ctx, peer, &realtime::dm_push_content(ev), "direct_message").await;
+                // The notification's large icon is the sender's avatar.
+                let icon = realtime::avatar_url(&ctx.state, &ev.author_id).await;
+                push_to_user(
+                    ctx,
+                    peer,
+                    &realtime::dm_push_content(ev, icon),
+                    "direct_message",
+                )
+                .await;
             }
         }
     }
@@ -169,10 +177,15 @@ async fn deliver_inbox(ctx: &Ctx, ev: &InboxEvent) {
     if !prefs.allows(&ev.kind) {
         return;
     }
+    // The notification's large icon is the actor's avatar, when known.
+    let icon = match &ev.actor_id {
+        Some(actor) => realtime::avatar_url(&ctx.state, actor).await,
+        None => None,
+    };
     push_to_user(
         ctx,
         &ev.recipient_id,
-        &realtime::inbox_push_content(ev),
+        &realtime::inbox_push_content(ev, icon),
         &ev.kind,
     )
     .await;

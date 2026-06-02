@@ -34,6 +34,7 @@ pub struct MessageEvent {
 pub struct InboxEvent {
     pub recipient_id: String,
     pub kind: String,
+    pub actor_id: Option<String>,
     pub actor_display_name: Option<String>,
     pub project_name: String,
     pub preview: String,
@@ -87,6 +88,7 @@ pub fn classify(new_image: &Value) -> StreamEntity {
             StreamEntity::Inbox(InboxEvent {
                 recipient_id: recipient,
                 kind,
+                actor_id: s(new_image, "actorId"),
                 actor_display_name: s(new_image, "actorDisplayName"),
                 project_name: s(new_image, "projectName").unwrap_or_default(),
                 preview: s(new_image, "preview").unwrap_or_default(),
@@ -152,9 +154,18 @@ fn snippet(text: &str) -> String {
     s
 }
 
-/// Push copy for a DM message (the peer is notified). Server-side copy is EN for
-/// now (the body carries the content); localising it is a follow-up.
-pub fn dm_push_content(ev: &MessageEvent) -> PushContent {
+/// Resolve a user's avatar URL (their profile's key + the media base), or None.
+pub async fn avatar_url(state: &AppState, user_id: &str) -> Option<String> {
+    let media = state.media.as_ref()?;
+    let profile = crate::repo::user::get_profile(state, user_id)
+        .await
+        .ok()??;
+    profile.avatar_key.as_ref().map(|k| media.url_for(k))
+}
+
+/// Push copy for a DM message (the peer is notified). `icon` is the sender's
+/// avatar. Server-side copy is EN for now (the body carries the content).
+pub fn dm_push_content(ev: &MessageEvent, icon: Option<String>) -> PushContent {
     PushContent {
         title: if ev.author_display_name.is_empty() {
             "New message".to_string()
@@ -164,12 +175,13 @@ pub fn dm_push_content(ev: &MessageEvent) -> PushContent {
         body: snippet(&ev.body),
         url: format!("/dms/{}", ev.conversation_id),
         tag: Some(format!("dm-{}", ev.conversation_id)),
+        icon,
     }
 }
 
-/// Push copy for an inbox item. Deep-links to the inbox; the item there carries
-/// its own in-app navigation.
-pub fn inbox_push_content(ev: &InboxEvent) -> PushContent {
+/// Push copy for an inbox item. `icon` is the actor's avatar. Deep-links to the
+/// inbox; the item there carries its own in-app navigation.
+pub fn inbox_push_content(ev: &InboxEvent, icon: Option<String>) -> PushContent {
     let who = ev.actor_display_name.as_deref().unwrap_or("Someone");
     let title = match ev.kind.as_str() {
         "mention" => format!("{who} mentioned you"),
@@ -184,6 +196,7 @@ pub fn inbox_push_content(ev: &InboxEvent) -> PushContent {
         body: snippet(&ev.preview),
         url: "/inbox".to_string(),
         tag: None,
+        icon,
     }
 }
 
@@ -249,11 +262,15 @@ mod tests {
 
     #[test]
     fn dm_push_titles_with_sender_and_links_to_conversation() {
-        let c = dm_push_content(&msg("U1", "Tomás Ferreira", "vamos?", "01ABC"));
+        let c = dm_push_content(
+            &msg("U1", "Tomás Ferreira", "vamos?", "01ABC"),
+            Some("https://cdn/avatars/u/1.webp".into()),
+        );
         assert_eq!(c.title, "Tomás Ferreira");
         assert_eq!(c.body, "vamos?");
         assert_eq!(c.url, "/dms/01ABC");
         assert_eq!(c.tag.as_deref(), Some("dm-01ABC"));
+        assert_eq!(c.icon.as_deref(), Some("https://cdn/avatars/u/1.webp"));
     }
 
     #[test]
@@ -261,23 +278,33 @@ mod tests {
         let base = InboxEvent {
             recipient_id: "u".into(),
             kind: "mention".into(),
+            actor_id: Some("a".into()),
             actor_display_name: Some("Marina".into()),
             project_name: "Vila".into(),
             preview: "@u olá".into(),
         };
-        assert_eq!(inbox_push_content(&base).title, "Marina mentioned you");
-        assert_eq!(inbox_push_content(&base).url, "/inbox");
+        assert_eq!(
+            inbox_push_content(&base, None).title,
+            "Marina mentioned you"
+        );
+        assert_eq!(inbox_push_content(&base, None).url, "/inbox");
         let closed = InboxEvent {
             kind: "proposal-closed".into(),
             ..base.clone()
         };
-        assert_eq!(inbox_push_content(&closed).title, "Decision closed in Vila");
+        assert_eq!(
+            inbox_push_content(&closed, None).title,
+            "Decision closed in Vila"
+        );
         // Missing actor falls back gracefully.
         let anon = InboxEvent {
             actor_display_name: None,
             ..base.clone()
         };
-        assert_eq!(inbox_push_content(&anon).title, "Someone mentioned you");
+        assert_eq!(
+            inbox_push_content(&anon, None).title,
+            "Someone mentioned you"
+        );
     }
 
     #[test]
@@ -302,6 +329,7 @@ mod tests {
             StreamEntity::Inbox(InboxEvent {
                 recipient_id: "alice".into(),
                 kind: "mention".into(),
+                actor_id: None,
                 actor_display_name: None,
                 project_name: "Vila".into(),
                 preview: "hi @alice".into(),

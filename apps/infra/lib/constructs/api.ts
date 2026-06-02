@@ -4,6 +4,7 @@ import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { EndpointType, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import type { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import type { Table } from 'aws-cdk-lib/aws-dynamodb';
+import type { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import {
   Architecture,
@@ -21,6 +22,10 @@ export interface ApiProps {
   readonly table: Table;
   readonly userPool: UserPool;
   readonly userPoolClient: UserPoolClient;
+  /** Private media bucket (avatars). The API writes/removes objects. */
+  readonly mediaBucket: Bucket;
+  /** CloudFront base URL the API uses to build avatar URLs. */
+  readonly mediaBaseUrl: string;
 }
 
 /**
@@ -125,11 +130,16 @@ export class Api extends Construct {
         SCHEDULER_GROUP_NAME: scheduleGroupName,
         WORKER_FUNCTION_ARN: workerFn.functionArn,
         SCHEDULER_INVOKE_ROLE_ARN: schedulerInvokeRole.roleArn,
+        MEDIA_BUCKET: props.mediaBucket.bucketName,
+        MEDIA_BASE_URL: props.mediaBaseUrl,
         RUST_LOG: 'info',
       },
     });
 
     props.table.grantReadWriteData(fn);
+    // Avatars: write on upload, remove on delete.
+    props.mediaBucket.grantPut(fn);
+    props.mediaBucket.grantDelete(fn);
 
     // Scheduler permissions, scoped to this env's schedule group.
     const region = Stack.of(this).region;

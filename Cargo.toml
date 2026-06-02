@@ -57,8 +57,11 @@ ammonia = "4.0"
 aws-sdk-apigatewaymanagement = "1.100"
 aws-sdk-ssm = "1.111"
 web-push-native = "0.4"
-# Decode base64url-unpadded subscription keys + the VAPID private scalar.
+# Decode base64url-unpadded subscription keys + the VAPID private scalar, and
+# (standard base64) the avatar upload payload.
 base64ct = { version = "1.8", features = ["alloc"] }
+# Avatar object storage (decision 0029).
+aws-sdk-s3 = "1.62"
 
 [profile.release]
 opt-level = 3

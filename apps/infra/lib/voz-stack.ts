@@ -5,6 +5,7 @@ import type { Construct } from 'constructs';
 import { Api } from './constructs/api';
 import { Auth } from './constructs/auth';
 import { DataTable } from './constructs/data-table';
+import { Media } from './constructs/media';
 import { Realtime } from './constructs/realtime';
 import { WebHosting } from './constructs/web-hosting';
 import type { EnvConfig } from './env-config';
@@ -21,11 +22,14 @@ export class VozStack extends Stack {
 
     const data = new DataTable(this, 'Data', { env: envConfig.env });
     const auth = new Auth(this, 'Auth', { env: envConfig.env });
+    const media = new Media(this, 'Media', { env: envConfig.env });
     const api = new Api(this, 'Api', {
       env: envConfig.env,
       table: data.table,
       userPool: auth.userPool,
       userPoolClient: auth.webClient,
+      mediaBucket: media.bucket,
+      mediaBaseUrl: media.baseUrl,
     });
     const web = new WebHosting(this, 'Web', { env: envConfig.env });
     const realtime = new Realtime(this, 'Realtime', {
@@ -33,6 +37,7 @@ export class VozStack extends Stack {
       table: data.table,
       userPool: auth.userPool,
       userPoolClient: auth.webClient,
+      mediaBaseUrl: media.baseUrl,
     });
 
     Tags.of(this).add('Project', 'vozcoletiva');
@@ -65,6 +70,10 @@ export class VozStack extends Stack {
     new CfnOutput(this, 'TableName', {
       value: data.table.tableName,
       description: 'DynamoDB single-table name',
+    });
+    new CfnOutput(this, 'MediaUrl', {
+      value: media.baseUrl,
+      description: 'CloudFront base URL for user media (avatars)',
     });
   }
 }

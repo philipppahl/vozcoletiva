@@ -40,6 +40,7 @@ struct ChannelListResponse {
 struct DmParticipantView {
     user_id: String,
     display_name: String,
+    avatar_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -155,13 +156,20 @@ async fn dm_view(
 ) -> Result<DmView, AppError> {
     let mut participants = Vec::with_capacity(2);
     for uid in &dm.participant_ids {
-        let display_name = user::get_profile(state, uid)
-            .await?
-            .map(|p| p.display_name)
+        let profile = user::get_profile(state, uid).await?;
+        let display_name = profile
+            .as_ref()
+            .map(|p| p.display_name.clone())
             .unwrap_or_else(|| uid.clone());
+        let avatar_url = state
+            .media
+            .as_ref()
+            .zip(profile.as_ref().and_then(|p| p.avatar_key.as_ref()))
+            .map(|(cfg, key)| cfg.url_for(key));
         participants.push(DmParticipantView {
             user_id: uid.clone(),
             display_name,
+            avatar_url,
         });
     }
     let marker = conversation::conversation_read(state, viewer_id, &dm.id).await?;
@@ -469,8 +477,16 @@ pub async fn list_dms(state: &AppState, req: Request) -> Result<Response<Body>, 
             }
             // Most recent activity first (no last message → fall back to id).
             dms.sort_by(|a, b| {
-                let a_at = a.last_message.as_ref().map(|m| m.at.as_str()).unwrap_or(&a.id);
-                let b_at = b.last_message.as_ref().map(|m| m.at.as_str()).unwrap_or(&b.id);
+                let a_at = a
+                    .last_message
+                    .as_ref()
+                    .map(|m| m.at.as_str())
+                    .unwrap_or(&a.id);
+                let b_at = b
+                    .last_message
+                    .as_ref()
+                    .map(|m| m.at.as_str())
+                    .unwrap_or(&b.id);
                 b_at.cmp(a_at)
             });
             Ok(DmListResponse { dms })

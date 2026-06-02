@@ -27,6 +27,8 @@ export interface RealtimeProps {
   readonly table: Table;
   readonly userPool: UserPool;
   readonly userPoolClient: UserPoolClient;
+  /** CloudFront base URL for media, used to build the push notification icon. */
+  readonly mediaBaseUrl: string;
 }
 
 const ARTIFACT_ROOT = path.resolve(__dirname, '..', '..', '..', '..', 'target', 'lambda');
@@ -130,6 +132,8 @@ export class Realtime extends Construct {
         // fetched at cold start; the subject is the RFC 8292 contact.
         VAPID_SUBJECT: 'mailto:ph.pahl@gmail.com',
         VAPID_PRIVATE_KEY_PARAM: `/voz/${props.env}/vapid-private-key`,
+        // Build the sender's avatar URL for the notification icon (0029).
+        MEDIA_BASE_URL: props.mediaBaseUrl,
       },
     });
     props.table.grantReadWriteData(realtimeFn);

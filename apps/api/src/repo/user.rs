@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use aws_sdk_dynamodb::types::{AttributeValue, ReturnValue};
+use aws_sdk_dynamodb::types::{AttributeValue, KeysAndAttributes, ReturnValue};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +14,9 @@ pub struct UserProfile {
     pub locale: String,
     pub theme: String,
     pub created_at: DateTime<Utc>,
+    /// S3 object key of the avatar (`avatars/<uid>/<ver>.webp`), if set. The
+    /// public URL is derived at the DTO layer via `MediaConfig::url_for`.
+    pub avatar_key: Option<String>,
 }
 
 /// First sign-in: create the user's profile if it doesn't already exist;
@@ -51,6 +54,7 @@ pub async fn get_or_create_profile(
         locale: "en".to_string(),
         theme: "system".to_string(),
         created_at: now,
+        avatar_key: None,
     };
 
     let put = state
@@ -61,7 +65,10 @@ pub async fn get_or_create_profile(
         .item("SK", AttributeValue::S(sk.clone()))
         .item("type", AttributeValue::S("User".into()))
         .item("userId", AttributeValue::S(profile.user_id.clone()))
-        .item("displayName", AttributeValue::S(profile.display_name.clone()))
+        .item(
+            "displayName",
+            AttributeValue::S(profile.display_name.clone()),
+        )
         .item("locale", AttributeValue::S(profile.locale.clone()))
         .item("theme", AttributeValue::S(profile.theme.clone()))
         .item("createdAt", AttributeValue::S(now.to_rfc3339()))
@@ -84,11 +91,11 @@ pub async fn get_or_create_profile(
                     .key("SK", AttributeValue::S(sk))
                     .send()
                     .await?;
-                let item = read
-                    .item
-                    .ok_or_else(|| AppError::Internal(Box::new(std::io::Error::other(
+                let item = read.item.ok_or_else(|| {
+                    AppError::Internal(Box::new(std::io::Error::other(
                         "conditional check failed but item not found on read-back",
-                    ))))?;
+                    )))
+                })?;
                 return profile_from_item(&item);
             }
             Err(AppError::Internal(Box::new(raw)))
@@ -97,10 +104,7 @@ pub async fn get_or_create_profile(
 }
 
 /// Read a user's profile without creating one. `None` if it doesn't exist.
-pub async fn get_profile(
-    state: &AppState,
-    user_id: &str,
-) -> Result<Option<UserProfile>, AppError> {
+pub async fn get_profile(state: &AppState, user_id: &str) -> Result<Option<UserProfile>, AppError> {
     let read = state
         .ddb
         .get_item()
@@ -182,5 +186,111 @@ fn profile_from_item(item: &HashMap<String, AttributeValue>) -> Result<UserProfi
         locale: s(item, "locale")?.to_string(),
         theme: s(item, "theme")?.to_string(),
         created_at,
+        avatar_key: item.get("avatarKey").and_then(|v| v.as_s().ok()).cloned(),
     })
+}
+
+/// Point the profile at a new avatar object. Returns the *previous* key (if any)
+/// so the caller can delete the orphaned object. Upserts the profile shell if it
+/// somehow doesn't exist yet (mirrors `upsert_display_name`).
+pub async fn set_avatar(
+    state: &AppState,
+    user_id: &str,
+    key: &str,
+) -> Result<Option<String>, AppError> {
+    let now = Utc::now();
+    let resp = state
+        .ddb
+        .update_item()
+        .table_name(&state.table_name)
+        .key("PK", AttributeValue::S(format!("USER#{user_id}")))
+        .key("SK", AttributeValue::S("PROFILE".into()))
+        .update_expression(
+            "SET avatarKey = :k, \
+                 #type = if_not_exists(#type, :user), \
+                 userId = if_not_exists(userId, :uid), \
+                 displayName = if_not_exists(displayName, :dn), \
+                 locale = if_not_exists(locale, :loc), \
+                 theme = if_not_exists(theme, :th), \
+                 createdAt = if_not_exists(createdAt, :now)",
+        )
+        .expression_attribute_names("#type", "type")
+        .expression_attribute_values(":k", AttributeValue::S(key.to_string()))
+        .expression_attribute_values(":user", AttributeValue::S("User".into()))
+        .expression_attribute_values(":uid", AttributeValue::S(user_id.to_string()))
+        .expression_attribute_values(":dn", AttributeValue::S(user_id.to_string()))
+        .expression_attribute_values(":loc", AttributeValue::S("en".into()))
+        .expression_attribute_values(":th", AttributeValue::S("system".into()))
+        .expression_attribute_values(":now", AttributeValue::S(now.to_rfc3339()))
+        .return_values(ReturnValue::UpdatedOld)
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(Box::new(e.into_service_error())))?;
+    Ok(resp
+        .attributes
+        .and_then(|a| a.get("avatarKey").and_then(|v| v.as_s().ok()).cloned()))
+}
+
+/// Resolve avatar keys for a set of users in one batch (only users that have an
+/// avatar appear in the result). Used by list endpoints to attach avatar URLs
+/// without denormalising (which would go stale on every avatar change).
+pub async fn avatar_keys(
+    state: &AppState,
+    user_ids: &[String],
+) -> Result<HashMap<String, String>, AppError> {
+    let mut out = HashMap::new();
+    for chunk in user_ids.chunks(100) {
+        if chunk.is_empty() {
+            continue;
+        }
+        let keys: Vec<HashMap<String, AttributeValue>> = chunk
+            .iter()
+            .map(|id| {
+                HashMap::from([
+                    ("PK".to_string(), AttributeValue::S(format!("USER#{id}"))),
+                    ("SK".to_string(), AttributeValue::S("PROFILE".into())),
+                ])
+            })
+            .collect();
+        let kaa = KeysAndAttributes::builder()
+            .set_keys(Some(keys))
+            .projection_expression("userId, avatarKey")
+            .build()
+            .map_err(|e| AppError::Internal(Box::new(e)))?;
+        let resp = state
+            .ddb
+            .batch_get_item()
+            .request_items(&state.table_name, kaa)
+            .send()
+            .await?;
+        if let Some(items) = resp.responses.and_then(|mut r| r.remove(&state.table_name)) {
+            for item in items {
+                if let (Some(uid), Some(key)) = (
+                    item.get("userId").and_then(|v| v.as_s().ok()),
+                    item.get("avatarKey").and_then(|v| v.as_s().ok()),
+                ) {
+                    out.insert(uid.clone(), key.clone());
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Clear the avatar. Returns the removed key (if any) for object cleanup.
+pub async fn clear_avatar(state: &AppState, user_id: &str) -> Result<Option<String>, AppError> {
+    let resp = state
+        .ddb
+        .update_item()
+        .table_name(&state.table_name)
+        .key("PK", AttributeValue::S(format!("USER#{user_id}")))
+        .key("SK", AttributeValue::S("PROFILE".into()))
+        .update_expression("REMOVE avatarKey")
+        .return_values(ReturnValue::UpdatedOld)
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(Box::new(e.into_service_error())))?;
+    Ok(resp
+        .attributes
+        .and_then(|a| a.get("avatarKey").and_then(|v| v.as_s().ok()).cloned()))
 }

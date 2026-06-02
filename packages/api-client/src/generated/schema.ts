@@ -182,6 +182,27 @@ export interface paths {
         patch: operations["updateMe"];
         trace?: never;
     };
+    "/v1/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set the caller's avatar
+         * @description Upload a profile photo. The client crops + resizes to ~256px WebP and sends the bytes as base64; the server re-validates type + size, stores it under an immutable versioned key, and returns the public URL.
+         */
+        post: operations["setAvatar"];
+        /** Remove the caller's avatar */
+        delete: operations["deleteAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me/inbox": {
         parameters: {
             query?: never;
@@ -649,6 +670,13 @@ export interface components {
             error: string;
             message: string;
         };
+        AvatarResponse: {
+            avatar_url: string;
+        };
+        AvatarUploadBody: {
+            /** @description Standard base64 of the image bytes (PNG/JPEG/WebP, ≤512 KB decoded). */
+            data: string;
+        };
         CastVoteBody: {
             choice: components["schemas"]["Choice"];
         };
@@ -747,6 +775,7 @@ export interface components {
             dms: components["schemas"]["DmConversation"][];
         };
         DmParticipant: {
+            avatar_url?: string | null;
             display_name: string;
             user_id: string;
         };
@@ -844,6 +873,7 @@ export interface components {
             body_preview: string;
         };
         Member: {
+            avatar_url?: string | null;
             display_name: string;
             /** Format: date-time */
             joined_at: string;
@@ -1024,6 +1054,7 @@ export interface components {
             display_name: string;
         };
         UserProfile: {
+            avatar_url?: string | null;
             /** Format: date-time */
             created_at: string;
             display_name: string;
@@ -1449,6 +1480,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing, malformed, or expired access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    setAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AvatarUploadBody"];
+            };
+        };
+        responses: {
+            /** @description Avatar stored. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AvatarResponse"];
+                };
+            };
+            /** @description Not a valid image, too large, or bad base64. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing, malformed, or expired access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    deleteAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Avatar removed (falls back to initials). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ok"];
                 };
             };
             /** @description Missing, malformed, or expired access token. */

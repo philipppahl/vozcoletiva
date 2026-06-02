@@ -77,6 +77,54 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  /v1/me/avatar:
+    post:
+      summary: Set the caller's avatar
+      description: >
+        Upload a profile photo. The client crops + resizes to ~256px WebP and
+        sends the bytes as base64; the server re-validates type + size, stores
+        it under an immutable versioned key, and returns the public URL.
+      operationId: setAvatar
+      tags: [auth]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AvatarUploadBody' }
+      responses:
+        '200':
+          description: Avatar stored.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AvatarResponse' }
+        '400':
+          description: Not a valid image, too large, or bad base64.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401':
+          description: Missing, malformed, or expired access token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+    delete:
+      summary: Remove the caller's avatar
+      operationId: deleteAvatar
+      tags: [auth]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Avatar removed (falls back to initials).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ok' }
+        '401':
+          description: Missing, malformed, or expired access token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
   /v1/me/inbox:
     get:
       summary: The caller's inbox (notifications)
@@ -1137,6 +1185,7 @@ components:
       properties:
         user_id: { type: string }
         display_name: { type: string }
+        avatar_url: { type: string, nullable: true }
 
     DmConversation:
       type: object
@@ -1254,6 +1303,7 @@ components:
         locale: { type: string, enum: [en, pt] }
         theme: { type: string, enum: [system, light, dark] }
         created_at: { type: string, format: date-time }
+        avatar_url: { type: string, nullable: true }
 
     UpdateProfileBody:
       type: object
@@ -1261,6 +1311,22 @@ components:
       additionalProperties: false
       properties:
         display_name: { type: string, minLength: 1, maxLength: 80 }
+
+    AvatarUploadBody:
+      type: object
+      required: [data]
+      additionalProperties: false
+      properties:
+        data:
+          type: string
+          description: Standard base64 of the image bytes (PNG/JPEG/WebP, ≤512 KB decoded).
+
+    AvatarResponse:
+      type: object
+      required: [avatar_url]
+      additionalProperties: false
+      properties:
+        avatar_url: { type: string }
 
     InboxItem:
       type: object
@@ -1473,6 +1539,7 @@ components:
         display_name: { type: string }
         role: { $ref: '#/components/schemas/Role' }
         joined_at: { type: string, format: date-time }
+        avatar_url: { type: string, nullable: true }
 
     MemberListResponse:
       type: object

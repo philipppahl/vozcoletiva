@@ -3,6 +3,7 @@ use serde::Serialize;
 
 use crate::error::AppError;
 
+pub mod avatar;
 pub mod categories;
 pub mod comments;
 pub mod conversations;

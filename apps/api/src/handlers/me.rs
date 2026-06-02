@@ -5,7 +5,7 @@ use crate::auth::{bearer_token, AuthenticatedUser};
 use crate::domain::display_name::validate_display_name;
 use crate::error::AppError;
 use crate::repo::user::{self, UserProfile};
-use crate::state::AppState;
+use crate::state::{AppState, MediaConfig};
 
 #[derive(Debug, Serialize)]
 struct MeResponse {
@@ -14,17 +14,29 @@ struct MeResponse {
     locale: String,
     theme: String,
     created_at: String,
+    /// Public CDN URL of the avatar, or null if none is set.
+    avatar_url: Option<String>,
 }
 
-impl From<UserProfile> for MeResponse {
-    fn from(p: UserProfile) -> Self {
+impl MeResponse {
+    fn from_profile(p: UserProfile, media: Option<&MediaConfig>) -> Self {
+        let avatar_url = avatar_url(&p, media);
         Self {
             user_id: p.user_id,
             display_name: p.display_name,
             locale: p.locale,
             theme: p.theme,
             created_at: p.created_at.to_rfc3339(),
+            avatar_url,
         }
+    }
+}
+
+/// Derive a profile's public avatar URL from its key + the media config.
+pub fn avatar_url(p: &UserProfile, media: Option<&MediaConfig>) -> Option<String> {
+    match (media, p.avatar_key.as_ref()) {
+        (Some(m), Some(key)) => Some(m.url_for(key)),
+        _ => None,
     }
 }
 
@@ -42,7 +54,10 @@ struct UpdateProfileBody {
 /// the first `PATCH`. See decision 0019.
 pub async fn handle(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
     match handle_inner(state, req).await {
-        Ok(profile) => json_response(200, &MeResponse::from(profile)),
+        Ok(profile) => json_response(
+            200,
+            &MeResponse::from_profile(profile, state.media.as_ref()),
+        ),
         Err(err) => error_response(err),
     }
 }
@@ -60,7 +75,10 @@ async fn handle_inner(state: &AppState, req: Request) -> Result<UserProfile, App
 /// the display name now that Cognito holds auth only (decision 0019).
 pub async fn update(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
     match update_inner(state, req).await {
-        Ok(profile) => json_response(200, &MeResponse::from(profile)),
+        Ok(profile) => json_response(
+            200,
+            &MeResponse::from_profile(profile, state.media.as_ref()),
+        ),
         Err(err) => error_response(err),
     }
 }
