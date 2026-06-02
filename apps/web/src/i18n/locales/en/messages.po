@@ -189,6 +189,10 @@ msgstr "Add an alternative"
 msgid "Add at least one more option, or remove it for a yes / no vote."
 msgstr "Add at least one more option, or remove it for a yes / no vote."
 
+#: src/routes/preferences.tsx
+msgid "Add photo"
+msgstr "Add photo"
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Add two or more for a pick-one vote among them. Leave empty for a plain yes / no."
 msgstr "Add two or more for a pick-one vote among them. Leave empty for a plain yes / no."
@@ -258,6 +262,11 @@ msgstr "Cancel"
 #: src/routes/p.$slug.proposals.new.tsx
 #~ msgid "Category"
 #~ msgstr "Category"
+
+#: src/routes/preferences.tsx
+#: src/routes/preferences.tsx
+msgid "Change photo"
+msgstr "Change photo"
 
 #: src/components/messages/ChannelListSection.tsx
 #: src/components/search/SearchResults.tsx
@@ -1054,6 +1063,10 @@ msgstr "rejected"
 msgid "Rejected"
 msgstr "Rejected"
 
+#: src/routes/preferences.tsx
+msgid "Remove"
+msgstr "Remove"
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Remove option"
 msgstr "Remove option"
@@ -1312,6 +1325,10 @@ msgstr "Type"
 #: src/components/search/SearchResults.tsx
 msgid "Type at least 2 characters."
 msgstr "Type at least 2 characters."
+
+#: src/routes/preferences.tsx
+msgid "Updating…"
+msgstr "Updating…"
 
 #: src/routes/projects.new.tsx
 msgid "Used in URLs: vozcoletiva.com/p/<slug>. Lowercase, dashes only."

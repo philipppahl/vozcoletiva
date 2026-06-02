@@ -18,6 +18,8 @@ interface MessageRowProps {
   projectSlug?: string;
   /** Retry a failed optimistic send. */
   onRetry?: (message: Message) => void;
+  /** The author's avatar URL, if any (else initials). */
+  avatarUrl?: string | null;
 }
 
 export function MessageRow({
@@ -26,6 +28,7 @@ export function MessageRow({
   onOpenThread,
   projectSlug,
   onRetry,
+  avatarUrl,
 }: MessageRowProps) {
   const pending = message._optimistic === 'pending';
   const failed = message._optimistic === 'failed';
@@ -35,7 +38,9 @@ export function MessageRow({
       style={{ paddingTop: grouped ? 2 : 12, opacity: pending ? 0.6 : 1 }}
     >
       <div className="flex-shrink-0" style={{ width: 32 }}>
-        {grouped ? null : <Avatar displayName={message.author_display_name} size={32} />}
+        {grouped ? null : (
+          <Avatar displayName={message.author_display_name} size={32} imageUrl={avatarUrl} />
+        )}
       </div>
       <div className="min-w-0 flex-1">
         {!grouped && (

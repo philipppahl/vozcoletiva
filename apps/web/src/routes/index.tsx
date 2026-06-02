@@ -92,7 +92,12 @@ function SignedInView() {
             className="rounded-full"
             style={{ padding: 0, background: 'transparent', border: 'none', cursor: 'pointer' }}
           >
-            <Avatar displayName={session.displayName} size={36} ring="var(--surface)" />
+            <Avatar
+              displayName={session.displayName}
+              size={36}
+              ring="var(--surface)"
+              imageUrl={session.avatarUrl}
+            />
           </button>
         </div>
       </header>

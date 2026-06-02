@@ -65,6 +65,16 @@ function DmDetailPage() {
       .map((p) => ({ user_id: p.user_id, display_name: p.display_name }));
   }, [conversation.data, session?.userId]);
 
+  // Avatars: the peer from the participants, the viewer from the live session.
+  const avatarFor = useMemo(() => {
+    const map = new Map<string, string | null | undefined>();
+    if (conversation.data?.kind === 'dm') {
+      for (const p of conversation.data.participants) map.set(p.user_id, p.avatar_url);
+    }
+    if (session?.userId) map.set(session.userId, session.avatarUrl);
+    return (userId: string) => map.get(userId);
+  }, [conversation.data, session?.userId, session?.avatarUrl]);
+
   return (
     <div
       className="flex min-h-dvh flex-col"
@@ -79,6 +89,7 @@ function DmDetailPage() {
       <MessageList
         messages={messages.data?.messages ?? []}
         onRetry={onRetry}
+        avatarFor={avatarFor}
         onOpenThread={(messageId) =>
           void navigate({
             to: '/dms/$id',

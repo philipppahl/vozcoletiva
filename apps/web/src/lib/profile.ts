@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 
 import { apiClient } from './api';
 import { useAuthStore } from './auth/store';
+import { syncSessionAvatar } from './avatar';
 import { qk } from './query';
 import { toast } from './toast';
 
@@ -12,6 +13,7 @@ export interface Profile {
   locale: string;
   theme: string;
   created_at: string;
+  avatar_url?: string | null;
 }
 
 /**
@@ -73,6 +75,11 @@ export function useSyncProfileName() {
   useEffect(() => {
     if (data?.display_name) syncSessionName(data.display_name);
   }, [data?.display_name]);
+  // Keep the session avatar in step too, so the user's own photo shows in the
+  // shell without each surface fetching the profile.
+  useEffect(() => {
+    syncSessionAvatar(data?.avatar_url ?? null);
+  }, [data?.avatar_url]);
 }
 
 function syncSessionName(displayName: string) {

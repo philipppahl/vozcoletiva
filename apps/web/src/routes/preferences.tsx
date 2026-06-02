@@ -2,7 +2,7 @@ import { Trans, t } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import type { Locale, Theme } from '@vozcoletiva/shared';
-import { useEffect, useState } from 'react';
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { RequireAuth } from '../components/RequireAuth';
 import { Avatar } from '../components/shell/Avatar';
 import { TopBar } from '../components/shell/TopBar';
@@ -10,6 +10,7 @@ import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
 import { setLocale } from '../i18n';
 import { useAuth } from '../lib/auth/hooks';
+import { useRemoveAvatar, useSetAvatar } from '../lib/avatar';
 import { useUpdateDisplayName } from '../lib/profile';
 import {
   pushSupported,
@@ -63,7 +64,10 @@ function PreferencesPage() {
       />
 
       <section className="flex flex-col items-center px-6 pt-6 pb-4 text-center">
-        <Avatar displayName={session?.displayName ?? '?'} size={84} ring="var(--surface)" />
+        <AvatarPicker
+          displayName={session?.displayName ?? '?'}
+          avatarUrl={session?.avatarUrl ?? null}
+        />
         <h2
           className="mt-3"
           style={{
@@ -149,6 +153,81 @@ function PreferencesPage() {
         }}
       >
         vozcoletiva · open source
+      </div>
+    </div>
+  );
+}
+
+function AvatarPicker({
+  displayName,
+  avatarUrl,
+}: {
+  displayName: string;
+  avatarUrl: string | null;
+}) {
+  const { _ } = useLingui();
+  const setAvatar = useSetAvatar();
+  const removeAvatar = useRemoveAvatar();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const busy = setAvatar.isPending || removeAvatar.isPending;
+
+  function onPick(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // let the user re-pick the same file
+    if (file) setAvatar.mutate(file);
+  }
+
+  const linkStyle = {
+    background: 'transparent',
+    border: 'none',
+    cursor: busy ? 'default' : 'pointer',
+    padding: 0,
+    fontWeight: 600,
+  } as const;
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={busy}
+        aria-label={_(t`Change photo`)}
+        style={{ ...linkStyle, opacity: busy ? 0.6 : 1, fontWeight: 400 }}
+      >
+        <Avatar displayName={displayName} size={84} ring="var(--surface)" imageUrl={avatarUrl} />
+      </button>
+      {/* No `capture` attribute → the OS offers camera *or* gallery. */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        onChange={onPick}
+        style={{ display: 'none' }}
+      />
+      <div className="flex items-center gap-3 text-[13px]">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          style={{ ...linkStyle, color: 'var(--accent)' }}
+        >
+          {busy ? (
+            <Trans>Updating…</Trans>
+          ) : avatarUrl ? (
+            <Trans>Change photo</Trans>
+          ) : (
+            <Trans>Add photo</Trans>
+          )}
+        </button>
+        {avatarUrl && !busy && (
+          <button
+            type="button"
+            onClick={() => removeAvatar.mutate()}
+            style={{ ...linkStyle, color: 'var(--ink-muted)' }}
+          >
+            <Trans>Remove</Trans>
+          </button>
+        )}
       </div>
     </div>
   );

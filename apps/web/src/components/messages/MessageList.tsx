@@ -12,6 +12,8 @@ interface MessageListProps {
   onOpenThread?: (messageId: string) => void;
   projectSlug?: string;
   onRetry?: (message: Message) => void;
+  /** Resolve an author's avatar URL (channel members / DM participants). */
+  avatarFor?: (userId: string) => string | null | undefined;
 }
 
 const DAY_MS = 86_400_000;
@@ -28,6 +30,7 @@ export function MessageList({
   onOpenThread,
   projectSlug,
   onRetry,
+  avatarFor,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastIdRef = useRef<string | null>(null);
@@ -92,6 +95,7 @@ export function MessageList({
             onOpenThread={onOpenThread}
             projectSlug={projectSlug}
             onRetry={onRetry}
+            avatarUrl={avatarFor?.(it.message.author_id)}
           />
         );
       })}

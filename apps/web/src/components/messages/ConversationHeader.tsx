@@ -39,7 +39,7 @@ export function ConversationHeader({
     <TopBar
       title={
         <span className="inline-flex items-center gap-2">
-          <Avatar displayName={peer.display_name} size={26} />
+          <Avatar displayName={peer.display_name} size={26} imageUrl={peer.avatar_url} />
           <span style={{ color: 'var(--ink)' }}>{peer.display_name}</span>
         </span>
       }

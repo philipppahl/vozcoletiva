@@ -58,6 +58,10 @@ function ChannelDetailPage() {
   }, [messages.data?.messages[messages.data.messages.length - 1]?.id]);
 
   const mentionCandidates = useMemo(() => members.data?.members ?? [], [members.data]);
+  const avatarFor = useMemo(() => {
+    const map = new Map((members.data?.members ?? []).map((m) => [m.user_id, m.avatar_url]));
+    return (userId: string) => map.get(userId);
+  }, [members.data]);
 
   return (
     <div
@@ -72,6 +76,7 @@ function ChannelDetailPage() {
         messages={messages.data?.messages ?? []}
         projectSlug={slug}
         onRetry={onRetry}
+        avatarFor={avatarFor}
         onOpenThread={(id) =>
           void navigate({
             to: '/p/$slug/messages/$channelId',

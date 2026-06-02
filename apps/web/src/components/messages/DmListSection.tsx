@@ -71,7 +71,7 @@ export function DmListSection({ dms, onStartDm }: DmListSectionProps) {
                   className="flex items-center gap-3 px-4 py-3"
                   style={{ color: 'var(--ink)' }}
                 >
-                  <Avatar displayName={peer.display_name} size={40} />
+                  <Avatar displayName={peer.display_name} size={40} imageUrl={peer.avatar_url} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <span
