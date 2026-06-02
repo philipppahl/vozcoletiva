@@ -76,6 +76,17 @@ impl JwtVerifier {
     /// `AppState` but never call `verify` (e.g. repo-layer integration tests).
     #[cfg(feature = "test-support")]
     pub fn stub() -> Self {
+        Self::empty()
+    }
+
+    /// A verifier that holds no keys and contacts nothing, for runtime contexts
+    /// that never call `verify` (the realtime stream consumer). Distinct from
+    /// the test-only `stub()` so it ships in release builds.
+    pub fn offline() -> Self {
+        Self::empty()
+    }
+
+    fn empty() -> Self {
         Self {
             jwks_url: String::new(),
             expected_iss: String::new(),

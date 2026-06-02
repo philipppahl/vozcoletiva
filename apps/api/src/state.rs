@@ -28,6 +28,19 @@ impl AppState {
         }
     }
 
+    /// Build an `AppState` for a context that never verifies tokens — the
+    /// realtime stream consumer. Reuses an already-loaded SDK config (the bin
+    /// also needs it for the API-Gateway management client) and skips the JWKS
+    /// fetch entirely, so cold start doesn't depend on Cognito being reachable.
+    pub fn for_stream(aws_config: &aws_config::SdkConfig, table_name: String) -> Self {
+        Self {
+            ddb: Arc::new(DdbClient::new(aws_config)),
+            jwt: Arc::new(JwtVerifier::offline()),
+            table_name,
+            scheduler: None,
+        }
+    }
+
     pub async fn from_env() -> Result<Self, BootError> {
         let aws_config = aws_config::load_defaults(aws_config::BehaviorVersion::latest()).await;
 

@@ -14,6 +14,7 @@ import type {
 } from './messages/types';
 import { tempId } from './optimistic';
 import { qk } from './query';
+import { useRealtimeStore } from './realtime';
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
   if (error) {
@@ -32,13 +33,24 @@ function unwrap<T>(data: T | undefined, error: unknown): T {
 
 // ── list queries ───────────────────────────────────────────────────────────
 
-// Live-ish chat without a WebSocket: poll while a conversation/list is open
-// (mirrors the proposal-tally polling). Pauses when the tab is hidden. Real-time
-// push is a later WebSocket slice. See decision 0027.
+// Live delivery is the WebSocket realtime client (decision 0028); polling is the
+// fallback (0027). When the socket is up we poll on a slow safety-net interval
+// (catches a dropped signal); when it's down we poll fast for near-live updates.
+// TanStack pauses interval refetches when the tab is hidden, either way.
 const CHAT_POLL_MS = 4000;
+const CHAT_POLL_FALLBACK_MS = 20000;
 const LIST_POLL_MS = 8000;
+const LIST_POLL_FALLBACK_MS = 30000;
+
+function chatPoll(connected: boolean) {
+  return connected ? CHAT_POLL_FALLBACK_MS : CHAT_POLL_MS;
+}
+function listPoll(connected: boolean) {
+  return connected ? LIST_POLL_FALLBACK_MS : LIST_POLL_MS;
+}
 
 export function useChannels(slug: string | undefined) {
+  const connected = useRealtimeStore((s) => s.connected);
   return useQuery({
     queryKey: slug ? qk.projects.channels(slug) : ['channels', '_none_'],
     enabled: !!slug,
@@ -49,11 +61,12 @@ export function useChannels(slug: string | undefined) {
       return unwrap(data, error) as unknown as ChannelListResponse;
     },
     refetchOnWindowFocus: true,
-    refetchInterval: LIST_POLL_MS,
+    refetchInterval: listPoll(connected),
   });
 }
 
 export function useDms() {
+  const connected = useRealtimeStore((s) => s.connected);
   return useQuery({
     queryKey: qk.chat.dms(),
     queryFn: async () => {
@@ -61,7 +74,7 @@ export function useDms() {
       return unwrap(data, error) as unknown as DmListResponse;
     },
     refetchOnWindowFocus: true,
-    refetchInterval: LIST_POLL_MS,
+    refetchInterval: listPoll(connected),
   });
 }
 
@@ -83,11 +96,12 @@ export function useConversation(id: string | undefined) {
 
 export function useMessages(conversationId: string | undefined) {
   const qc = useQueryClient();
+  const connected = useRealtimeStore((s) => s.connected);
   const key = conversationId ? qk.chat.messages(conversationId) : ['messages', '_none_'];
   return useQuery({
     queryKey: key,
     enabled: !!conversationId,
-    refetchInterval: CHAT_POLL_MS,
+    refetchInterval: chatPoll(connected),
     refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/conversations/{id}/messages', {
@@ -107,11 +121,12 @@ export function useMessages(conversationId: string | undefined) {
 
 export function useThread(parentMessageId: string | undefined) {
   const qc = useQueryClient();
+  const connected = useRealtimeStore((s) => s.connected);
   const key = parentMessageId ? qk.chat.thread(parentMessageId) : ['thread', '_none_'];
   return useQuery({
     queryKey: key,
     enabled: !!parentMessageId,
-    refetchInterval: CHAT_POLL_MS,
+    refetchInterval: chatPoll(connected),
     refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/messages/{id}/thread', {

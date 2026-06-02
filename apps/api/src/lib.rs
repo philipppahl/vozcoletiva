@@ -7,6 +7,7 @@ pub mod error;
 pub mod handlers;
 pub mod jobs;
 pub mod notify;
+pub mod realtime;
 pub mod repo;
 pub mod scheduler;
 pub mod state;

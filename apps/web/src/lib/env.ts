@@ -13,6 +13,12 @@ interface Env {
   region: string;
   /** Optional — Web Push is unavailable (gracefully) when unset. */
   vapidPublicKey: string | undefined;
+  /**
+   * Optional `wss://…` base URL. Empty on the first deploy that creates the
+   * WebSocket API; the realtime client then stays dormant and chat falls back
+   * to polling (decision 0027) until the next deploy bakes the URL in.
+   */
+  wsUrl: string | undefined;
 }
 
 function required(key: string): string {
@@ -38,6 +44,10 @@ export function env(): Env {
     vapidPublicKey:
       typeof import.meta.env.VITE_VAPID_PUBLIC_KEY === 'string'
         ? import.meta.env.VITE_VAPID_PUBLIC_KEY
+        : undefined,
+    wsUrl:
+      typeof import.meta.env.VITE_WS_URL === 'string' && import.meta.env.VITE_WS_URL
+        ? import.meta.env.VITE_WS_URL
         : undefined,
   };
   return cached;
