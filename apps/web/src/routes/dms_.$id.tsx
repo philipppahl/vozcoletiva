@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo } from 'react';
 
 import { ConversationHeader } from '../components/messages/ConversationHeader';
@@ -36,7 +36,6 @@ function DmDetailPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const router = useRouter();
   const qc = useQueryClient();
   const conversation = useConversation(id);
   const messages = useMessages(id);
@@ -82,9 +81,7 @@ function DmDetailPage() {
     >
       <ConversationHeader
         conversation={conversation.data}
-        onBack={() =>
-          router.history.canGoBack() ? router.history.back() : navigate({ to: '/dms' })
-        }
+        onBack={() => void navigate({ to: '/dms' })}
       />
       <MessageList
         messages={messages.data?.messages ?? []}

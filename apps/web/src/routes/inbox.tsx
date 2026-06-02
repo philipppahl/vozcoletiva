@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/macro';
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 
 import { InboxList } from '../components/inbox/InboxList';
 import { RequireAuth } from '../components/RequireAuth';
@@ -16,7 +16,6 @@ export const Route = createFileRoute('/inbox')({
 
 function InboxPage() {
   const navigate = useNavigate();
-  const router = useRouter();
   const inbox = useInbox();
   const markAll = useMarkAllInboxRead();
   const unread = inbox.data?.unread_count ?? 0;
@@ -28,7 +27,7 @@ function InboxPage() {
     >
       <TopBar
         title={<Trans>Inbox</Trans>}
-        onBack={() => (router.history.canGoBack() ? router.history.back() : navigate({ to: '/' }))}
+        onBack={() => void navigate({ to: '/' })}
         rightSlot={
           unread > 0 ? (
             <button
