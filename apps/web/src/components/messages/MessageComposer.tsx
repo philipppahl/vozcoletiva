@@ -88,13 +88,16 @@ export function MessageComposer({
     ]);
   }
 
-  async function submit() {
+  function submit() {
     const body = value.trim();
     if (!body && attachments.length === 0) return;
-    await onSubmit(body, attachments);
+    const sent = attachments;
+    // Clear immediately — the message shows optimistically, so the composer
+    // shouldn't wait for the server round-trip to feel responsive.
     setValue('');
     setAttachments([]);
     setMentionQuery(null);
+    void onSubmit(body, sent);
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {

@@ -1,6 +1,7 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { apiClient } from './api';
+import { useAuthStore } from './auth/store';
 import type {
   Attachment,
   ChannelListResponse,
@@ -11,6 +12,7 @@ import type {
   MessageListResponse,
   ThreadResponse,
 } from './messages/types';
+import { tempId } from './optimistic';
 import { qk } from './query';
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
@@ -115,15 +117,50 @@ export function useSendMessage(conversationId: string) {
       });
       return unwrap(data, error) as unknown as Message;
     },
-    onSuccess: (msg) => {
-      // The bus will also fire and merge into the cache via the subscriber;
-      // but the optimistic merge ensures the composer feels instant.
-      mergeMessage(qc, msg);
+    // Show the bubble instantly with a pending marker.
+    onMutate: (input: SendMessageInput) => {
+      const session = useAuthStore.getState().session;
+      const id = tempId();
+      const optimistic: Message = {
+        id,
+        conversation_id: conversationId,
+        parent_message_id: input.parent_message_id ?? null,
+        author_id: session?.userId ?? '',
+        author_display_name: session?.displayName ?? '',
+        body: input.body,
+        attachments: input.attachments ?? [],
+        created_at: new Date().toISOString(),
+        edited_at: null,
+        reply_count: 0,
+        last_reply_at: null,
+        _optimistic: 'pending',
+      };
+      insertMessage(qc, conversationId, optimistic);
+      return { tempId: id };
+    },
+    onSuccess: (real, _input, ctx) => {
+      replaceMessage(qc, conversationId, ctx?.tempId, real);
+      void qc.invalidateQueries({ queryKey: qk.chat.dms() });
+      void qc.invalidateQueries({ queryKey: ['projects'], exact: false });
+    },
+    // Keep the bubble, mark it failed so the row can offer a retry.
+    onError: (_e, input, ctx) => {
+      setMessageStatus(qc, conversationId, ctx?.tempId, input.parent_message_id, 'failed');
     },
   });
 }
 
-export function useMarkRead(conversationId: string) {
+/** Drop a failed optimistic message (used by the retry affordance). */
+export function discardMessage(
+  qc: QueryClient,
+  conversationId: string,
+  message: Pick<Message, 'id' | 'parent_message_id'>,
+) {
+  removeMessage(qc, conversationId, message.id, message.parent_message_id ?? null);
+}
+
+export function useMarkRead(conversationId: string, slug?: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (messageId: string) => {
       const { data, error } = await apiClient.POST('/v1/conversations/{id}/read', {
@@ -131,6 +168,37 @@ export function useMarkRead(conversationId: string) {
         body: { message_id: messageId },
       });
       return unwrap(data, error);
+    },
+    // Clear the unread badge for this conversation immediately.
+    onMutate: () => {
+      qc.setQueryData<Conversation | undefined>(qk.chat.conversation(conversationId), (prev) =>
+        prev ? { ...prev, unread_count: 0 } : prev,
+      );
+      qc.setQueryData<DmListResponse | undefined>(qk.chat.dms(), (prev) =>
+        prev
+          ? {
+              ...prev,
+              dms: prev.dms.map((d) => (d.id === conversationId ? { ...d, unread_count: 0 } : d)),
+            }
+          : prev,
+      );
+      if (slug) {
+        qc.setQueryData<ChannelListResponse | undefined>(qk.projects.channels(slug), (prev) =>
+          prev
+            ? {
+                ...prev,
+                channels: prev.channels.map((c) =>
+                  c.id === conversationId ? { ...c, unread_count: 0 } : c,
+                ),
+              }
+            : prev,
+        );
+      }
+    },
+    onSettled: () => {
+      // Reconcile the derived nav badges.
+      void qc.invalidateQueries({ queryKey: qk.chat.dms() });
+      void qc.invalidateQueries({ queryKey: ['projects'], exact: false });
     },
   });
 }
@@ -148,52 +216,110 @@ export function useStartDm() {
   });
 }
 
-// ── cache merge helpers ────────────────────────────────────────────────────
+// ── message cache helpers ──────────────────────────────────────────────────
 
-function mergeMessage(qc: QueryClient, message: Message) {
-  // Top-level message: prepend to the messages cache + bump the channel/DM
-  // list's last-message preview.
-  if (message.parent_message_id) {
-    qc.setQueryData<ThreadResponse | undefined>(
-      qk.chat.thread(message.parent_message_id),
-      (prev) => {
-        if (!prev) return prev;
-        if (prev.replies.some((r) => r.id === message.id)) return prev;
-        return { ...prev, replies: [...prev.replies, message] };
-      },
-    );
-    // The parent's reply_count needs bumping in the messages list too.
-    qc.setQueryData<MessageListResponse | undefined>(
-      qk.chat.messages(message.conversation_id),
-      (prev) =>
-        prev
-          ? {
-              ...prev,
-              messages: prev.messages.map((m) =>
-                m.id === message.parent_message_id
-                  ? {
-                      ...m,
-                      reply_count: m.reply_count + 1,
-                      last_reply_at: message.created_at,
-                    }
-                  : m,
-              ),
-            }
-          : prev,
-    );
+function setMessages(
+  qc: QueryClient,
+  conversationId: string,
+  fn: (prev: MessageListResponse) => MessageListResponse,
+) {
+  qc.setQueryData<MessageListResponse | undefined>(qk.chat.messages(conversationId), (prev) =>
+    prev ? fn(prev) : prev,
+  );
+}
+
+function setThread(
+  qc: QueryClient,
+  parentId: string,
+  fn: (prev: ThreadResponse) => ThreadResponse,
+) {
+  qc.setQueryData<ThreadResponse | undefined>(qk.chat.thread(parentId), (prev) =>
+    prev ? fn(prev) : prev,
+  );
+}
+
+/** Append an optimistic message into the right place (thread or top-level). */
+function insertMessage(qc: QueryClient, conversationId: string, msg: Message) {
+  if (msg.parent_message_id) {
+    setThread(qc, msg.parent_message_id, (prev) => ({ ...prev, replies: [...prev.replies, msg] }));
+    setMessages(qc, conversationId, (prev) => ({
+      ...prev,
+      messages: prev.messages.map((m) =>
+        m.id === msg.parent_message_id
+          ? { ...m, reply_count: m.reply_count + 1, last_reply_at: msg.created_at }
+          : m,
+      ),
+    }));
   } else {
-    qc.setQueryData<MessageListResponse | undefined>(
-      qk.chat.messages(message.conversation_id),
-      (prev) => {
-        if (!prev) return prev;
-        if (prev.messages.some((m) => m.id === message.id)) return prev;
-        return { ...prev, messages: [...prev.messages, message] };
-      },
-    );
+    setMessages(qc, conversationId, (prev) => ({ ...prev, messages: [...prev.messages, msg] }));
   }
-  // Lists become stale (last-message / unread counts).
-  void qc.invalidateQueries({ queryKey: ['projects'], exact: false });
-  void qc.invalidateQueries({ queryKey: qk.chat.dms() });
+}
+
+/** Replace the temp message (by id) with the server's real message. */
+function replaceMessage(
+  qc: QueryClient,
+  conversationId: string,
+  tempIdValue: string | undefined,
+  real: Message,
+) {
+  if (!tempIdValue) return;
+  if (real.parent_message_id) {
+    setThread(qc, real.parent_message_id, (prev) => ({
+      ...prev,
+      replies: prev.replies.map((r) => (r.id === tempIdValue ? real : r)),
+    }));
+  } else {
+    setMessages(qc, conversationId, (prev) => ({
+      ...prev,
+      messages: prev.messages.map((m) => (m.id === tempIdValue ? real : m)),
+    }));
+  }
+}
+
+function setMessageStatus(
+  qc: QueryClient,
+  conversationId: string,
+  id: string | undefined,
+  parentId: string | undefined,
+  status: Message['_optimistic'],
+) {
+  if (!id) return;
+  if (parentId) {
+    setThread(qc, parentId, (prev) => ({
+      ...prev,
+      replies: prev.replies.map((r) => (r.id === id ? { ...r, _optimistic: status } : r)),
+    }));
+  } else {
+    setMessages(qc, conversationId, (prev) => ({
+      ...prev,
+      messages: prev.messages.map((m) => (m.id === id ? { ...m, _optimistic: status } : m)),
+    }));
+  }
+}
+
+function removeMessage(
+  qc: QueryClient,
+  conversationId: string,
+  id: string,
+  parentId: string | null,
+) {
+  if (parentId) {
+    setThread(qc, parentId, (prev) => ({
+      ...prev,
+      replies: prev.replies.filter((r) => r.id !== id),
+    }));
+    setMessages(qc, conversationId, (prev) => ({
+      ...prev,
+      messages: prev.messages.map((m) =>
+        m.id === parentId ? { ...m, reply_count: Math.max(0, m.reply_count - 1) } : m,
+      ),
+    }));
+  } else {
+    setMessages(qc, conversationId, (prev) => ({
+      ...prev,
+      messages: prev.messages.filter((m) => m.id !== id),
+    }));
+  }
 }
 
 // ── bus subscription ───────────────────────────────────────────────────────

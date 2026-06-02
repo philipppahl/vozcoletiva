@@ -16,11 +16,24 @@ interface MessageRowProps {
   onOpenThread?: (messageId: string) => void;
   /** Optional slug, threaded through the markdown renderer for @mentions. */
   projectSlug?: string;
+  /** Retry a failed optimistic send. */
+  onRetry?: (message: Message) => void;
 }
 
-export function MessageRow({ message, grouped, onOpenThread, projectSlug }: MessageRowProps) {
+export function MessageRow({
+  message,
+  grouped,
+  onOpenThread,
+  projectSlug,
+  onRetry,
+}: MessageRowProps) {
+  const pending = message._optimistic === 'pending';
+  const failed = message._optimistic === 'failed';
   return (
-    <article className="flex items-start gap-3 px-4" style={{ paddingTop: grouped ? 2 : 12 }}>
+    <article
+      className="flex items-start gap-3 px-4"
+      style={{ paddingTop: grouped ? 2 : 12, opacity: pending ? 0.6 : 1 }}
+    >
       <div className="flex-shrink-0" style={{ width: 32 }}>
         {grouped ? null : <Avatar displayName={message.author_display_name} size={32} />}
       </div>
@@ -57,6 +70,27 @@ export function MessageRow({ message, grouped, onOpenThread, projectSlug }: Mess
             )}
           </div>
         ))}
+        {failed && (
+          <div className="mt-1 flex items-center gap-2 text-[12px]" style={{ color: 'var(--no)' }}>
+            <Trans>Couldn't send.</Trans>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={() => onRetry(message)}
+                className="font-semibold"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--accent)',
+                  padding: 0,
+                }}
+              >
+                <Trans>Retry</Trans>
+              </button>
+            )}
+          </div>
+        )}
         {message.reply_count > 0 && onOpenThread && (
           <button
             type="button"

@@ -31,6 +31,8 @@ export interface Message {
   edited_at?: string | null;
   reply_count: number;
   last_reply_at?: string | null;
+  /** Client-only: set on an optimistic message until the server confirms it. */
+  _optimistic?: 'pending' | 'failed';
 }
 
 export interface ChannelConversation {

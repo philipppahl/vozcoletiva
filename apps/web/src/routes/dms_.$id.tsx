@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useEffect, useMemo } from 'react';
 
@@ -7,7 +8,14 @@ import { MessageList } from '../components/messages/MessageList';
 import { ThreadOverlay } from '../components/messages/ThreadOverlay';
 import { RequireAuth } from '../components/RequireAuth';
 import { useAuth } from '../lib/auth/hooks';
-import { useConversation, useMarkRead, useMessages, useSendMessage } from '../lib/messages';
+import {
+  discardMessage,
+  useConversation,
+  useMarkRead,
+  useMessages,
+  useSendMessage,
+} from '../lib/messages';
+import type { Message } from '../lib/messages/types';
 
 interface DmSearch {
   thread?: string;
@@ -29,11 +37,17 @@ function DmDetailPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const router = useRouter();
+  const qc = useQueryClient();
   const conversation = useConversation(id);
   const messages = useMessages(id);
   const send = useSendMessage(id);
   const markRead = useMarkRead(id);
   const { session } = useAuth();
+
+  const onRetry = (message: Message) => {
+    discardMessage(qc, id, message);
+    send.mutate({ body: message.body, parent_message_id: message.parent_message_id ?? undefined });
+  };
 
   useEffect(() => {
     const last = messages.data?.messages[messages.data.messages.length - 1];
@@ -64,6 +78,7 @@ function DmDetailPage() {
       />
       <MessageList
         messages={messages.data?.messages ?? []}
+        onRetry={onRetry}
         onOpenThread={(messageId) =>
           void navigate({
             to: '/dms/$id',

@@ -1,8 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { components } from '@vozcoletiva/api-client';
 
 import { apiClient } from './api';
 import { completeOnboarding } from './onboarding';
+import { applyPatches, rollback } from './optimistic';
 import { qk } from './query';
+import { toast } from './toast';
+
+type InviteList = { invites: components['schemas']['Invite'][] };
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
   if (error) {
@@ -69,7 +74,19 @@ export function useRevokeInvite() {
       });
       return unwrap(data, error);
     },
-    onSuccess: (_data, vars) => {
+    onMutate: (params: { slug: string; inviteId: string }) =>
+      applyPatches(qc, [
+        {
+          key: qk.projects.invites(params.slug),
+          update: (l?: InviteList) =>
+            l ? { ...l, invites: l.invites.filter((i) => i.id !== params.inviteId) } : l,
+        },
+      ]),
+    onError: (_e, _v, ctx) => {
+      rollback(qc, ctx);
+      toast.error('Couldn’t revoke the invite. Please try again.');
+    },
+    onSettled: (_d, _e, vars) => {
       void qc.invalidateQueries({ queryKey: qk.projects.invites(vars.slug) });
     },
   });

@@ -1,6 +1,7 @@
 import { createRootRouteWithContext, Outlet } from '@tanstack/react-router';
 import type { Locale } from '@vozcoletiva/shared';
 
+import { Toaster } from '../components/ui/Toaster';
 import { useMessageBusBridge } from '../lib/messages';
 import { useSyncProfileName } from '../lib/profile';
 
@@ -21,6 +22,7 @@ function RootLayout() {
   return (
     <div className="flex min-h-dvh flex-col">
       <Outlet />
+      <Toaster />
     </div>
   );
 }

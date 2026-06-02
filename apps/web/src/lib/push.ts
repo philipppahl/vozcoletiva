@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { apiClient } from './api';
 import { useAuth } from './auth/hooks';
 import { env } from './env';
+import { applyPatches, rollback } from './optimistic';
 import { qk } from './query';
+import { toast } from './toast';
 
 export interface NotificationPrefs {
   push_enabled: boolean;
@@ -111,12 +113,19 @@ export function useNotificationPrefs() {
 
 export function useUpdateNotificationPrefs() {
   const qc = useQueryClient();
+  const key = qk.notificationPrefs();
   return useMutation({
     mutationFn: async (prefs: NotificationPrefs): Promise<NotificationPrefs> => {
       const { data, error } = await apiClient.PUT('/v1/me/notification-prefs', { body: prefs });
       if (error || !data) throw new Error('failed to save prefs');
       return data as NotificationPrefs;
     },
-    onSuccess: (data) => qc.setQueryData(qk.notificationPrefs(), data),
+    // Flip the toggle instantly.
+    onMutate: (prefs: NotificationPrefs) => applyPatches(qc, [{ key, update: () => prefs }]),
+    onError: (_e, _v, ctx) => {
+      rollback(qc, ctx);
+      toast.error('Couldn’t update notifications. Please try again.');
+    },
+    onSuccess: (data) => qc.setQueryData(key, data),
   });
 }

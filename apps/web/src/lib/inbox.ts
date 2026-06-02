@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from './api';
 import { useAuth } from './auth/hooks';
 import type { InboxListResponse } from './inbox/types';
+import { applyPatches, rollback } from './optimistic';
 import { qk } from './query';
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
@@ -45,6 +46,7 @@ export function useUnreadByProject(): Record<string, number> {
 
 export function useMarkInboxItemRead() {
   const qc = useQueryClient();
+  const key = qk.inbox.list();
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await apiClient.POST('/v1/me/inbox/{id}/read', {
@@ -52,21 +54,54 @@ export function useMarkInboxItemRead() {
       });
       if (error) throw new Error('failed to mark read');
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: qk.inbox.list() });
-    },
+    onMutate: (id: string) =>
+      applyPatches(qc, [
+        {
+          key,
+          update: (l?: InboxListResponse) => {
+            if (!l) return l;
+            const wasUnread = l.items.some((it) => it.id === id && !it.read_at);
+            return {
+              ...l,
+              items: l.items.map((it) =>
+                it.id === id && !it.read_at ? { ...it, read_at: new Date().toISOString() } : it,
+              ),
+              unread_count: Math.max(0, l.unread_count - (wasUnread ? 1 : 0)),
+            };
+          },
+        },
+      ]),
+    onError: (_e, _v, ctx) => rollback(qc, ctx),
+    onSettled: () => void qc.invalidateQueries({ queryKey: key }),
   });
 }
 
 export function useMarkAllInboxRead() {
   const qc = useQueryClient();
+  const key = qk.inbox.list();
   return useMutation({
     mutationFn: async () => {
       const { error } = await apiClient.POST('/v1/me/inbox/read-all');
       if (error) throw new Error('failed to mark all read');
     },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: qk.inbox.list() });
-    },
+    onMutate: () =>
+      applyPatches(qc, [
+        {
+          key,
+          update: (l?: InboxListResponse) =>
+            l
+              ? {
+                  ...l,
+                  items: l.items.map((it) => ({
+                    ...it,
+                    read_at: it.read_at ?? new Date().toISOString(),
+                  })),
+                  unread_count: 0,
+                }
+              : l,
+        },
+      ]),
+    onError: (_e, _v, ctx) => rollback(qc, ctx),
+    onSettled: () => void qc.invalidateQueries({ queryKey: key }),
   });
 }

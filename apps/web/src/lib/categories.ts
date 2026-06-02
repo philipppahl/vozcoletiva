@@ -1,7 +1,15 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { components } from '@vozcoletiva/api-client';
 
 import { apiClient } from './api';
+import { applyPatches, rollback, tempId } from './optimistic';
 import { qk } from './query';
+import { toast } from './toast';
+
+type Category = components['schemas']['Category'];
+interface CategoryList {
+  categories: Category[];
+}
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
   if (error) {
@@ -38,6 +46,7 @@ export function useCategories(slug: string | undefined) {
 
 export function useCreateCategory(slug: string) {
   const qc = useQueryClient();
+  const key = qk.projects.categories(slug);
   return useMutation({
     mutationFn: async (input: { name: string }) => {
       const { data, error } = await apiClient.POST('/v1/projects/{slug}/categories', {
@@ -46,12 +55,33 @@ export function useCreateCategory(slug: string) {
       });
       return unwrap(data, error);
     },
-    onSuccess: () => invalidate(qc, slug),
+    onMutate: (input: { name: string }) =>
+      applyPatches(qc, [
+        {
+          key,
+          update: (l?: CategoryList) =>
+            l
+              ? {
+                  ...l,
+                  categories: [
+                    ...l.categories,
+                    { id: tempId(), name: input.name, position: l.categories.length },
+                  ],
+                }
+              : l,
+        },
+      ]),
+    onError: (_e, _v, ctx) => {
+      rollback(qc, ctx);
+      toast.error('Couldn’t add the topic. Please try again.');
+    },
+    onSettled: () => invalidate(qc, slug),
   });
 }
 
 export function useRenameCategory(slug: string) {
   const qc = useQueryClient();
+  const key = qk.projects.categories(slug);
   return useMutation({
     mutationFn: async (input: { id: string; name: string }) => {
       const { data, error } = await apiClient.PATCH('/v1/projects/{slug}/categories/{id}', {
@@ -60,12 +90,32 @@ export function useRenameCategory(slug: string) {
       });
       return unwrap(data, error);
     },
-    onSuccess: () => invalidate(qc, slug),
+    onMutate: (input: { id: string; name: string }) =>
+      applyPatches(qc, [
+        {
+          key,
+          update: (l?: CategoryList) =>
+            l
+              ? {
+                  ...l,
+                  categories: l.categories.map((c) =>
+                    c.id === input.id ? { ...c, name: input.name } : c,
+                  ),
+                }
+              : l,
+        },
+      ]),
+    onError: (_e, _v, ctx) => {
+      rollback(qc, ctx);
+      toast.error('Couldn’t rename the topic. Please try again.');
+    },
+    onSettled: () => invalidate(qc, slug),
   });
 }
 
 export function useDeleteCategory(slug: string) {
   const qc = useQueryClient();
+  const key = qk.projects.categories(slug);
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await apiClient.DELETE('/v1/projects/{slug}/categories/{id}', {
@@ -79,6 +129,18 @@ export function useDeleteCategory(slug: string) {
         );
       }
     },
-    onSuccess: () => invalidate(qc, slug),
+    onMutate: (id: string) =>
+      applyPatches(qc, [
+        {
+          key,
+          update: (l?: CategoryList) =>
+            l ? { ...l, categories: l.categories.filter((c) => c.id !== id) } : l,
+        },
+      ]),
+    onError: (_e, _v, ctx) => {
+      rollback(qc, ctx);
+      toast.error('Couldn’t delete the topic. Please try again.');
+    },
+    onSettled: () => invalidate(qc, slug),
   });
 }

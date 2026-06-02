@@ -1,7 +1,8 @@
 import { Trans } from '@lingui/macro';
+import { useQueryClient } from '@tanstack/react-query';
 
-import { useSendMessage, useThread } from '../../lib/messages';
-import type { Attachment, Conversation } from '../../lib/messages/types';
+import { discardMessage, useSendMessage, useThread } from '../../lib/messages';
+import type { Attachment, Conversation, Message } from '../../lib/messages/types';
 import { Sheet } from '../ui/Sheet';
 import type { MentionCandidate } from './MentionPopover';
 import { MessageComposer } from './MessageComposer';
@@ -23,6 +24,7 @@ export function ThreadOverlay({
   projectSlug,
 }: ThreadOverlayProps) {
   const open = parentMessageId !== null;
+  const qc = useQueryClient();
   const thread = useThread(parentMessageId ?? undefined);
   const send = useSendMessage(conversation?.id ?? '');
 
@@ -30,6 +32,12 @@ export function ThreadOverlay({
     if (!parentMessageId) return;
     await send.mutateAsync({ body, attachments, parent_message_id: parentMessageId });
   }
+
+  const onRetry = (message: Message) => {
+    if (!conversation) return;
+    discardMessage(qc, conversation.id, message);
+    send.mutate({ body: message.body, parent_message_id: message.parent_message_id ?? undefined });
+  };
 
   return (
     <Sheet
@@ -85,6 +93,7 @@ export function ThreadOverlay({
                       message={r}
                       grouped={grouped}
                       projectSlug={projectSlug}
+                      onRetry={onRetry}
                     />
                   );
                 })}

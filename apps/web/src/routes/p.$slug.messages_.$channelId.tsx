@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useEffect, useMemo } from 'react';
 
@@ -6,7 +7,14 @@ import { MessageComposer } from '../components/messages/MessageComposer';
 import { MessageList } from '../components/messages/MessageList';
 import { ThreadOverlay } from '../components/messages/ThreadOverlay';
 import { RequireAuth } from '../components/RequireAuth';
-import { useConversation, useMarkRead, useMessages, useSendMessage } from '../lib/messages';
+import {
+  discardMessage,
+  useConversation,
+  useMarkRead,
+  useMessages,
+  useSendMessage,
+} from '../lib/messages';
+import type { Message } from '../lib/messages/types';
 import { useMembers } from '../lib/projects';
 
 interface ChannelSearch {
@@ -28,11 +36,17 @@ function ChannelDetailPage() {
   const { slug, channelId } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const conversation = useConversation(channelId);
   const messages = useMessages(channelId);
   const send = useSendMessage(channelId);
-  const markRead = useMarkRead(channelId);
+  const markRead = useMarkRead(channelId, slug);
   const members = useMembers(slug);
+
+  const onRetry = (message: Message) => {
+    discardMessage(qc, channelId, message);
+    send.mutate({ body: message.body, parent_message_id: message.parent_message_id ?? undefined });
+  };
 
   // Mark the channel as read on every load + when new messages arrive.
   useEffect(() => {
@@ -57,6 +71,7 @@ function ChannelDetailPage() {
       <MessageList
         messages={messages.data?.messages ?? []}
         projectSlug={slug}
+        onRetry={onRetry}
         onOpenThread={(id) =>
           void navigate({
             to: '/p/$slug/messages/$channelId',

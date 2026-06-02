@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { apiClient } from './api';
 import { useAuthStore } from './auth/store';
 import { qk } from './query';
+import { toast } from './toast';
 
 export interface Profile {
   user_id: string;
@@ -41,6 +42,19 @@ export function useUpdateDisplayName() {
       });
       if (error || !data) throw new Error('failed to update display name');
       return data as Profile;
+    },
+    // Flip the name/avatar instantly.
+    onMutate: (displayName: string) => {
+      const prev = useAuthStore.getState().session?.displayName;
+      syncSessionName(displayName);
+      qc.setQueryData<Profile | undefined>(qk.me(), (p) =>
+        p ? { ...p, display_name: displayName } : p,
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) syncSessionName(ctx.prev);
+      toast.error('Couldn’t update your name. Please try again.');
     },
     onSuccess: (profile) => {
       syncSessionName(profile.display_name);

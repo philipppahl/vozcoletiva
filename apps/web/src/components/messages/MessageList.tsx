@@ -11,6 +11,7 @@ interface MessageListProps {
   lastReadMessageId?: string | null;
   onOpenThread?: (messageId: string) => void;
   projectSlug?: string;
+  onRetry?: (message: Message) => void;
 }
 
 const DAY_MS = 86_400_000;
@@ -26,6 +27,7 @@ export function MessageList({
   lastReadMessageId,
   onOpenThread,
   projectSlug,
+  onRetry,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastIdRef = useRef<string | null>(null);
@@ -89,6 +91,7 @@ export function MessageList({
             grouped={it.grouped}
             onOpenThread={onOpenThread}
             projectSlug={projectSlug}
+            onRetry={onRetry}
           />
         );
       })}
