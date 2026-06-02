@@ -32,6 +32,14 @@ struct PrefsDto {
     comment_on_yours: bool,
     proposal_closed: bool,
     document_amended: bool,
+    // Defaulted so a client that PUTs an older payload (pre-DM-pref) keeps DMs on
+    // rather than silently muting them.
+    #[serde(default = "default_true")]
+    direct_message: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl From<NotificationPrefs> for PrefsDto {
@@ -43,6 +51,7 @@ impl From<NotificationPrefs> for PrefsDto {
             comment_on_yours: p.comment_on_yours,
             proposal_closed: p.proposal_closed,
             document_amended: p.document_amended,
+            direct_message: p.direct_message,
         }
     }
 }
@@ -56,6 +65,7 @@ impl From<PrefsDto> for NotificationPrefs {
             comment_on_yours: d.comment_on_yours,
             proposal_closed: d.proposal_closed,
             document_amended: d.document_amended,
+            direct_message: d.direct_message,
         }
     }
 }

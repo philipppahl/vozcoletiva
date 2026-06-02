@@ -15,6 +15,7 @@ export interface NotificationPrefs {
   comment_on_yours: boolean;
   proposal_closed: boolean;
   document_amended: boolean;
+  direct_message: boolean;
 }
 
 /** Whether this browser can do Web Push at all. */

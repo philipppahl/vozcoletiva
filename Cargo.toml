@@ -57,6 +57,8 @@ ammonia = "4.0"
 aws-sdk-apigatewaymanagement = "1.100"
 aws-sdk-ssm = "1.111"
 web-push-native = "0.4"
+# Decode base64url-unpadded subscription keys + the VAPID private scalar.
+base64ct = { version = "1.8", features = ["alloc"] }
 
 [profile.release]
 opt-level = 3

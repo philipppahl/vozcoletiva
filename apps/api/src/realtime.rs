@@ -12,6 +12,7 @@
 use serde_json::Value;
 
 use crate::error::AppError;
+use crate::push_send::PushContent;
 use crate::repo::conversation::ConversationMeta;
 use crate::repo::{conversation, membership};
 use crate::state::AppState;
@@ -22,6 +23,8 @@ pub struct MessageEvent {
     pub conversation_id: String,
     pub message_id: String,
     pub author_id: String,
+    pub author_display_name: String,
+    pub body: String,
     pub parent_message_id: Option<String>,
 }
 
@@ -70,6 +73,8 @@ pub fn classify(new_image: &Value) -> StreamEntity {
                 conversation_id,
                 message_id,
                 author_id,
+                author_display_name: s(new_image, "authorDisplayName").unwrap_or_default(),
+                body: s(new_image, "body").unwrap_or_default(),
                 parent_message_id: s(new_image, "parentMessageId"),
             })
         }
@@ -97,20 +102,31 @@ fn recipient_from_pk(image: &Value) -> Option<String> {
     s(image, "PK").and_then(|pk| pk.strip_prefix("USER#").map(str::to_string))
 }
 
-/// The set of users that should receive a live broadcast of a message: every
-/// member of a channel's project, or both participants of a DM. The author is
-/// included — their other devices want it, and the client dedups by message id.
-pub async fn broadcast_audience(
-    state: &AppState,
-    conversation_id: &str,
-) -> Result<Vec<String>, AppError> {
+/// Who a new message reaches, resolved with one `get_meta`.
+pub struct Targets {
+    /// Everyone who gets a live WS broadcast: a channel's project members, or
+    /// both DM participants. The author is included — their other devices want
+    /// it, and the client dedups by message id.
+    pub audience: Vec<String>,
+    /// `Some([lo, hi])` for a DM (drives the DM push); `None` for a channel
+    /// (channel notifications come from inbox items, not every message).
+    pub dm_participants: Option<[String; 2]>,
+}
+
+pub async fn resolve_targets(state: &AppState, conversation_id: &str) -> Result<Targets, AppError> {
     match conversation::get_meta(state, conversation_id).await? {
-        ConversationMeta::Channel(c) => Ok(membership::list(state, &c.project_id)
-            .await?
-            .into_iter()
-            .map(|m| m.user_id)
-            .collect()),
-        ConversationMeta::Dm(d) => Ok(d.participant_ids.to_vec()),
+        ConversationMeta::Channel(c) => Ok(Targets {
+            audience: membership::list(state, &c.project_id)
+                .await?
+                .into_iter()
+                .map(|m| m.user_id)
+                .collect(),
+            dm_participants: None,
+        }),
+        ConversationMeta::Dm(d) => Ok(Targets {
+            audience: d.participant_ids.to_vec(),
+            dm_participants: Some(d.participant_ids),
+        }),
     }
 }
 
@@ -122,6 +138,53 @@ pub fn message_signal(ev: &MessageEvent) -> String {
         "parentMessageId": ev.parent_message_id,
     })
     .to_string()
+}
+
+/// Trim a message/preview body for a notification line (no newlines, capped).
+fn snippet(text: &str) -> String {
+    const CAP: usize = 140;
+    let one_line = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if one_line.chars().count() <= CAP {
+        return one_line;
+    }
+    let mut s: String = one_line.chars().take(CAP - 1).collect();
+    s.push('…');
+    s
+}
+
+/// Push copy for a DM message (the peer is notified). Server-side copy is EN for
+/// now (the body carries the content); localising it is a follow-up.
+pub fn dm_push_content(ev: &MessageEvent) -> PushContent {
+    PushContent {
+        title: if ev.author_display_name.is_empty() {
+            "New message".to_string()
+        } else {
+            ev.author_display_name.clone()
+        },
+        body: snippet(&ev.body),
+        url: format!("/dms/{}", ev.conversation_id),
+        tag: Some(format!("dm-{}", ev.conversation_id)),
+    }
+}
+
+/// Push copy for an inbox item. Deep-links to the inbox; the item there carries
+/// its own in-app navigation.
+pub fn inbox_push_content(ev: &InboxEvent) -> PushContent {
+    let who = ev.actor_display_name.as_deref().unwrap_or("Someone");
+    let title = match ev.kind.as_str() {
+        "mention" => format!("{who} mentioned you"),
+        "reply" => format!("{who} replied"),
+        "comment-on-yours" => format!("{who} commented on your proposal"),
+        "proposal-closed" => format!("Decision closed in {}", ev.project_name),
+        "document-amended" => format!("Document updated in {}", ev.project_name),
+        _ => ev.project_name.clone(),
+    };
+    PushContent {
+        title,
+        body: snippet(&ev.preview),
+        url: "/inbox".to_string(),
+        tag: None,
+    }
 }
 
 #[cfg(test)]
@@ -140,6 +203,8 @@ mod tests {
             "conversationId": attr_s("CONV1"),
             "messageId": attr_s("M1"),
             "authorId": attr_s("U1"),
+            "authorDisplayName": attr_s("Tomás"),
+            "body": attr_s("olá"),
         });
         assert_eq!(
             classify(&image),
@@ -147,6 +212,8 @@ mod tests {
                 conversation_id: "CONV1".into(),
                 message_id: "M1".into(),
                 author_id: "U1".into(),
+                author_display_name: "Tomás".into(),
+                body: "olá".into(),
                 parent_message_id: None,
             })
         );
@@ -159,12 +226,66 @@ mod tests {
             "conversationId": attr_s("CONV1"),
             "messageId": attr_s("M2"),
             "authorId": attr_s("U2"),
+            "authorDisplayName": attr_s("Marina"),
+            "body": attr_s("+1"),
             "parentMessageId": attr_s("M1"),
         });
         let StreamEntity::Message(ev) = classify(&image) else {
             panic!("expected Message");
         };
         assert_eq!(ev.parent_message_id.as_deref(), Some("M1"));
+    }
+
+    fn msg(author: &str, name: &str, body: &str, conv: &str) -> MessageEvent {
+        MessageEvent {
+            conversation_id: conv.into(),
+            message_id: "M".into(),
+            author_id: author.into(),
+            author_display_name: name.into(),
+            body: body.into(),
+            parent_message_id: None,
+        }
+    }
+
+    #[test]
+    fn dm_push_titles_with_sender_and_links_to_conversation() {
+        let c = dm_push_content(&msg("U1", "Tomás Ferreira", "vamos?", "01ABC"));
+        assert_eq!(c.title, "Tomás Ferreira");
+        assert_eq!(c.body, "vamos?");
+        assert_eq!(c.url, "/dms/01ABC");
+        assert_eq!(c.tag.as_deref(), Some("dm-01ABC"));
+    }
+
+    #[test]
+    fn inbox_push_copy_per_kind() {
+        let base = InboxEvent {
+            recipient_id: "u".into(),
+            kind: "mention".into(),
+            actor_display_name: Some("Marina".into()),
+            project_name: "Vila".into(),
+            preview: "@u olá".into(),
+        };
+        assert_eq!(inbox_push_content(&base).title, "Marina mentioned you");
+        assert_eq!(inbox_push_content(&base).url, "/inbox");
+        let closed = InboxEvent {
+            kind: "proposal-closed".into(),
+            ..base.clone()
+        };
+        assert_eq!(inbox_push_content(&closed).title, "Decision closed in Vila");
+        // Missing actor falls back gracefully.
+        let anon = InboxEvent {
+            actor_display_name: None,
+            ..base.clone()
+        };
+        assert_eq!(inbox_push_content(&anon).title, "Someone mentioned you");
+    }
+
+    #[test]
+    fn snippet_collapses_and_caps() {
+        assert_eq!(snippet("  a\n\n b  "), "a b");
+        let long = "x".repeat(200);
+        assert!(snippet(&long).ends_with('…'));
+        assert_eq!(snippet(&long).chars().count(), 140);
     }
 
     #[test]
@@ -207,6 +328,8 @@ mod tests {
             conversation_id: "C".into(),
             message_id: "M".into(),
             author_id: "U".into(),
+            author_display_name: "U Name".into(),
+            body: "hi".into(),
             parent_message_id: Some("P".into()),
         };
         let v: Value = serde_json::from_str(&message_signal(&ev)).unwrap();

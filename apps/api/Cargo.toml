@@ -60,6 +60,7 @@ ulid = { workspace = true }
 aws-sdk-apigatewaymanagement = { workspace = true }
 aws-sdk-ssm = { workspace = true }
 web-push-native = { workspace = true }
+base64ct = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync"] }

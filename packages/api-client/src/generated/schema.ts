@@ -881,6 +881,7 @@ export interface components {
         };
         NotificationPrefs: {
             comment_on_yours: boolean;
+            direct_message: boolean;
             document_amended: boolean;
             mention: boolean;
             proposal_closed: boolean;

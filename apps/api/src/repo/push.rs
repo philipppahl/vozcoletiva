@@ -28,6 +28,10 @@ pub struct NotificationPrefs {
     pub comment_on_yours: bool,
     pub proposal_closed: bool,
     pub document_amended: bool,
+    /// Direct messages. Unlike the others this isn't an inbox kind — DMs aren't
+    /// fanned into the inbox — so it gates the realtime DM push directly
+    /// (decision 0028). A DM is inherently direct + relevant, so default on.
+    pub direct_message: bool,
 }
 
 impl Default for NotificationPrefs {
@@ -40,6 +44,7 @@ impl Default for NotificationPrefs {
             comment_on_yours: true,
             proposal_closed: true,
             document_amended: true,
+            direct_message: true,
         }
     }
 }
@@ -57,6 +62,11 @@ impl NotificationPrefs {
                 "document-amended" => self.document_amended,
                 _ => false,
             }
+    }
+
+    /// Whether a direct message should push (not an inbox kind; see the field).
+    pub fn allows_dm(&self) -> bool {
+        self.push_enabled && self.direct_message
     }
 }
 
@@ -121,7 +131,8 @@ pub async fn list_subscriptions(
     let mut out = Vec::new();
     for item in q.items.unwrap_or_default() {
         let s = |k: &str| item.get(k).and_then(|v| v.as_s().ok()).cloned();
-        if let (Some(endpoint), Some(p256dh), Some(auth)) = (s("endpoint"), s("p256dh"), s("auth")) {
+        if let (Some(endpoint), Some(p256dh), Some(auth)) = (s("endpoint"), s("p256dh"), s("auth"))
+        {
             out.push(PushSubscription {
                 endpoint,
                 p256dh,
@@ -166,6 +177,7 @@ pub async fn put_prefs(
         .item("commentOnYours", b(prefs.comment_on_yours))
         .item("proposalClosed", b(prefs.proposal_closed))
         .item("documentAmended", b(prefs.document_amended))
+        .item("directMessage", b(prefs.direct_message))
         .send()
         .await?;
     Ok(())
@@ -185,5 +197,6 @@ fn prefs_from_item(item: &HashMap<String, AttributeValue>) -> NotificationPrefs 
         comment_on_yours: b("commentOnYours", true),
         proposal_closed: b("proposalClosed", true),
         document_amended: b("documentAmended", true),
+        direct_message: b("directMessage", true),
     }
 }

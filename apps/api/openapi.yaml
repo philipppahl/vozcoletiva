@@ -1320,7 +1320,7 @@ components:
     NotificationPrefs:
       type: object
       required:
-        [push_enabled, mention, reply, comment_on_yours, proposal_closed, document_amended]
+        [push_enabled, mention, reply, comment_on_yours, proposal_closed, document_amended, direct_message]
       additionalProperties: false
       properties:
         push_enabled: { type: boolean }
@@ -1329,6 +1329,8 @@ components:
         comment_on_yours: { type: boolean }
         proposal_closed: { type: boolean }
         document_amended: { type: boolean }
+        # Gates the realtime DM push (decision 0028). Not an inbox kind.
+        direct_message: { type: boolean }
 
     ProposalSearchHit:
       type: object

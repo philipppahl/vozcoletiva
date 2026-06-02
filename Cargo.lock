@@ -3713,6 +3713,7 @@ dependencies = [
  "aws-sdk-dynamodb",
  "aws-sdk-scheduler",
  "aws-sdk-ssm",
+ "base64ct",
  "chrono",
  "jsonwebtoken",
  "lambda_http",

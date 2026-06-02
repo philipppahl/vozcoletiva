@@ -200,6 +200,7 @@ function DisplayNameField() {
 }
 
 const PREF_KINDS = [
+  'direct_message',
   'mention',
   'reply',
   'comment_on_yours',
@@ -244,6 +245,7 @@ function NotificationsSection() {
   }
 
   const kindLabels: Record<(typeof PREF_KINDS)[number], React.ReactNode> = {
+    direct_message: <Trans>Direct messages</Trans>,
     mention: <Trans>Mentions</Trans>,
     reply: <Trans>Thread replies</Trans>,
     comment_on_yours: <Trans>Comments on your proposals</Trans>,

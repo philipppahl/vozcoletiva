@@ -461,6 +461,7 @@ msgstr "Direct message"
 
 #: src/components/messages/DmListSection.tsx
 #: src/routes/dms.tsx
+#: src/routes/preferences.tsx
 msgid "Direct messages"
 msgstr "Direct messages"
 

@@ -23,13 +23,29 @@ macro_rules! ddb_or_skip {
 #[tokio::test]
 async fn subscriptions_add_list_delete() {
     let ddb = ddb_or_skip!("subscriptions_add_list_delete");
-    push::add_subscription(&ddb.state, "u1", "https://fcm/abc", "p256", "auth", Some("UA"), NOW)
-        .await
-        .unwrap();
+    push::add_subscription(
+        &ddb.state,
+        "u1",
+        "https://fcm/abc",
+        "p256",
+        "auth",
+        Some("UA"),
+        NOW,
+    )
+    .await
+    .unwrap();
     // Re-subscribing the same endpoint upserts (still one).
-    push::add_subscription(&ddb.state, "u1", "https://fcm/abc", "p256b", "authb", None, NOW)
-        .await
-        .unwrap();
+    push::add_subscription(
+        &ddb.state,
+        "u1",
+        "https://fcm/abc",
+        "p256b",
+        "authb",
+        None,
+        NOW,
+    )
+    .await
+    .unwrap();
     push::add_subscription(&ddb.state, "u1", "https://fcm/xyz", "p2", "a2", None, NOW)
         .await
         .unwrap();
@@ -52,6 +68,7 @@ async fn prefs_default_then_roundtrip() {
     let prefs = push::get_prefs(&ddb.state, "u2").await.unwrap();
     assert!(prefs.push_enabled && prefs.mention && prefs.document_amended);
     assert!(prefs.allows("mention"));
+    assert!(prefs.direct_message && prefs.allows_dm());
 
     // Toggle: master on, but mute proposal-closed + document-amended.
     let next = NotificationPrefs {
@@ -61,6 +78,7 @@ async fn prefs_default_then_roundtrip() {
         comment_on_yours: true,
         proposal_closed: false,
         document_amended: false,
+        direct_message: true,
     };
     push::put_prefs(&ddb.state, "u2", &next).await.unwrap();
     let got = push::get_prefs(&ddb.state, "u2").await.unwrap();
@@ -74,5 +92,7 @@ async fn prefs_default_then_roundtrip() {
         ..NotificationPrefs::default()
     };
     push::put_prefs(&ddb.state, "u2", &off).await.unwrap();
-    assert!(!push::get_prefs(&ddb.state, "u2").await.unwrap().allows("mention"));
+    let got_off = push::get_prefs(&ddb.state, "u2").await.unwrap();
+    assert!(!got_off.allows("mention"));
+    assert!(!got_off.allows_dm());
 }
