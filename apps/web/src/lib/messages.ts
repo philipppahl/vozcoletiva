@@ -32,6 +32,12 @@ function unwrap<T>(data: T | undefined, error: unknown): T {
 
 // ── list queries ───────────────────────────────────────────────────────────
 
+// Live-ish chat without a WebSocket: poll while a conversation/list is open
+// (mirrors the proposal-tally polling). Pauses when the tab is hidden. Real-time
+// push is a later WebSocket slice. See decision 0027.
+const CHAT_POLL_MS = 4000;
+const LIST_POLL_MS = 8000;
+
 export function useChannels(slug: string | undefined) {
   return useQuery({
     queryKey: slug ? qk.projects.channels(slug) : ['channels', '_none_'],
@@ -43,6 +49,7 @@ export function useChannels(slug: string | undefined) {
       return unwrap(data, error) as unknown as ChannelListResponse;
     },
     refetchOnWindowFocus: true,
+    refetchInterval: LIST_POLL_MS,
   });
 }
 
@@ -54,6 +61,7 @@ export function useDms() {
       return unwrap(data, error) as unknown as DmListResponse;
     },
     refetchOnWindowFocus: true,
+    refetchInterval: LIST_POLL_MS,
   });
 }
 
@@ -74,27 +82,47 @@ export function useConversation(id: string | undefined) {
 }
 
 export function useMessages(conversationId: string | undefined) {
+  const qc = useQueryClient();
+  const key = conversationId ? qk.chat.messages(conversationId) : ['messages', '_none_'];
   return useQuery({
-    queryKey: conversationId ? qk.chat.messages(conversationId) : ['messages', '_none_'],
+    queryKey: key,
     enabled: !!conversationId,
+    refetchInterval: CHAT_POLL_MS,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/conversations/{id}/messages', {
         params: { path: { id: conversationId ?? '' } },
       });
-      return unwrap(data, error) as unknown as MessageListResponse;
+      const server = unwrap(data, error) as unknown as MessageListResponse;
+      // Keep in-flight / failed optimistic messages (client-only temp ids) so a
+      // background poll doesn't wipe a pending bubble or a failed-retry.
+      const prev = qc.getQueryData<MessageListResponse>(key);
+      const pending = (prev?.messages ?? []).filter(
+        (m) => m._optimistic && !server.messages.some((s) => s.id === m.id),
+      );
+      return pending.length ? { ...server, messages: [...server.messages, ...pending] } : server;
     },
   });
 }
 
 export function useThread(parentMessageId: string | undefined) {
+  const qc = useQueryClient();
+  const key = parentMessageId ? qk.chat.thread(parentMessageId) : ['thread', '_none_'];
   return useQuery({
-    queryKey: parentMessageId ? qk.chat.thread(parentMessageId) : ['thread', '_none_'],
+    queryKey: key,
     enabled: !!parentMessageId,
+    refetchInterval: CHAT_POLL_MS,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/messages/{id}/thread', {
         params: { path: { id: parentMessageId ?? '' } },
       });
-      return unwrap(data, error) as unknown as ThreadResponse;
+      const server = unwrap(data, error) as unknown as ThreadResponse;
+      const prev = qc.getQueryData<ThreadResponse>(key);
+      const pending = (prev?.replies ?? []).filter(
+        (r) => r._optimistic && !server.replies.some((s) => s.id === r.id),
+      );
+      return pending.length ? { ...server, replies: [...server.replies, ...pending] } : server;
     },
   });
 }
