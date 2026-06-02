@@ -4,6 +4,7 @@ import {
   AttributeType,
   BillingMode,
   ProjectionType,
+  StreamViewType,
   Table,
   TableEncryption,
 } from 'aws-cdk-lib/aws-dynamodb';
@@ -35,6 +36,10 @@ export class DataTable extends Construct {
       encryption: TableEncryption.AWS_MANAGED,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       timeToLiveAttribute: 'ttl',
+      // NEW_IMAGE: each stream record carries the full item *after* the write —
+      // enough for the realtime consumer to broadcast a new message / push an
+      // inbox item. We never diff against the prior value, so no OLD_IMAGE.
+      stream: StreamViewType.NEW_IMAGE,
       removalPolicy: props.env === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY,
     });
 

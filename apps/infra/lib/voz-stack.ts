@@ -5,6 +5,7 @@ import type { Construct } from 'constructs';
 import { Api } from './constructs/api';
 import { Auth } from './constructs/auth';
 import { DataTable } from './constructs/data-table';
+import { Realtime } from './constructs/realtime';
 import { WebHosting } from './constructs/web-hosting';
 import type { EnvConfig } from './env-config';
 
@@ -27,6 +28,12 @@ export class VozStack extends Stack {
       userPoolClient: auth.webClient,
     });
     const web = new WebHosting(this, 'Web', { env: envConfig.env });
+    const realtime = new Realtime(this, 'Realtime', {
+      env: envConfig.env,
+      table: data.table,
+      userPool: auth.userPool,
+      userPoolClient: auth.webClient,
+    });
 
     Tags.of(this).add('Project', 'vozcoletiva');
     Tags.of(this).add('Env', envConfig.env);
@@ -34,6 +41,10 @@ export class VozStack extends Stack {
     new CfnOutput(this, 'ApiUrl', {
       value: api.url,
       description: 'HTTP API base URL',
+    });
+    new CfnOutput(this, 'WsUrl', {
+      value: realtime.wsUrl,
+      description: 'WebSocket API base URL (wss://) for live delivery',
     });
     new CfnOutput(this, 'WebUrl', {
       value: `https://${web.distribution.distributionDomainName}`,

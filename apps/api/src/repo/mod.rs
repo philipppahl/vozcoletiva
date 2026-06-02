@@ -1,5 +1,6 @@
 pub mod category;
 pub mod comment;
+pub mod connection;
 pub mod conversation;
 pub mod document;
 pub mod inbox;

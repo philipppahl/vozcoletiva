@@ -20,6 +20,17 @@ path = "src/main.rs"
 name = "voz-worker"
 path = "src/bin/worker.rs"
 
+# WebSocket connection lifecycle ($connect/$disconnect/$default) + the REQUEST
+# authorizer (decision 0028).
+[[bin]]
+name = "voz-ws"
+path = "src/bin/ws.rs"
+
+# DynamoDB-stream consumer: WS broadcast + Web Push delivery (0028 + 0025 B).
+[[bin]]
+name = "voz-realtime"
+path = "src/bin/realtime.rs"
+
 [features]
 # Exposes test-only constructors (AppState::for_test, JwtVerifier::stub) used by
 # the DynamoDB-Local integration tests in `tests/`. Off in normal builds.
@@ -46,6 +57,9 @@ uuid = { workspace = true }
 async-trait = { workspace = true }
 rand = { workspace = true }
 ulid = { workspace = true }
+aws-sdk-apigatewaymanagement = { workspace = true }
+aws-sdk-ssm = { workspace = true }
+web-push-native = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "sync"] }

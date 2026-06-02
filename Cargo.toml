@@ -49,6 +49,15 @@ ulid = { version = "1.1", features = ["serde"] }
 aws-sdk-scheduler = "1.65"
 ammonia = "4.0"
 
+# Real-time delivery (decisions 0028 + 0025 Phase B).
+# - apigatewaymanagement: PostToConnection, to push messages to open WS clients.
+# - ssm: read the VAPID private-key SecureString at cold start (never in env).
+# - web-push-native: RFC 8291 payload encryption + VAPID, pure-Rust (RustCrypto)
+#   so it cross-compiles to arm64 Lambda without a C toolchain.
+aws-sdk-apigatewaymanagement = "1.100"
+aws-sdk-ssm = "1.111"
+web-push-native = "0.4"
+
 [profile.release]
 opt-level = 3
 lto = "thin"
