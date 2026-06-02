@@ -17,6 +17,8 @@ interface PushPayload {
   body?: string;
   url?: string;
   tag?: string;
+  /** Large icon — the sender's avatar when present; the app icon otherwise. */
+  icon?: string;
 }
 
 self.addEventListener('push', (event: PushEvent) => {
@@ -30,8 +32,11 @@ self.addEventListener('push', (event: PushEvent) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body ?? '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
+      // Sender avatar when supplied (decision 0028+), else the app icon.
+      icon: data.icon ?? '/icons/icon-192.png',
+      // Monochrome silhouette — Android renders the badge as a flat shape, so a
+      // full-colour icon would show as a solid square.
+      badge: '/icons/badge-96.png',
       tag: data.tag,
       data: { url: data.url ?? '/' },
     }),
