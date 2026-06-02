@@ -571,6 +571,10 @@ msgstr "Olá, {displayName}"
 msgid "Hide diff"
 msgstr "Ocultar diferenças"
 
+#: src/components/ui/Field.tsx
+msgid "Hide password"
+msgstr "Ocultar senha"
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "How it's decided"
 msgstr "Como é decidido"
@@ -1131,6 +1135,10 @@ msgstr "Ajustes"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Show diff against current"
 msgstr "Mostrar diferenças com a versão atual"
+
+#: src/components/ui/Field.tsx
+msgid "Show password"
+msgstr "Mostrar senha"
 
 #: src/routes/index.tsx
 #: src/routes/sign-in.tsx
