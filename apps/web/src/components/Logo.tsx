@@ -9,14 +9,16 @@ export function Logo({ size = 56, withWordmark = false }: LogoProps) {
       <title>vozcoletiva</title>
       <rect width="64" height="64" rx="14" ry="14" fill="var(--accent)" />
       <path
-        d="M 16 20 L 30 46 L 48 14"
+        d="M 15 30 L 27 46 L 50 12"
         fill="none"
         stroke="#FFFFFF"
         strokeWidth="6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="48" cy="14" r="4" fill="var(--accent-soft)" />
+      {/* Warm accent dot — fixed (not accent-soft) so it stays visible on the
+          indigo mark, echoing the original coral-on-turquoise contrast. */}
+      <circle cx="50" cy="12" r="5" fill="#F5A623" />
     </svg>
   );
   if (!withWordmark) return mark;
