@@ -391,6 +391,10 @@ msgstr "Couldn't change notifications. Please try again."
 msgid "Couldn't save. Please try again."
 msgstr "Couldn't save. Please try again."
 
+#: src/components/messages/MessageRow.tsx
+msgid "Couldn't send."
+msgstr "Couldn't send."
+
 #: src/routes/index.tsx
 #: src/routes/projects.new.tsx
 #: src/routes/welcome.tsx
@@ -1056,6 +1060,10 @@ msgstr "Rename"
 #: src/components/VoteControl.tsx
 msgid "Retract"
 msgstr "Retract"
+
+#: src/components/messages/MessageRow.tsx
+msgid "Retry"
+msgstr "Retry"
 
 #: src/routes/p.$slug.invites.tsx
 msgid "Revoke"
