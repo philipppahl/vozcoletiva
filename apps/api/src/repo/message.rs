@@ -236,6 +236,26 @@ pub async fn list(
     Ok((msgs, has_more))
 }
 
+/// A message fetched directly + **strongly consistently** by its conversation +
+/// id. Use right after a write (e.g. a reaction toggle) where the GSI's eventual
+/// consistency would return a stale copy. Returns `None` if absent.
+pub async fn get_in_conversation(
+    state: &AppState,
+    conversation_id: &str,
+    message_id: &str,
+) -> Result<Option<Message>, AppError> {
+    let r = state
+        .ddb
+        .get_item()
+        .table_name(&state.table_name)
+        .key("PK", AttributeValue::S(format!("CONV#{conversation_id}")))
+        .key("SK", AttributeValue::S(msg_sk(message_id)))
+        .consistent_read(true)
+        .send()
+        .await?;
+    r.item.as_ref().map(message_from_item).transpose()
+}
+
 /// Any message resolved by its id alone (via GSI3 `MSG#<id>`).
 pub async fn message_by_id(state: &AppState, message_id: &str) -> Result<Message, AppError> {
     let q = state

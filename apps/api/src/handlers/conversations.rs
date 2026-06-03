@@ -617,8 +617,11 @@ pub async fn set_reaction(
             reaction::set_reaction(state, meta.id(), &msg.id, &user.user_id, &body.emoji, body.active)
                 .await?;
             tracing::info!(event = "reaction_set", conversation_id = %meta.id(), active = body.active, by_user = %user.user_id);
-            // Re-read for authoritative counts + the viewer's current set.
-            let fresh = message::message_by_id(state, message_id).await?;
+            // Re-read **consistently** for authoritative counts + the viewer's
+            // set — the GSI would lag the just-committed write.
+            let fresh = message::get_in_conversation(state, meta.id(), &msg.id)
+                .await?
+                .ok_or(AppError::NotFound)?;
             let me = reaction::user_reactions(state, meta.id(), &user.user_id).await?;
             Ok(ReactionResponse {
                 reactions: reaction_views(&fresh, &me),

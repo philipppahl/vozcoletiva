@@ -138,6 +138,9 @@ pub async fn user_reactions(
                 ":pre",
                 AttributeValue::S(format!("REACT#{user_id}#")),
             )
+            // Strongly consistent so a toggle's response reflects the just-written
+            // reaction (the toggle endpoint re-reads immediately).
+            .consistent_read(true)
             .set_exclusive_start_key(start)
             .send()
             .await?;
