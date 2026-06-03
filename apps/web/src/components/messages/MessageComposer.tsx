@@ -240,27 +240,15 @@ export function MessageComposer({
     const type = chunks[0]?.type || 'audio/webm';
     const blob = new Blob(chunks, { type });
     const ext = type.includes('mp4') || type.includes('mpeg') ? 'm4a' : 'webm';
-    const tempKey = `pending-${tempIdRef.current++}`;
-    setAttachments((prev) => [
-      ...prev,
-      {
-        kind: 'voice',
-        url: '',
-        key: tempKey,
-        mime: type,
-        size: blob.size,
-        duration_ms: durationMs,
-        _uploading: true,
-      },
-    ]);
+    // Telegram-style: releasing the hold *sends* the voice note right away
+    // (decision 0031) — upload, then post it as its own message.
     try {
       const { key, url } = await uploadBlob(blob, ext);
-      setAttachments((prev) =>
-        prev.map((a) => (a.key === tempKey ? { ...a, key, url, _uploading: false } : a)),
-      );
+      await onSubmit('', [
+        { kind: 'voice', key, url, mime: type, size: blob.size, duration_ms: durationMs },
+      ]);
     } catch {
-      setAttachments((prev) => prev.filter((a) => a.key !== tempKey));
-      toast.error('Couldn’t add that voice note.');
+      toast.error('Couldn’t send that voice note.');
     }
   }
 
