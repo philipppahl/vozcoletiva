@@ -135,7 +135,7 @@ export function MessageList({
     <div
       ref={containerRef}
       className="flex flex-1 flex-col overflow-y-auto pb-3"
-      style={{ minHeight: 0 }}
+      style={{ minHeight: 0, overscrollBehavior: 'contain' }}
     >
       {items.map((it) => {
         if (it.kind === 'day-divider') {

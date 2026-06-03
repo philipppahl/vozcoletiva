@@ -141,6 +141,13 @@ body,
   height: 100%;
 }
 
+/* No rubber-band / pull-to-refresh — keeps a pinned chat composer from drifting
+   when you overscroll a short conversation. Normal scrolling still works. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--bg);
   color: var(--ink);

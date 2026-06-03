@@ -443,7 +443,7 @@ export function MessageComposer({
           ))}
         </ul>
       )}
-      <div className="relative flex items-end gap-2">
+      <div className="relative flex items-center gap-2">
         {/* Hidden file inputs, driven by the attachment-type sheet. */}
         <input
           ref={imgInputRef}
@@ -585,13 +585,6 @@ export function MessageComposer({
           </button>
         )}
       </div>
-      <div
-        className="px-1 text-[10.5px]"
-        style={{ color: 'var(--ink-muted)', fontFamily: 'var(--font-mono)', letterSpacing: 0.5 }}
-      >
-        <Trans>**bold** *italic* `code` [link](url) — @ to mention</Trans>
-      </div>
-
       <Sheet
         open={attachOpen}
         onOpenChange={setAttachOpen}
