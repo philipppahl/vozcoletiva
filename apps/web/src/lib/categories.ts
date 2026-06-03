@@ -3,7 +3,7 @@ import type { components } from '@vozcoletiva/api-client';
 
 import { apiClient } from './api';
 import { applyPatches, rollback, tempId } from './optimistic';
-import { qk } from './query';
+import { qk, STALE } from './query';
 import { toast } from './toast';
 
 type Category = components['schemas']['Category'];
@@ -34,6 +34,7 @@ function invalidate(qc: QueryClient, slug: string) {
 export function useCategories(slug: string | undefined) {
   return useQuery({
     queryKey: slug ? qk.projects.categories(slug) : ['categories', '_none_'],
+    staleTime: STALE.slow,
     enabled: !!slug,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/projects/{slug}/categories', {

@@ -4,7 +4,7 @@ import type { components } from '@vozcoletiva/api-client';
 import { apiClient } from './api';
 import { completeOnboarding } from './onboarding';
 import { applyPatches, rollback } from './optimistic';
-import { qk } from './query';
+import { qk, STALE } from './query';
 import { toast } from './toast';
 
 type InviteList = { invites: components['schemas']['Invite'][] };
@@ -24,6 +24,7 @@ function unwrap<T>(data: T | undefined, error: unknown): T {
 export function useProjectInvites(slug: string | undefined) {
   return useQuery({
     queryKey: slug ? qk.projects.invites(slug) : ['projects', 'invites', '_none_'],
+    staleTime: STALE.slow,
     enabled: !!slug,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/projects/{slug}/invites', {

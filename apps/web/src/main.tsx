@@ -1,6 +1,7 @@
 import { i18n } from '@lingui/core';
 import { I18nProvider } from '@lingui/react';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createRouter, RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -12,7 +13,7 @@ import '@fontsource-variable/jetbrains-mono';
 import './styles/global.css';
 import { currentLocale, initI18n } from './i18n';
 import { useAuthStore } from './lib/auth/store';
-import { queryClient } from './lib/query';
+import { persistOptions, queryClient } from './lib/query';
 import { initTheme } from './lib/theme';
 import { routeTree } from './routeTree.gen';
 
@@ -64,13 +65,22 @@ async function bootstrap() {
     throw new Error('Root element #root not found in index.html');
   }
 
+  // Persist the cache (decision 0032) so the PWA opens showing last-known data
+  // and revalidates. Fall back to the plain provider if storage is unavailable.
+  const app = (
+    <I18nProvider i18n={i18n}>
+      <RouterProvider router={router} />
+    </I18nProvider>
+  );
   createRoot(rootElement).render(
     <StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <I18nProvider i18n={i18n}>
-          <RouterProvider router={router} />
-        </I18nProvider>
-      </QueryClientProvider>
+      {persistOptions ? (
+        <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+          {app}
+        </PersistQueryClientProvider>
+      ) : (
+        <QueryClientProvider client={queryClient}>{app}</QueryClientProvider>
+      )}
     </StrictMode>,
   );
 }

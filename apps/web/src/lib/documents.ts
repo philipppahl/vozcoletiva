@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { apiClient } from './api';
-import { qk } from './query';
+import { qk, STALE } from './query';
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
   if (error) {
@@ -18,6 +18,7 @@ function unwrap<T>(data: T | undefined, error: unknown): T {
 export function useDocuments(slug: string | undefined) {
   return useQuery({
     queryKey: slug ? qk.projects.documents(slug) : ['documents', '_none_'],
+    staleTime: STALE.slow,
     enabled: !!slug,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/projects/{slug}/documents', {
@@ -31,6 +32,7 @@ export function useDocuments(slug: string | undefined) {
 export function useDocument(slug: string | undefined, name: string | undefined) {
   return useQuery({
     queryKey: slug && name ? qk.projects.document(slug, name) : ['documents', '_detail_', '_none_'],
+    staleTime: STALE.slow,
     enabled: !!slug && !!name,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/projects/{slug}/documents/by-name/{name}', {

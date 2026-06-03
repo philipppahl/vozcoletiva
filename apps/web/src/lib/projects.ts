@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { apiClient } from './api';
 import { completeOnboarding } from './onboarding';
-import { qk } from './query';
+import { qk, STALE } from './query';
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
   if (error) {
@@ -19,6 +19,7 @@ function unwrap<T>(data: T | undefined, error: unknown): T {
 export function useProjects() {
   return useQuery({
     queryKey: qk.projects.list(),
+    staleTime: STALE.slow,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/projects');
       return unwrap(data, error);
@@ -29,6 +30,7 @@ export function useProjects() {
 export function useProject(slug: string | undefined) {
   return useQuery({
     queryKey: slug ? qk.projects.detail(slug) : ['projects', 'detail', '_none_'],
+    staleTime: STALE.slow,
     enabled: !!slug,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/projects/{slug}', {
@@ -42,6 +44,7 @@ export function useProject(slug: string | undefined) {
 export function useMembers(slug: string | undefined) {
   return useQuery({
     queryKey: slug ? qk.projects.members(slug) : ['projects', 'members', '_none_'],
+    staleTime: STALE.slow,
     enabled: !!slug,
     queryFn: async () => {
       const { data, error } = await apiClient.GET('/v1/projects/{slug}/members', {

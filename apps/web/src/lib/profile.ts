@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { apiClient } from './api';
 import { useAuthStore } from './auth/store';
 import { syncSessionAvatar } from './avatar';
-import { qk } from './query';
+import { qk, STALE } from './query';
 import { toast } from './toast';
 
 export interface Profile {
@@ -26,6 +26,7 @@ export function useProfile() {
   const status = useAuthStore((s) => s.status);
   return useQuery({
     queryKey: qk.me(),
+    staleTime: STALE.slow,
     enabled: status === 'signed-in',
     queryFn: async (): Promise<Profile> => {
       const { data, error } = await apiClient.GET('/v1/me');

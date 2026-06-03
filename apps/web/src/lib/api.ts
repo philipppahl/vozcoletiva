@@ -4,6 +4,7 @@ import createClient, { type Middleware } from 'openapi-fetch';
 import { refresh } from './auth/cognito';
 import { useAuthStore } from './auth/store';
 import { env } from './env';
+import { purgeQueryCache } from './query';
 
 /**
  * Build the typed API client with two pieces of middleware:
@@ -39,8 +40,10 @@ const authMiddleware: Middleware = {
 
     // The pre-flight refresh above usually handles this. If we still got a
     // 401 it means the token was rejected for another reason (rotated keys,
-    // revoked, …). Sign out and propagate.
+    // revoked, …). Sign out, purge cached data (a different next user must not
+    // see it — decision 0032), and propagate.
     useAuthStore.getState().clear();
+    purgeQueryCache();
     return response;
   },
 };

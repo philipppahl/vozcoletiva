@@ -1,3 +1,4 @@
+import { purgeQueryCache } from '../query';
 import * as cognito from './cognito';
 import { type AuthSession, useAuthStore } from './store';
 
@@ -30,6 +31,9 @@ export function useAuth() {
   function signOut() {
     if (session) cognito.signOutLocal(session.email);
     clear();
+    // Drop the in-memory + persisted query cache so the next user never sees
+    // the previous session's data (decision 0032).
+    purgeQueryCache();
   }
 
   return { status, session, signUp, confirmSignUp, signIn, signOut };
