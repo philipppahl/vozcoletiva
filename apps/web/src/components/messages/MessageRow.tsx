@@ -166,7 +166,10 @@ export function MessageRow({
               key={`${message.id}-att-${i}-${a.kind}`}
               className={hasText || i > 0 ? 'mt-2' : ''}
             >
-              <AttachmentBlock attachment={a} />
+              <AttachmentBlock
+                attachment={a}
+                siblings={message.attachments.filter((x) => x.kind === 'image')}
+              />
             </div>
           ))}
         </div>

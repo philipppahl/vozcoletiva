@@ -1,6 +1,6 @@
 # 0031 — Chat: quote-reply, inline threads, reactions
 
-**Status:** accepted (Phases 1 + 2 shipped — quote-reply, actions, reactions)
+**Status:** accepted (Phases 1–3 shipped)
 **Date:** 2026-06-03
 **Builds on:** 0027 (chat polling), 0028 (realtime), 0029/0030 (avatars, handles)
 
@@ -101,10 +101,19 @@ conditional-failed write = already in the desired state = no-op).
   actor + the existing chat poll for others — a reaction isn't urgent. (Realtime
   for reactions is a possible later enhancement.)
 
-## Phase 3 (planned)
+## Decision — Phase 3 (links + image lightbox)
 
-- **Links + image lightbox**: auto-linkify bare URLs (clickable, new tab, no
-  preview card); an in-app full-screen image viewer.
+- **Bare URLs auto-linkify** in the chat inline renderer (clickable, new tab,
+  **no preview card** per the user's preference). The tokenizer moved to a pure
+  `lib/messages/inline.ts`; a URL pattern stops before trailing punctuation and,
+  because first-match-by-earliest-index wins, a URL inside a `[text](url)`
+  markdown link is consumed by the link pattern, not double-linkified. Emails
+  (no scheme) are left alone.
+- **In-app image lightbox** (`Lightbox`, a global Zustand store, mounted once at
+  the root): tapping a chat image opens a full-screen viewer with a counter,
+  download, close, and swipe / arrow-key navigation **between that message's
+  images** (cross-conversation swipe is a later enhancement). Replaces the old
+  "open the raw image URL in a browser tab".
 
 ## Trade-offs / notes
 

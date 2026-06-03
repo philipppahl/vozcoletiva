@@ -325,6 +325,11 @@ msgstr "A verificar…"
 msgid "Clear search"
 msgstr "Limpar busca"
 
+#: src/components/messages/Lightbox.tsx
+#: src/components/messages/Lightbox.tsx
+msgid "Close"
+msgstr "Fechar"
+
 #: src/components/TimeRemaining.tsx
 msgid "Closes in {days} days"
 msgstr "Fecha em {days} dias"
@@ -573,6 +578,10 @@ msgstr "Documentos"
 msgid "Don't have an account?"
 msgstr "Ainda não tem conta?"
 
+#: src/components/messages/Lightbox.tsx
+msgid "Download"
+msgstr "Transferir"
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "e.g. 3"
 msgstr "ex.: 3"
@@ -650,6 +659,10 @@ msgstr "Ocultar senha"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "How it's decided"
 msgstr "Como é decidido"
+
+#: src/components/messages/Lightbox.tsx
+msgid "Image"
+msgstr "Imagem"
 
 #: src/components/shell/BellButton.tsx
 #: src/routes/inbox.tsx
@@ -823,6 +836,10 @@ msgstr "Nova proposta"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "New version (Markdown)"
 msgstr "Nova versão (Markdown)"
+
+#: src/components/messages/Lightbox.tsx
+msgid "Next"
+msgstr "Seguinte"
 
 #: src/components/TallyBar.tsx
 #: src/components/VoteControl.tsx
@@ -1041,6 +1058,10 @@ msgstr "Publicar comentário"
 #: src/routes/preferences.tsx
 msgid "Preferences"
 msgstr "Preferências"
+
+#: src/components/messages/Lightbox.tsx
+msgid "Previous"
+msgstr "Anterior"
 
 #: src/routes/preferences.tsx
 msgid "Profile"

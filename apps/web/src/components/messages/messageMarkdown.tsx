@@ -1,3 +1,4 @@
+import { tokeniseInline } from '../../lib/messages/inline';
 import { useMembers } from '../../lib/projects';
 import { parseMentions, type Segment } from './mentions';
 
@@ -76,14 +77,11 @@ function SegmentView({
 }
 
 /**
- * A *very* small inline-Markdown renderer. Real linkification handled at the
- * boundary; we deliberately don't import remark/rehype here to keep bubbles
- * cheap. **bold**, *italic*, `code`, [text](url) only.
+ * A *very* small inline-Markdown renderer; we deliberately don't import
+ * remark/rehype here to keep bubbles cheap. **bold**, *italic*, `code`,
+ * [text](url), and bare URLs (auto-linkified, no preview card — decision 0031).
  */
 function RenderInline({ text, own }: { text: string; own: boolean }) {
-  // We split on the canonical markers, render each token as its element.
-  // Greedy enough for chat; not a full parser. Order matters: code first
-  // (the contents shouldn't be re-tokenised), then links, then bold, italic.
   const tokens = tokeniseInline(text);
   return (
     <>
@@ -138,56 +136,4 @@ function RenderInline({ text, own }: { text: string; own: boolean }) {
       })}
     </>
   );
-}
-
-type InlineToken =
-  | { kind: 'text'; text: string }
-  | { kind: 'code'; text: string }
-  | { kind: 'link'; text: string; url: string }
-  | { kind: 'bold'; text: string }
-  | { kind: 'italic'; text: string };
-
-function tokeniseInline(text: string): InlineToken[] {
-  const out: InlineToken[] = [];
-  let rest = text;
-  // Patterns ordered: code, link, bold, italic. First match wins per cycle.
-  const patterns: Array<{
-    re: RegExp;
-    make: (m: RegExpExecArray) => InlineToken;
-  }> = [
-    { re: /`([^`]+)`/, make: (m) => ({ kind: 'code', text: m[1]! }) },
-    {
-      re: /\[([^\]]+)\]\(([^)\s]+)\)/,
-      make: (m) => ({ kind: 'link', text: m[1]!, url: m[2]! }),
-    },
-    { re: /\*\*([^*]+)\*\*/, make: (m) => ({ kind: 'bold', text: m[1]! }) },
-    {
-      re: /(?<!\*)\*([^*\n]+)\*(?!\*)/,
-      make: (m) => ({ kind: 'italic', text: m[1]! }),
-    },
-  ];
-  // Brute-force loop — cheap for short bubble bodies.
-  let guard = 0;
-  while (rest && guard < 1000) {
-    guard += 1;
-    let earliest: { idx: number; len: number; tok: InlineToken } | null = null;
-    for (const { re, make } of patterns) {
-      const m = re.exec(rest);
-      if (m && m.index !== undefined) {
-        if (!earliest || m.index < earliest.idx) {
-          earliest = { idx: m.index, len: m[0].length, tok: make(m) };
-        }
-      }
-    }
-    if (!earliest) {
-      out.push({ kind: 'text', text: rest });
-      break;
-    }
-    if (earliest.idx > 0) {
-      out.push({ kind: 'text', text: rest.slice(0, earliest.idx) });
-    }
-    out.push(earliest.tok);
-    rest = rest.slice(earliest.idx + earliest.len);
-  }
-  return out;
 }

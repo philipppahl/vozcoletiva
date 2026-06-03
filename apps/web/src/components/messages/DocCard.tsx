@@ -2,9 +2,17 @@ import type { Attachment } from '../../lib/messages/types';
 import { AttachmentImage } from './AttachmentImage';
 import { VoiceNoteBlock } from './VoiceNoteBlock';
 
-/** Render any attachment kind in a message bubble. */
-export function AttachmentBlock({ attachment }: { attachment: Attachment }) {
-  if (attachment.kind === 'image') return <AttachmentImage attachment={attachment} />;
+/** Render any attachment kind in a message bubble. `siblings` are the message's
+ *  image attachments, so the lightbox can swipe between them. */
+export function AttachmentBlock({
+  attachment,
+  siblings,
+}: {
+  attachment: Attachment;
+  siblings?: Attachment[];
+}) {
+  if (attachment.kind === 'image')
+    return <AttachmentImage attachment={attachment} siblings={siblings} />;
   if (attachment.kind === 'doc') return <DocCard attachment={attachment} />;
   return <VoiceNoteBlock attachment={attachment} />;
 }
