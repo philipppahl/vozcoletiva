@@ -6,6 +6,7 @@ pub mod handle;
 pub mod message;
 pub mod outcome;
 pub mod proposal;
+pub mod reaction;
 pub mod role;
 pub mod slug;
 pub mod vote;

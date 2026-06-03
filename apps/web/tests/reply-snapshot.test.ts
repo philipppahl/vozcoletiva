@@ -12,6 +12,7 @@ function msg(over: Partial<Message>): Message {
     attachments: [],
     created_at: '2026-06-03T00:00:00Z',
     reply_count: 0,
+    reactions: [],
     ...over,
   };
 }

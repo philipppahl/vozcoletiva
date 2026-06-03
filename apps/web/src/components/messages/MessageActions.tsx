@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/macro';
 import type { ReactNode } from 'react';
 
-import type { Message } from '../../lib/messages/types';
+import { type Message, REACTIONS } from '../../lib/messages/types';
 import { Sheet } from '../ui/Sheet';
 
 interface MessageActionsProps {
@@ -10,13 +10,21 @@ interface MessageActionsProps {
   onReply: (m: Message) => void;
   /** Channels only — open the focused thread of this message. */
   onOpenThread?: (messageId: string) => void;
+  /** Toggle a reaction (decision 0031). */
+  onToggleReaction?: (messageId: string, emoji: string, active: boolean) => void;
 }
 
 /**
- * Long-press action sheet for a chat message (decision 0031): reply (quote),
- * open a thread (channels), or copy the text. Reactions arrive in Phase 2.
+ * Long-press action sheet for a chat message (decision 0031): a reaction bar,
+ * then reply (quote), open a thread (channels), or copy the text.
  */
-export function MessageActions({ message, onClose, onReply, onOpenThread }: MessageActionsProps) {
+export function MessageActions({
+  message,
+  onClose,
+  onReply,
+  onOpenThread,
+  onToggleReaction,
+}: MessageActionsProps) {
   const m = message;
   const hasText = !!m?.body.trim();
   return (
@@ -28,6 +36,34 @@ export function MessageActions({ message, onClose, onReply, onOpenThread }: Mess
       side="bottom"
       title={<Trans>Message actions</Trans>}
     >
+      {onToggleReaction && m && (
+        <div className="mb-1 flex items-center justify-between px-3 pt-1">
+          {REACTIONS.map((emoji) => {
+            const mine = m.reactions.some((r) => r.emoji === emoji && r.me);
+            return (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => {
+                  onToggleReaction(m.id, emoji, !mine);
+                  onClose();
+                }}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[24px]"
+                style={{
+                  background: mine ? 'var(--accent-soft)' : 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  lineHeight: 1,
+                }}
+                aria-label={emoji}
+                aria-pressed={mine}
+              >
+                {emoji}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div className="flex flex-col px-2 pb-4">
         <ActionRow
           icon={<ReplyIcon />}

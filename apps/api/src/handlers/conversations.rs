@@ -7,7 +7,7 @@ use crate::domain::message::validate_body;
 use crate::error::AppError;
 use crate::repo::conversation::{Conversation, ConversationMeta, DmConversation};
 use crate::repo::message::{Attachment, Message};
-use crate::repo::{conversation, membership, message, user};
+use crate::repo::{conversation, membership, message, reaction, user};
 use crate::state::{AppState, MediaConfig};
 
 const PAGE_LIMIT: usize = 50;
@@ -109,6 +109,15 @@ struct ReplyToView {
     kind: String,
 }
 
+/// A reaction tally on a message (decision 0031): the emoji, how many reacted,
+/// and whether the viewer is one of them.
+#[derive(Debug, Serialize)]
+struct ReactionView {
+    emoji: String,
+    count: i64,
+    me: bool,
+}
+
 #[derive(Debug, Serialize)]
 struct MessageView {
     id: String,
@@ -123,6 +132,7 @@ struct MessageView {
     edited_at: Option<String>,
     reply_count: i64,
     last_reply_at: Option<String>,
+    reactions: Vec<ReactionView>,
 }
 
 #[derive(Debug, Serialize)]
@@ -201,7 +211,28 @@ fn quote_snapshot(m: &Message) -> (String, String) {
     }
 }
 
-fn message_view(m: &Message, media: Option<&MediaConfig>) -> MessageView {
+/// Build a message's reactions in the fixed display order, marking which the
+/// viewer reacted with (`me` set holds `"<msgId>#<emoji>"`). Only emojis with a
+/// positive count appear.
+fn reaction_views(m: &Message, me: &std::collections::HashSet<String>) -> Vec<ReactionView> {
+    crate::domain::reaction::REACTIONS
+        .iter()
+        .filter_map(|emoji| {
+            let count = m.reaction_counts.get(*emoji).copied().unwrap_or(0);
+            (count > 0).then(|| ReactionView {
+                emoji: (*emoji).to_string(),
+                count,
+                me: me.contains(&format!("{}#{emoji}", m.id)),
+            })
+        })
+        .collect()
+}
+
+fn message_view(
+    m: &Message,
+    media: Option<&MediaConfig>,
+    me: &std::collections::HashSet<String>,
+) -> MessageView {
     let attachments = m
         .attachments
         .iter()
@@ -222,6 +253,7 @@ fn message_view(m: &Message, media: Option<&MediaConfig>) -> MessageView {
         preview: rt.preview.clone(),
         kind: rt.kind.clone(),
     });
+    let reactions = reaction_views(m, me);
     MessageView {
         id: m.id.clone(),
         conversation_id: m.conversation_id.clone(),
@@ -234,6 +266,7 @@ fn message_view(m: &Message, media: Option<&MediaConfig>) -> MessageView {
         edited_at: None,
         reply_count: m.reply_count,
         last_reply_at: m.last_reply_at.clone(),
+        reactions,
     }
 }
 
@@ -424,9 +457,10 @@ pub async fn list_messages(
             let before = query_param(&req, "before");
             let (messages, has_more) =
                 message::list(state, meta.id(), before.as_deref(), PAGE_LIMIT).await?;
+            let me = reaction::user_reactions(state, meta.id(), &user.user_id).await?;
             let media = state.media.as_ref();
             Ok(MessageListResponse {
-                messages: messages.iter().map(|m| message_view(m, media)).collect(),
+                messages: messages.iter().map(|m| message_view(m, media, &me)).collect(),
                 has_more,
             })
         },
@@ -513,7 +547,8 @@ pub async fn post_message(
             {
                 tracing::warn!(event = "inbox_fanout_failed", trigger = "message", error = %e);
             }
-            Ok(message_view(&msg, state.media.as_ref()))
+            // A just-posted message has no reactions yet.
+            Ok(message_view(&msg, state.media.as_ref(), &std::collections::HashSet::new()))
         },
         201,
     )
@@ -542,6 +577,58 @@ pub async fn mark_read(state: &AppState, req: Request, id: &str) -> Result<Respo
     .await
 }
 
+#[derive(Debug, Deserialize)]
+struct ReactionBody {
+    emoji: String,
+    /// `true` → ensure the caller's reaction is present; `false` → absent.
+    active: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct ReactionResponse {
+    reactions: Vec<ReactionView>,
+}
+
+/// `PUT /v1/conversations/{id}/messages/{mid}/reactions` — toggle one of the
+/// fixed reactions on a message (decision 0031). Idempotent; returns the
+/// message's updated reaction tallies.
+pub async fn set_reaction(
+    state: &AppState,
+    req: Request,
+    id: &str,
+    message_id: &str,
+) -> Result<Response<Body>, Error> {
+    super::json_or_error(
+        async {
+            let user = authenticate(state, &req).await?;
+            let meta = conversation::get_meta(state, id).await?;
+            authorize_conversation(state, &meta, &user.user_id).await?;
+            let body: ReactionBody = parse_body(&req)?;
+            if !crate::domain::reaction::is_allowed(&body.emoji) {
+                return Err(AppError::BadRequest("unsupported reaction".into()));
+            }
+            // The message must live in this conversation.
+            let msg = match message::message_by_id(state, message_id).await {
+                Ok(m) if m.conversation_id == meta.id() => m,
+                Ok(_) => return Err(AppError::BadRequest("message not in this conversation".into())),
+                Err(AppError::NotFound) => return Err(AppError::NotFound),
+                Err(e) => return Err(e),
+            };
+            reaction::set_reaction(state, meta.id(), &msg.id, &user.user_id, &body.emoji, body.active)
+                .await?;
+            tracing::info!(event = "reaction_set", conversation_id = %meta.id(), active = body.active, by_user = %user.user_id);
+            // Re-read for authoritative counts + the viewer's current set.
+            let fresh = message::message_by_id(state, message_id).await?;
+            let me = reaction::user_reactions(state, meta.id(), &user.user_id).await?;
+            Ok(ReactionResponse {
+                reactions: reaction_views(&fresh, &me),
+            })
+        },
+        200,
+    )
+    .await
+}
+
 pub async fn get_thread(
     state: &AppState,
     req: Request,
@@ -555,10 +642,11 @@ pub async fn get_thread(
             authorize_conversation(state, &meta, &user.user_id).await?;
             let replies =
                 message::thread_replies(state, &parent.conversation_id, &parent.id).await?;
+            let me = reaction::user_reactions(state, &parent.conversation_id, &user.user_id).await?;
             let media = state.media.as_ref();
             Ok(ThreadResponse {
-                parent: message_view(&parent, media),
-                replies: replies.iter().map(|m| message_view(m, media)).collect(),
+                parent: message_view(&parent, media, &me),
+                replies: replies.iter().map(|m| message_view(m, media, &me)).collect(),
             })
         },
         200,

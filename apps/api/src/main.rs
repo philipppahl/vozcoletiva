@@ -190,6 +190,9 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
         ("GET", ["messages", id, "thread"]) => {
             handlers::conversations::get_thread(&state, event, id).await
         }
+        ("PUT", ["conversations", id, "messages", mid, "reactions"]) => {
+            handlers::conversations::set_reaction(&state, event, id, mid).await
+        }
 
         _ => not_found(),
     }

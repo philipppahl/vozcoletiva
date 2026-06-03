@@ -10,5 +10,6 @@ pub mod message;
 pub mod project;
 pub mod proposal;
 pub mod push;
+pub mod reaction;
 pub mod user;
 pub mod vote;

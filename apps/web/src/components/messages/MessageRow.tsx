@@ -29,6 +29,8 @@ interface MessageRowProps {
   onLongPress?: (message: Message) => void;
   /** Tapping a quote header jumps to the original message. */
   onJumpTo?: (messageId: string) => void;
+  /** Toggle a reaction pill (decision 0031). */
+  onToggleReaction?: (messageId: string, emoji: string, active: boolean) => void;
 }
 
 /**
@@ -48,6 +50,7 @@ export function MessageRow({
   onReply,
   onLongPress,
   onJumpTo,
+  onToggleReaction,
 }: MessageRowProps) {
   const { session } = useAuth();
   const gestures = useMessageGestures({
@@ -167,6 +170,35 @@ export function MessageRow({
             </div>
           ))}
         </div>
+
+        {message.reactions.length > 0 && (
+          <div
+            className="mt-1 flex flex-wrap gap-1"
+            style={{ justifyContent: own ? 'flex-end' : 'flex-start' }}
+          >
+            {message.reactions.map((r) => (
+              <button
+                key={r.emoji}
+                type="button"
+                onClick={() => onToggleReaction?.(message.id, r.emoji, !r.me)}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12.5px]"
+                style={{
+                  background: r.me ? 'var(--accent-soft)' : 'var(--surface-2)',
+                  border: `0.5px solid ${r.me ? 'var(--accent)' : 'var(--border)'}`,
+                  color: 'var(--ink)',
+                  cursor: 'pointer',
+                  lineHeight: 1.3,
+                }}
+                aria-pressed={r.me}
+              >
+                <span>{r.emoji}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--ink-soft)' }}>
+                  {r.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {tail && !inlineTime && (
           <div

@@ -17,6 +17,8 @@ interface MessageListProps {
   avatarFor?: (userId: string) => string | null | undefined;
   /** Quote-reply to a message (swipe-right or the long-press menu). */
   onReply?: (message: Message) => void;
+  /** Toggle a reaction on a message (decision 0031). */
+  onToggleReaction?: (messageId: string, emoji: string, active: boolean) => void;
 }
 
 const DAY_MS = 86_400_000;
@@ -35,6 +37,7 @@ export function MessageList({
   onRetry,
   avatarFor,
   onReply,
+  onToggleReaction,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastIdRef = useRef<string | null>(null);
@@ -120,6 +123,7 @@ export function MessageList({
             onReply={onReply}
             onLongPress={setActionTarget}
             onJumpTo={jumpTo}
+            onToggleReaction={onToggleReaction}
           />
         );
       })}
@@ -128,6 +132,7 @@ export function MessageList({
         onClose={() => setActionTarget(null)}
         onReply={(m) => onReply?.(m)}
         onOpenThread={onOpenThread}
+        onToggleReaction={onToggleReaction}
       />
     </div>
   );

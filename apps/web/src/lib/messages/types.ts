@@ -27,6 +27,35 @@ export interface MessagePreview {
   at: string;
 }
 
+/** The fixed reaction set (decision 0031) — must match the server's. */
+export const REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏', '👀'] as const;
+
+/** A reaction tally on a message: emoji, how many reacted, did the viewer. */
+export interface Reaction {
+  emoji: string;
+  count: number;
+  me: boolean;
+}
+
+/** Compute the next reaction tallies after the viewer toggles `emoji` to
+ *  `active` (decision 0031) — the optimistic update. Pure (no API client). */
+export function applyReactionToggle(
+  reactions: Reaction[],
+  emoji: string,
+  active: boolean,
+): Reaction[] {
+  const existing = reactions.find((r) => r.emoji === emoji);
+  if (active) {
+    if (!existing) return [...reactions, { emoji, count: 1, me: true }];
+    if (existing.me) return reactions; // already reacted
+    return reactions.map((r) => (r.emoji === emoji ? { ...r, count: r.count + 1, me: true } : r));
+  }
+  if (!existing || !existing.me) return reactions; // nothing to remove
+  const count = existing.count - 1;
+  if (count <= 0) return reactions.filter((r) => r.emoji !== emoji);
+  return reactions.map((r) => (r.emoji === emoji ? { ...r, count, me: false } : r));
+}
+
 /** Immutable snapshot of the message a reply quotes (decision 0031). */
 export interface ReplyTo {
   id: string;
@@ -61,6 +90,7 @@ export interface Message {
   edited_at?: string | null;
   reply_count: number;
   last_reply_at?: string | null;
+  reactions: Reaction[];
   /** Client-only: set on an optimistic message until the server confirms it. */
   _optimistic?: 'pending' | 'failed';
 }

@@ -14,6 +14,7 @@ import {
   useMarkRead,
   useMessages,
   useSendMessage,
+  useToggleReaction,
 } from '../lib/messages';
 import type { Message } from '../lib/messages/types';
 import { useMembers } from '../lib/projects';
@@ -43,6 +44,7 @@ function ChannelDetailPage() {
   const send = useSendMessage(channelId);
   const markRead = useMarkRead(channelId, slug);
   const members = useMembers(slug);
+  const toggleReaction = useToggleReaction(channelId);
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
 
   const onRetry = (message: Message) => {
@@ -95,6 +97,9 @@ function ChannelDetailPage() {
         onRetry={onRetry}
         avatarFor={avatarFor}
         onReply={setReplyTarget}
+        onToggleReaction={(messageId, emoji, active) =>
+          toggleReaction.mutate({ messageId, emoji, active })
+        }
         onOpenThread={(id) =>
           void navigate({
             to: '/p/$slug/messages/$channelId',

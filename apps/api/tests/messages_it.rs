@@ -11,7 +11,7 @@ mod support;
 use support::{docker_available, LocalDdb};
 use voz_api::auth::AuthenticatedUser;
 use voz_api::domain::slug::Slug;
-use voz_api::repo::{conversation, message, project};
+use voz_api::repo::{conversation, message, project, reaction};
 
 fn user(id: &str) -> AuthenticatedUser {
     AuthenticatedUser {
@@ -252,6 +252,57 @@ async fn read_marker_drives_unread_count() {
             .unwrap(),
         0
     );
+}
+
+#[tokio::test]
+async fn reactions_toggle_count_and_me() {
+    let ddb = ddb_or_skip!("reactions_toggle_count_and_me");
+    let (_pid, conv) = project_with_channel(&ddb, "react").await;
+    let m = message::post(&ddb.state, &conv, "owner", "Owner", "hi", None, vec![])
+        .await
+        .unwrap();
+    let key = format!("{}#👍", m.id);
+
+    // Alice + Bob 👍; a repeated add is idempotent (no double-count).
+    for (u, _) in [("alice", ()), ("bob", ()), ("alice", ())] {
+        reaction::set_reaction(&ddb.state, &conv, &m.id, u, "👍", true)
+            .await
+            .unwrap();
+    }
+    let fresh = message::message_by_id(&ddb.state, &m.id).await.unwrap();
+    assert_eq!(fresh.reaction_counts.get("👍").copied(), Some(2));
+
+    // "me" set reflects the reactor, not others.
+    assert!(reaction::user_reactions(&ddb.state, &conv, "alice")
+        .await
+        .unwrap()
+        .contains(&key));
+    assert!(reaction::user_reactions(&ddb.state, &conv, "carol")
+        .await
+        .unwrap()
+        .is_empty());
+
+    // Remove Alice's 👍 (idempotent); count drops to 1.
+    reaction::set_reaction(&ddb.state, &conv, &m.id, "alice", "👍", false)
+        .await
+        .unwrap();
+    reaction::set_reaction(&ddb.state, &conv, &m.id, "alice", "👍", false)
+        .await
+        .unwrap();
+    let fresh2 = message::message_by_id(&ddb.state, &m.id).await.unwrap();
+    assert_eq!(fresh2.reaction_counts.get("👍").copied(), Some(1));
+    assert!(!reaction::user_reactions(&ddb.state, &conv, "alice")
+        .await
+        .unwrap()
+        .contains(&key));
+
+    // A different emoji tallies independently.
+    reaction::set_reaction(&ddb.state, &conv, &m.id, "bob", "❤️", true)
+        .await
+        .unwrap();
+    let fresh3 = message::message_by_id(&ddb.state, &m.id).await.unwrap();
+    assert_eq!(fresh3.reaction_counts.get("❤️").copied(), Some(1));
+    assert_eq!(fresh3.reaction_counts.get("👍").copied(), Some(1));
 }
 
 #[tokio::test]

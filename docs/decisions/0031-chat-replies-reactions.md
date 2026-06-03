@@ -1,6 +1,6 @@
 # 0031 — Chat: quote-reply, inline threads, reactions
 
-**Status:** accepted (Phase 1 shipped — quote-reply + message actions)
+**Status:** accepted (Phases 1 + 2 shipped — quote-reply, actions, reactions)
 **Date:** 2026-06-03
 **Builds on:** 0027 (chat polling), 0028 (realtime), 0029/0030 (avatars, handles)
 
@@ -80,11 +80,29 @@ refetches the main list (replies are inline) and also an open thread view.
 - The thread sheet reframed as the focused filter; replying there quotes the
   parent. Optimistic replies insert inline (and mirror into an open thread).
 
-## Phases 2–3 (planned)
+## Decision — Phase 2 (reactions)
 
-- **Reactions**: append-only per-user reaction items materialised to counts; a
-  toggle endpoint; the 6-emoji bar on long-press; count pills under the bubble;
-  realtime; **no push** (calm).
+A fixed 6-emoji set (👍 ❤️ 😂 🎉 🙏 👀). A reaction is one item
+`CONV#<conv> / REACT#<userId>#<msgId>#<emoji>` — **outside** the `MSG#` range so
+it never pollutes the timeline query. The message item carries **materialised
+counts** (`reactionCounts` map, present from birth so `ADD reactionCounts.<emoji>`
+works), so the list query returns counts for free; the viewer's own reactions
+("me") come from one small `begins_with(REACT#<user>#)` query. Toggling moves the
+reaction item + the count in **one transaction** and is **idempotent** (a
+conditional-failed write = already in the desired state = no-op).
+
+- `PUT /v1/conversations/{id}/messages/{mid}/reactions` `{emoji, active}` →
+  returns the message's updated tallies. Message DTO gains `reactions:
+  [{emoji, count, me}]`.
+- FE: the 6-emoji bar on the long-press sheet; count pills under the bubble
+  (tap to toggle, accent ring when "me"); optimistic toggle (`applyReactionToggle`)
+  reconciled with the server response, mirrored into open threads.
+- **No push, no inbox** (deliberately calm). **No realtime**: optimistic for the
+  actor + the existing chat poll for others — a reaction isn't urgent. (Realtime
+  for reactions is a possible later enhancement.)
+
+## Phase 3 (planned)
+
 - **Links + image lightbox**: auto-linkify bare URLs (clickable, new tab, no
   preview card); an in-app full-screen image viewer.
 

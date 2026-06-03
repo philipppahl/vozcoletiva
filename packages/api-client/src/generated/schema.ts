@@ -38,6 +38,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/conversations/{id}/messages/{mid}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Toggle a reaction on a message
+         * @description Add (`active: true`) or remove a fixed reaction. Idempotent; returns the message's updated reaction tallies.
+         */
+        put: operations["setReaction"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/conversations/{id}/read": {
         parameters: {
             query?: never;
@@ -972,6 +992,7 @@ export interface components {
             id: string;
             /** Format: date-time */
             last_reply_at?: string | null;
+            reactions: components["schemas"]["Reaction"][];
             reply_count: number;
             reply_to?: components["schemas"]["ReplyTo"] | null;
         };
@@ -1082,6 +1103,18 @@ export interface components {
         };
         PushUnsubscribeBody: {
             endpoint: string;
+        };
+        Reaction: {
+            count: number;
+            emoji: string;
+            me: boolean;
+        };
+        ReactionBody: {
+            active: boolean;
+            emoji: string;
+        };
+        ReactionResponse: {
+            reactions: components["schemas"]["Reaction"][];
         };
         ReadBody: {
             message_id: string;
@@ -1279,6 +1312,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Message"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setReaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["ConversationId"];
+                mid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactionBody"];
+            };
+        };
+        responses: {
+            /** @description Updated reactions for the message. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactionResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

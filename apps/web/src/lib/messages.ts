@@ -10,15 +10,17 @@ import type {
   DmListResponse,
   Message,
   MessageListResponse,
+  Reaction,
   ReplyTo,
   ThreadResponse,
 } from './messages/types';
+import { applyReactionToggle } from './messages/types';
 import { tempId } from './optimistic';
 import { qk } from './query';
 import { useRealtimeStore } from './realtime';
 
-// Re-export so existing callers keep importing it from `./messages`.
-export { toReplyTo } from './messages/types';
+// Re-export pure helpers so existing callers keep importing from `./messages`.
+export { applyReactionToggle, toReplyTo } from './messages/types';
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
   if (error) {
@@ -201,6 +203,7 @@ export function useSendMessage(conversationId: string) {
         edited_at: null,
         reply_count: 0,
         last_reply_at: null,
+        reactions: [],
         _optimistic: 'pending',
       };
       insertMessage(qc, conversationId, optimistic);
@@ -267,6 +270,44 @@ export function useMarkRead(conversationId: string, slug?: string) {
       // Reconcile the derived nav badges.
       void qc.invalidateQueries({ queryKey: qk.chat.dms() });
       void qc.invalidateQueries({ queryKey: ['projects'], exact: false });
+    },
+  });
+}
+
+export interface ToggleReactionInput {
+  messageId: string;
+  emoji: string;
+  /** Desired state: true → add the viewer's reaction, false → remove it. */
+  active: boolean;
+}
+
+/** Toggle a reaction on a message (optimistic; decision 0031). */
+export function useToggleReaction(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ToggleReactionInput) => {
+      const { data, error } = await apiClient.PUT(
+        '/v1/conversations/{id}/messages/{mid}/reactions',
+        {
+          params: { path: { id: conversationId, mid: input.messageId } },
+          body: { emoji: input.emoji, active: input.active },
+        },
+      );
+      return unwrap(data, error) as unknown as { reactions: Reaction[] };
+    },
+    onMutate: (input) => {
+      const prev = findMessageReactions(qc, conversationId, input.messageId);
+      updateMessageReactions(qc, conversationId, input.messageId, (rs) =>
+        applyReactionToggle(rs, input.emoji, input.active),
+      );
+      return { prev };
+    },
+    onSuccess: (data, input) => {
+      // Reconcile with the server's authoritative tallies.
+      updateMessageReactions(qc, conversationId, input.messageId, () => data.reactions);
+    },
+    onError: (_e, input, ctx) => {
+      if (ctx?.prev) updateMessageReactions(qc, conversationId, input.messageId, () => ctx.prev!);
     },
   });
 }
@@ -387,6 +428,43 @@ function removeMessage(
       ...prev,
       replies: prev.replies.filter((r) => r.id !== id),
     }));
+  }
+}
+
+/** The current reactions of a message in the cache (main list or thread). */
+function findMessageReactions(
+  qc: QueryClient,
+  conversationId: string,
+  messageId: string,
+): Reaction[] {
+  const list = qc.getQueryData<MessageListResponse>(qk.chat.messages(conversationId));
+  const m = list?.messages.find((x) => x.id === messageId);
+  return m?.reactions ?? [];
+}
+
+/** Apply `fn` to a message's reactions wherever it appears (main list + any open
+ *  thread that holds it as parent or reply). */
+function updateMessageReactions(
+  qc: QueryClient,
+  conversationId: string,
+  messageId: string,
+  fn: (reactions: Reaction[]) => Reaction[],
+) {
+  setMessages(qc, conversationId, (prev) => ({
+    ...prev,
+    messages: prev.messages.map((m) =>
+      m.id === messageId ? { ...m, reactions: fn(m.reactions) } : m,
+    ),
+  }));
+  // Thread caches keyed by any parent id — update the matching parent/reply.
+  for (const [key, data] of qc.getQueriesData<ThreadResponse>({ queryKey: ['chat', 'thread'] })) {
+    if (!data) continue;
+    const touch = (m: Message) => (m.id === messageId ? { ...m, reactions: fn(m.reactions) } : m);
+    qc.setQueryData<ThreadResponse>(key, {
+      ...data,
+      parent: touch(data.parent),
+      replies: data.replies.map(touch),
+    });
   }
 }
 

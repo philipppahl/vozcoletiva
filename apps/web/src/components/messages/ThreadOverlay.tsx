@@ -1,7 +1,13 @@
 import { Trans } from '@lingui/macro';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { discardMessage, toReplyTo, useSendMessage, useThread } from '../../lib/messages';
+import {
+  discardMessage,
+  toReplyTo,
+  useSendMessage,
+  useThread,
+  useToggleReaction,
+} from '../../lib/messages';
 import type { Attachment, Conversation, Message } from '../../lib/messages/types';
 import { Sheet } from '../ui/Sheet';
 import type { MentionCandidate } from './MentionPopover';
@@ -27,6 +33,9 @@ export function ThreadOverlay({
   const qc = useQueryClient();
   const thread = useThread(parentMessageId ?? undefined);
   const send = useSendMessage(conversation?.id ?? '');
+  const toggleReaction = useToggleReaction(conversation?.id ?? '');
+  const onToggleReaction = (messageId: string, emoji: string, active: boolean) =>
+    toggleReaction.mutate({ messageId, emoji, active });
 
   async function onPost(body: string, attachments: Attachment[]) {
     if (!parentMessageId) return;
@@ -77,6 +86,7 @@ export function ThreadOverlay({
                   message={thread.data.parent}
                   grouped={false}
                   projectSlug={projectSlug}
+                  onToggleReaction={onToggleReaction}
                 />
               </div>
               <div
@@ -105,6 +115,7 @@ export function ThreadOverlay({
                       grouped={grouped}
                       projectSlug={projectSlug}
                       onRetry={onRetry}
+                      onToggleReaction={onToggleReaction}
                     />
                   );
                 })}

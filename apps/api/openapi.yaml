@@ -1122,6 +1122,36 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/conversations/{id}/messages/{mid}/reactions:
+    put:
+      summary: Toggle a reaction on a message
+      description: >
+        Add (`active: true`) or remove a fixed reaction. Idempotent; returns the
+        message's updated reaction tallies.
+      operationId: setReaction
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - in: path
+          name: mid
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReactionBody' }
+      responses:
+        '200':
+          description: Updated reactions for the message.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReactionResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/messages/{id}/thread:
     get:
       summary: Get a thread (parent + replies)
@@ -1303,6 +1333,7 @@ components:
         - attachments
         - created_at
         - reply_count
+        - reactions
       additionalProperties: false
       properties:
         id: { type: string }
@@ -1320,6 +1351,35 @@ components:
         edited_at: { type: string, format: date-time, nullable: true }
         reply_count: { type: integer }
         last_reply_at: { type: string, format: date-time, nullable: true }
+        reactions:
+          type: array
+          items: { $ref: '#/components/schemas/Reaction' }
+
+    Reaction:
+      type: object
+      required: [emoji, count, me]
+      additionalProperties: false
+      properties:
+        emoji: { type: string }
+        count: { type: integer }
+        me: { type: boolean }
+
+    ReactionBody:
+      type: object
+      required: [emoji, active]
+      additionalProperties: false
+      properties:
+        emoji: { type: string }
+        active: { type: boolean }
+
+    ReactionResponse:
+      type: object
+      required: [reactions]
+      additionalProperties: false
+      properties:
+        reactions:
+          type: array
+          items: { $ref: '#/components/schemas/Reaction' }
 
     ReplyTo:
       type: object

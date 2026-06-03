@@ -55,6 +55,10 @@ pub struct Message {
     pub reply_count: i64,
     pub last_reply_at: Option<String>,
     pub attachments: Vec<Attachment>,
+    /// Materialised reaction tallies (emoji → count), bumped transactionally as
+    /// people react (decision 0031). The viewer's own reactions ("me") come from
+    /// a separate small lookup, not this map.
+    pub reaction_counts: HashMap<String, i64>,
 }
 
 /// Every message — top-level or reply — lives at `MSG#<ulid>`, so the timeline is
@@ -104,6 +108,8 @@ pub async fn post(
         ("body".to_string(), AttributeValue::S(body.to_string())),
         ("createdAt".to_string(), AttributeValue::S(now.clone())),
         ("replyCount".to_string(), AttributeValue::N("0".into())),
+        // Present from birth so reaction `ADD reactionCounts.<emoji>` updates work.
+        ("reactionCounts".to_string(), AttributeValue::M(HashMap::new())),
         // Resolve message id → conversation for the by-id + thread endpoints.
         ("GSI3PK".to_string(), AttributeValue::S(format!("MSG#{id}"))),
         (
@@ -151,6 +157,7 @@ pub async fn post(
         reply_count: 0,
         last_reply_at: None,
         attachments,
+        reaction_counts: HashMap::new(),
     };
 
     match &reply_to {
@@ -383,6 +390,18 @@ fn message_from_item(item: &HashMap<String, AttributeValue>) -> Result<Message, 
         last_reply_at: s_opt(item, "lastReplyAt").map(String::from),
         attachments: s_opt(item, "attachments")
             .and_then(|j| serde_json::from_str(j).ok())
+            .unwrap_or_default(),
+        reaction_counts: item
+            .get("reactionCounts")
+            .and_then(|v| v.as_m().ok())
+            .map(|m| {
+                m.iter()
+                    .filter_map(|(k, v)| {
+                        v.as_n().ok().and_then(|n| n.parse::<i64>().ok()).map(|c| (k.clone(), c))
+                    })
+                    .filter(|(_, c)| *c > 0)
+                    .collect()
+            })
             .unwrap_or_default(),
     })
 }

@@ -15,6 +15,7 @@ import {
   useMarkRead,
   useMessages,
   useSendMessage,
+  useToggleReaction,
 } from '../lib/messages';
 import type { Message } from '../lib/messages/types';
 
@@ -43,6 +44,7 @@ function DmDetailPage() {
   const send = useSendMessage(id);
   const markRead = useMarkRead(id);
   const { session } = useAuth();
+  const toggleReaction = useToggleReaction(id);
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
 
   const onRetry = (message: Message) => {
@@ -98,6 +100,9 @@ function DmDetailPage() {
         onRetry={onRetry}
         avatarFor={avatarFor}
         onReply={setReplyTarget}
+        onToggleReaction={(messageId, emoji, active) =>
+          toggleReaction.mutate({ messageId, emoji, active })
+        }
         onOpenThread={(messageId) =>
           void navigate({
             to: '/dms/$id',
