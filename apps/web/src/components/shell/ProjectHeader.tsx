@@ -75,7 +75,12 @@ export function ProjectHeader({
           className="flex-shrink-0 rounded-full"
           style={{ padding: 0, background: 'transparent', border: 'none', cursor: 'pointer' }}
         >
-          <Avatar displayName={session?.displayName ?? '?'} size={40} ring="var(--surface)" />
+          <Avatar
+            displayName={session?.displayName ?? '?'}
+            imageUrl={session?.avatarUrl}
+            size={40}
+            ring="var(--surface)"
+          />
         </button>
         <div className="min-w-0 flex-1">
           <button

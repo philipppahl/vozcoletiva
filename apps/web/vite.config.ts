@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import { lingui } from '@lingui/vite-plugin';
 import tailwind from '@tailwindcss/vite';
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
@@ -5,11 +6,23 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Build stamp — short git SHA + build time, surfaced in Preferences so a deploy
+// is verifiable at a glance (did the client pick up the latest bundle?).
+const buildSha = (() => {
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim();
+  } catch {
+    return 'local';
+  }
+})();
+const buildTime = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
 export default defineConfig({
   // amazon-cognito-identity-js → buffer expects Node's `global`. Map it to
   // `globalThis` for the browser.
   define: {
     global: 'globalThis',
+    __APP_BUILD__: JSON.stringify(`${buildSha} · ${buildTime}Z`),
   },
   plugins: [
     TanStackRouterVite({ target: 'react', autoCodeSplitting: true }),

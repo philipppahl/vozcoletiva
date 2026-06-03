@@ -148,7 +148,7 @@ function PreferencesPage() {
 
       <div className="flex-1" />
       <div
-        className="pb-8 pt-6 text-center"
+        className="pt-6 text-center"
         style={{
           fontFamily: 'var(--font-mono)',
           fontSize: 10,
@@ -158,6 +158,18 @@ function PreferencesPage() {
         }}
       >
         vozcoletiva · open source
+      </div>
+      <div
+        className="pb-8 pt-1 text-center"
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 10,
+          color: 'var(--ink-muted)',
+          letterSpacing: 0.5,
+          opacity: 0.7,
+        }}
+      >
+        build {__APP_BUILD__}
       </div>
     </div>
   );
