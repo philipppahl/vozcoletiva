@@ -522,7 +522,7 @@ export function MessageComposer({
                 onKeyDown={onKeyDown}
                 placeholder={placeholder ?? _(t`Message`)}
                 rows={1}
-                className="w-full resize-none rounded-2xl px-4 py-2.5 outline-none"
+                className="w-full resize-none rounded-2xl px-4 py-2 outline-none"
                 style={{
                   background: 'var(--field-bg)',
                   color: 'var(--ink)',
