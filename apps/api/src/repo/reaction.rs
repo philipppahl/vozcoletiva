@@ -32,6 +32,25 @@ pub async fn set_reaction(
     let msg_sk = format!("MSG#{message_id}");
     let now = Utc::now().to_rfc3339();
 
+    // Ensure the message's count map exists before the nested `ADD` — messages
+    // created before reactions shipped don't have it. Idempotent; no-op when
+    // present. (New messages are born with an empty map.)
+    state
+        .ddb
+        .update_item()
+        .table_name(&state.table_name)
+        .key("PK", AttributeValue::S(pk.clone()))
+        .key("SK", AttributeValue::S(msg_sk.clone()))
+        .update_expression("SET reactionCounts = if_not_exists(reactionCounts, :empty)")
+        .expression_attribute_values(
+            ":empty",
+            AttributeValue::M(std::collections::HashMap::new()),
+        )
+        .condition_expression("attribute_exists(SK)")
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(Box::new(e.into_service_error())))?;
+
     let count_delta = if active { "1" } else { "-1" };
     let bump = Update::builder()
         .table_name(&state.table_name)
