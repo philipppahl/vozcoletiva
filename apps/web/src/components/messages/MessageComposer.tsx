@@ -6,9 +6,13 @@ import { toReplyTo } from '../../lib/messages';
 import type { Attachment, Message } from '../../lib/messages/types';
 import { toast } from '../../lib/toast';
 import { compressImage, extOf, uploadBlob } from '../../lib/uploads';
+import { Sheet } from '../ui/Sheet';
 import type { MentionCandidate } from './MentionPopover';
 import { MentionPopover } from './MentionPopover';
 import { QuoteBody } from './QuoteHeader';
+
+// Slide the mic this far left while holding to cancel a voice note (Telegram).
+const CANCEL_DX = -90;
 
 interface MessageComposerProps {
   /** Members of the conversation, used for the mention popover. */
@@ -48,6 +52,14 @@ export function MessageComposer({
   const startMsRef = useRef(0);
   const cancelRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Attachment type picker + the press-and-hold voice gesture (Telegram-style).
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [holding, setHolding] = useState(false);
+  const [slideX, setSlideX] = useState(0);
+  const holdStartXRef = useRef(0);
+  const holdStartTimeRef = useRef(0);
+  const willCancelRef = useRef(false);
+  const holdingRef = useRef(false);
 
   const uploading = attachments.some((a) => a._uploading);
 
@@ -180,6 +192,13 @@ export function MessageComposer({
     if (recording) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // The finger may have lifted while the permission/stream was resolving.
+      if (!holdingRef.current) {
+        stream.getTracks().forEach((tr) => {
+          tr.stop();
+        });
+        return;
+      }
       streamRef.current = stream;
       const mime = pickAudioMime();
       const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
@@ -286,6 +305,49 @@ export function MessageComposer({
   }
 
   const canSend = !pending && !uploading && (value.trim().length > 0 || attachments.length > 0);
+  // With text/attachments the right button sends; empty, it's the hold-to-record
+  // mic (Telegram). Recording only happens from an empty input.
+  const hasContent = value.trim().length > 0 || attachments.length > 0;
+  const recordingMode = recording || holding;
+  const willCancel = slideX <= CANCEL_DX;
+
+  // ── press-and-hold voice gesture ───────────────────────────────────────────
+  function startHold(e: React.PointerEvent) {
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // setPointerCapture can throw if the pointer is gone; ignore.
+    }
+    holdStartXRef.current = e.clientX;
+    holdStartTimeRef.current = Date.now();
+    willCancelRef.current = false;
+    holdingRef.current = true;
+    setHolding(true);
+    setSlideX(0);
+    void startRecording();
+  }
+  function moveHold(e: React.PointerEvent) {
+    if (!holdingRef.current) return;
+    const dx = Math.min(0, e.clientX - holdStartXRef.current);
+    setSlideX(dx);
+    willCancelRef.current = dx <= CANCEL_DX;
+  }
+  function endHold(e: React.PointerEvent) {
+    if (!holdingRef.current) return;
+    holdingRef.current = false;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    const cancel = willCancelRef.current;
+    const tooShort = Date.now() - holdStartTimeRef.current < 500;
+    setHolding(false);
+    setSlideX(0);
+    stopRecording(cancel);
+    if (!cancel && tooShort) toast.error(_(t`Hold to record — release to send.`));
+  }
 
   return (
     <div
@@ -394,142 +456,7 @@ export function MessageComposer({
         </ul>
       )}
       <div className="relative flex items-end gap-2">
-        <button
-          type="button"
-          onClick={() => imgInputRef.current?.click()}
-          aria-label={_(t`Attach photo`)}
-          className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: 'var(--surface-2)',
-            border: '0.5px solid var(--border)',
-            color: 'var(--ink-soft)',
-            cursor: 'pointer',
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect
-              x="3"
-              y="5"
-              width="18"
-              height="14"
-              rx="2.5"
-              stroke="currentColor"
-              strokeWidth="1.6"
-            />
-            <circle cx="8.5" cy="10" r="1.6" fill="currentColor" />
-            <path
-              d="M5 17l4.5-4 3 2.5L16 12l3 3"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={() => docInputRef.current?.click()}
-          aria-label={_(t`Attach file`)}
-          className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: 'var(--surface-2)',
-            border: '0.5px solid var(--border)',
-            color: 'var(--ink-soft)',
-            cursor: 'pointer',
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M19 11l-7.5 7.5a4 4 0 01-5.7-5.7L13 5.6a2.6 2.6 0 113.7 3.7L9.3 16.7a1.2 1.2 0 11-1.7-1.7L15 7.6"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={() => void startRecording()}
-          aria-label={_(t`Record voice note`)}
-          className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: 'var(--surface-2)',
-            border: '0.5px solid var(--border)',
-            color: 'var(--ink-soft)',
-            cursor: 'pointer',
-          }}
-        >
-          <MicIcon />
-        </button>
-        {recording && (
-          <div
-            className="absolute inset-0 z-10 flex items-center gap-3"
-            style={{ background: 'var(--bg)' }}
-          >
-            <button
-              type="button"
-              onClick={() => stopRecording(true)}
-              aria-label={_(t`Cancel recording`)}
-              className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
-              style={{
-                background: 'var(--surface-2)',
-                border: '0.5px solid var(--border)',
-                color: 'var(--ink-soft)',
-                cursor: 'pointer',
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                aria-hidden="true"
-              >
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
-            </button>
-            <span
-              className="flex items-center gap-2 text-[14px] font-medium"
-              style={{ color: 'var(--no)' }}
-            >
-              <span
-                className="inline-block animate-pulse"
-                style={{ width: 9, height: 9, borderRadius: 999, background: 'var(--no)' }}
-              />
-              <span style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtClock(elapsedMs)}</span>
-            </span>
-            <span className="text-[12px]" style={{ color: 'var(--ink-muted)' }}>
-              <Trans>Recording…</Trans>
-            </span>
-            <div className="flex-1" />
-            <button
-              type="button"
-              onClick={() => stopRecording(false)}
-              aria-label={_(t`Stop recording`)}
-              className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
-              style={{
-                background: 'var(--accent)',
-                color: 'var(--accent-ink)',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
-            </button>
-          </div>
-        )}
+        {/* Hidden file inputs, driven by the attachment-type sheet. */}
         <input
           ref={imgInputRef}
           type="file"
@@ -546,53 +473,129 @@ export function MessageComposer({
           style={{ display: 'none' }}
         />
 
-        <div className="relative min-w-0 flex-1">
-          {mentionQuery !== null && (
-            <MentionPopover
-              candidates={filtered}
-              active={activeMention}
-              onPick={insertMention}
-              onHover={setActiveMention}
+        {recordingMode ? (
+          /* Recording bar — the held mic (right) slides left over this to cancel. */
+          <div className="flex flex-1 items-center gap-2 pl-2" style={{ height: 40 }}>
+            <span
+              className="inline-block animate-pulse"
+              style={{
+                width: 9,
+                height: 9,
+                borderRadius: 999,
+                background: 'var(--no)',
+                flexShrink: 0,
+              }}
             />
-          )}
-          <textarea
-            ref={ref}
-            value={value}
-            onChange={(e) => updateValue(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={placeholder ?? _(t`Message — @ to mention`)}
-            rows={1}
-            className="w-full resize-none rounded-2xl px-4 py-2.5 outline-none"
+            <span
+              className="text-[14px] font-medium"
+              style={{ color: 'var(--no)', fontVariantNumeric: 'tabular-nums' }}
+            >
+              {fmtClock(elapsedMs)}
+            </span>
+            <span
+              className="flex-1 select-none truncate text-right text-[13px]"
+              style={{
+                color: willCancel ? 'var(--no)' : 'var(--ink-muted)',
+                transition: 'color .1s',
+              }}
+            >
+              {willCancel ? <Trans>Release to cancel</Trans> : <Trans>‹ slide to cancel</Trans>}
+            </span>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setAttachOpen(true)}
+              aria-label={_(t`Add attachment`)}
+              className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+              style={{
+                background: 'var(--surface-2)',
+                border: '0.5px solid var(--border)',
+                color: 'var(--ink-soft)',
+                cursor: 'pointer',
+              }}
+            >
+              <PlusIcon />
+            </button>
+            <div className="relative min-w-0 flex-1">
+              {mentionQuery !== null && (
+                <MentionPopover
+                  candidates={filtered}
+                  active={activeMention}
+                  onPick={insertMention}
+                  onHover={setActiveMention}
+                />
+              )}
+              <textarea
+                ref={ref}
+                value={value}
+                onChange={(e) => updateValue(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder={placeholder ?? _(t`Message`)}
+                rows={1}
+                className="w-full resize-none rounded-2xl px-4 py-2.5 outline-none"
+                style={{
+                  background: 'var(--field-bg)',
+                  color: 'var(--ink)',
+                  border: '1px solid transparent',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 15,
+                  lineHeight: 1.4,
+                  minHeight: 40,
+                  maxHeight: 200,
+                }}
+              />
+            </div>
+          </>
+        )}
+
+        {/* Right button: send (content present) or the hold-to-record mic (empty). */}
+        {hasContent ? (
+          <button
+            type="button"
+            onClick={() => submit()}
+            disabled={!canSend}
+            aria-label={_(t`Send message`)}
+            className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
             style={{
-              background: 'var(--field-bg)',
-              color: 'var(--ink)',
-              border: '1px solid transparent',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              lineHeight: 1.4,
-              minHeight: 40,
-              maxHeight: 200,
+              background: 'var(--accent)',
+              color: 'var(--accent-ink)',
+              border: 'none',
+              cursor: canSend ? 'pointer' : 'default',
+              opacity: canSend ? 1 : 0.5,
             }}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => submit()}
-          disabled={!canSend}
-          aria-label={_(t`Send message`)}
-          className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: 'var(--accent)',
-            color: 'var(--accent-ink)',
-            border: 'none',
-            cursor: canSend ? 'pointer' : 'default',
-            opacity: canSend ? 1 : 0.5,
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M2 8l12-6-4 14-3-6-5-2z" fill="currentColor" />
-          </svg>
-        </button>
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2 8l12-6-4 14-3-6-5-2z" fill="currentColor" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onPointerDown={startHold}
+            onPointerMove={moveHold}
+            onPointerUp={endHold}
+            onPointerCancel={endHold}
+            aria-label={_(t`Hold to record a voice note`)}
+            className="inline-flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
+            style={{
+              background: holding
+                ? willCancel
+                  ? 'var(--no)'
+                  : 'var(--accent)'
+                : 'var(--surface-2)',
+              color: holding ? 'var(--accent-ink)' : 'var(--ink-soft)',
+              border: holding ? 'none' : '0.5px solid var(--border)',
+              transform: holding ? `translateX(${slideX}px) scale(1.12)` : undefined,
+              transition: holding ? 'none' : 'transform .15s ease, background .15s ease',
+              touchAction: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            {willCancel ? <TrashIcon /> : <MicIcon />}
+          </button>
+        )}
       </div>
       <div
         className="px-1 text-[10.5px]"
@@ -600,7 +603,93 @@ export function MessageComposer({
       >
         <Trans>**bold** *italic* `code` [link](url) — @ to mention</Trans>
       </div>
+
+      <Sheet
+        open={attachOpen}
+        onOpenChange={setAttachOpen}
+        side="bottom"
+        title={<Trans>Add attachment</Trans>}
+      >
+        <div className="flex flex-col px-2 pb-4">
+          <AttachRow
+            icon={<PhotoIcon />}
+            label={<Trans>Photo</Trans>}
+            onClick={() => {
+              setAttachOpen(false);
+              imgInputRef.current?.click();
+            }}
+          />
+          <AttachRow
+            icon={<DocIcon />}
+            label={<Trans>Document</Trans>}
+            onClick={() => {
+              setAttachOpen(false);
+              docInputRef.current?.click();
+            }}
+          />
+        </div>
+      </Sheet>
     </div>
+  );
+}
+
+function AttachRow({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-xl px-3 py-3 text-left text-[15px]"
+      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--ink)' }}
+    >
+      <span style={{ color: 'var(--accent)', display: 'inline-flex' }}>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function PhotoIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="8.5" cy="10" r="1.6" fill="currentColor" />
+      <path
+        d="M5 17l4.5-4 3 2.5L16 12l3 3"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M5 7h14M10 11v6M14 11v6M6 7l1 12a1 1 0 001 1h8a1 1 0 001-1l1-12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
