@@ -1,7 +1,10 @@
 import * as Dialog from '@radix-ui/react-dialog';
-import type { ReactNode } from 'react';
+import { type ReactNode, type PointerEvent as ReactPointerEvent, useRef, useState } from 'react';
 
 import { useKeyboardInset } from '../../lib/useKeyboardInset';
+
+// Downward drag (px) on the grabber that dismisses a bottom sheet.
+const DISMISS_DY = 90;
 
 interface SheetProps {
   open: boolean;
@@ -35,6 +38,31 @@ export function Sheet({
   // and whenever the keyboard is closed.
   const kbInset = useKeyboardInset();
   const liftBy = isTop ? 0 : kbInset;
+
+  // Drag-to-dismiss: pulling the grabber down past DISMISS_DY closes a bottom
+  // sheet; a shorter pull springs back.
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragStartRef = useRef<number | null>(null);
+
+  const onHandleDown = (e: ReactPointerEvent) => {
+    dragStartRef.current = e.clientY;
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onHandleMove = (e: ReactPointerEvent) => {
+    if (dragStartRef.current === null) return;
+    setDragY(Math.max(0, e.clientY - dragStartRef.current));
+  };
+  const onHandleUp = () => {
+    if (dragStartRef.current === null) return;
+    const shouldClose = dragY > DISMISS_DY;
+    dragStartRef.current = null;
+    setDragging(false);
+    setDragY(0);
+    if (shouldClose) onOpenChange(false);
+  };
+
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -58,7 +86,10 @@ export function Sheet({
             zIndex: 70,
             maxHeight: liftBy ? `calc(85dvh - ${liftBy}px)` : '85dvh',
             overflowY: 'auto',
-            transition: 'bottom 0.18s ease, max-height 0.18s ease',
+            transform: dragY ? `translateY(${dragY}px)` : undefined,
+            transition: dragging
+              ? 'none'
+              : 'transform 0.22s var(--ease-spring), bottom 0.18s ease, max-height 0.18s ease',
             background: 'var(--surface)',
             color: 'var(--ink)',
             borderBottomLeftRadius: isTop ? 24 : 0,
@@ -72,16 +103,32 @@ export function Sheet({
           }}
         >
           {isTop ? null : (
+            // Grabber doubles as a drag-to-dismiss handle. The padded wrapper
+            // is the touch target; touch-action:none so the drag doesn't scroll
+            // the sheet body.
             <div
+              onPointerDown={onHandleDown}
+              onPointerMove={onHandleMove}
+              onPointerUp={onHandleUp}
+              onPointerCancel={onHandleUp}
               style={{
-                width: 38,
-                height: 4,
-                borderRadius: 999,
-                background: 'var(--border)',
-                margin: '0 auto 14px',
+                touchAction: 'none',
+                cursor: 'grab',
+                margin: '-10px 0 6px',
+                padding: '8px 0',
               }}
-              aria-hidden
-            />
+            >
+              <div
+                style={{
+                  width: 38,
+                  height: 4,
+                  borderRadius: 999,
+                  background: 'var(--border)',
+                  margin: '0 auto',
+                }}
+                aria-hidden
+              />
+            </div>
           )}
           {hideTitle ? (
             <Dialog.Title

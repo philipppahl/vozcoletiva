@@ -261,6 +261,10 @@ export function MessageComposer({
     setAttachments([]);
     setMentionQuery(null);
     void onSubmit(body, ready);
+    // Keep the keyboard up so the next message can be typed straight away
+    // (Telegram-style). Paired with preventDefault on the send button's
+    // pointerdown so the tap never blurs the textarea in the first place.
+    ref.current?.focus();
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -542,6 +546,9 @@ export function MessageComposer({
         {hasContent ? (
           <button
             type="button"
+            // Don't let the tap steal focus from the textarea — keeps the soft
+            // keyboard open after sending.
+            onPointerDown={(e) => e.preventDefault()}
             onClick={() => submit()}
             disabled={!canSend}
             aria-label={_(t`Send message`)}

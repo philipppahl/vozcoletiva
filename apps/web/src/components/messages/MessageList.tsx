@@ -105,6 +105,23 @@ export function MessageList({
     return () => c.removeEventListener('scroll', onScroll);
   }, []);
 
+  // When the soft keyboard opens the viewport shrinks (interactive-widget=
+  // resizes-content) — re-pin to the bottom so the latest messages stay in
+  // view above the composer instead of being clipped behind it.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const onResize = () => {
+      const c = containerRef.current;
+      if (!c || !wasNearBottomRef.current) return;
+      requestAnimationFrame(() => {
+        c.scrollTop = c.scrollHeight;
+      });
+    };
+    vv.addEventListener('resize', onResize);
+    return () => vv.removeEventListener('resize', onResize);
+  }, []);
+
   // Snap to bottom on mount; follow new messages only when the user is
   // already at the bottom.
   useLayoutEffect(() => {
