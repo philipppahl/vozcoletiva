@@ -1,6 +1,8 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import type { ReactNode } from 'react';
 
+import { useKeyboardInset } from '../../lib/useKeyboardInset';
+
 interface SheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -28,6 +30,11 @@ export function Sheet({
   children,
 }: SheetProps) {
   const isTop = side === 'top';
+  // Lift a bottom sheet above the on-screen keyboard so its input + content
+  // stay reachable (e.g. the "New direct message" search). 0 for top sheets
+  // and whenever the keyboard is closed.
+  const kbInset = useKeyboardInset();
+  const liftBy = isTop ? 0 : kbInset;
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -47,10 +54,11 @@ export function Sheet({
             left: 0,
             right: 0,
             top: isTop ? 0 : 'auto',
-            bottom: isTop ? 'auto' : 0,
+            bottom: isTop ? 'auto' : liftBy,
             zIndex: 70,
-            maxHeight: '85dvh',
+            maxHeight: liftBy ? `calc(85dvh - ${liftBy}px)` : '85dvh',
             overflowY: 'auto',
+            transition: 'bottom 0.18s ease, max-height 0.18s ease',
             background: 'var(--surface)',
             color: 'var(--ink)',
             borderBottomLeftRadius: isTop ? 24 : 0,

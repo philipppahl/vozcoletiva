@@ -2,6 +2,7 @@ import { Trans, t } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 
+import { AuthorTag } from '../components/AuthorTag';
 import { CategoryChips } from '../components/categories/CategoryChips';
 import { DeliberationCard } from '../components/forks/DeliberationCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -213,6 +214,7 @@ function ProposalCardLink({ slug, p }: { slug: string; p: ExtendedProposal }) {
           >
             {p.title}
           </h3>
+          <AuthorTag slug={slug} authorId={p.author_id} />
           <TallyBar
             yes={p.tally_by_choice?.[p.id] ?? 0}
             no={(p.tally_decisive ?? 0) - (p.tally_by_choice?.[p.id] ?? 0)}

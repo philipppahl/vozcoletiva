@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import type { ReactElement } from 'react';
 
 import type { ExtendedProposal } from '../../lib/proposals/types';
+import { AuthorTag } from '../AuthorTag';
 import { CategoryBadge } from '../categories/CategoryBadge';
 import { StatusBadge } from '../StatusBadge';
 import { TimeRemaining } from '../TimeRemaining';
@@ -86,6 +87,9 @@ export function DeliberationCard({ root, all, slug }: DeliberationCardProps) {
           >
             {root.title}
           </h3>
+          <div className="mt-2.5">
+            <AuthorTag slug={slug} authorId={root.author_id} />
+          </div>
         </div>
       </Link>
 

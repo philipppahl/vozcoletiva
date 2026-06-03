@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Hide-on-scroll-down / reveal-on-scroll-up, X-app style. Watches the window
- * scroll position and returns whether the chrome (header + footer) should be
- * hidden. The caller applies a transform.
+ * Hide-on-scroll-down / reveal-on-scroll-up, X-app style. Returns whether the
+ * chrome (header + footer) should be hidden; the caller applies a transform.
+ *
+ * Watches `el` when provided (an internal scroll container), else the window.
+ * The shell now scrolls an internal element rather than the document — a fixed
+ * `h-dvh` frame with no document scroll, so the pinned header/footer can't
+ * drift on overscroll.
  *
  * Behaviour:
  *  - Reveals whenever you scroll up, or near the very top.
@@ -12,7 +16,10 @@ import { useEffect, useState } from 'react';
  *    jitter on tiny scrolls).
  *  - Honours `prefers-reduced-motion`: never hides (chrome stays put).
  */
-export function useHideOnScroll(options?: { delta?: number; revealThreshold?: number }): boolean {
+export function useHideOnScroll(
+  el?: HTMLElement | null,
+  options?: { delta?: number; revealThreshold?: number },
+): boolean {
   const delta = options?.delta ?? 8;
   const revealThreshold = options?.revealThreshold ?? 64;
   const [hidden, setHidden] = useState(false);
@@ -22,12 +29,15 @@ export function useHideOnScroll(options?: { delta?: number; revealThreshold?: nu
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduced) return undefined;
 
-    let lastY = window.scrollY;
+    const target: HTMLElement | Window = el ?? window;
+    const scrollY = () => (el ? el.scrollTop : window.scrollY);
+
+    let lastY = scrollY();
     let ticking = false;
 
     const update = () => {
       ticking = false;
-      const y = window.scrollY;
+      const y = scrollY();
       // Always show near the top.
       if (y <= revealThreshold) {
         setHidden(false);
@@ -47,9 +57,9 @@ export function useHideOnScroll(options?: { delta?: number; revealThreshold?: nu
       }
     };
 
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [delta, revealThreshold]);
+    target.addEventListener('scroll', onScroll, { passive: true });
+    return () => target.removeEventListener('scroll', onScroll);
+  }, [el, delta, revealThreshold]);
 
   return hidden;
 }

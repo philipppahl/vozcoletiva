@@ -25,7 +25,10 @@ export function Avatar({ displayName, size = 32, ring, imageUrl }: AvatarProps) 
         width: size,
         height: size,
         borderRadius: 999,
-        background: imageUrl ? '#0001' : bg,
+        // backgroundColor (not the `background` shorthand) so it doesn't fight
+        // the backgroundImage/Size/Position longhands below — React warns on
+        // mixing shorthand + longhand for the same property during rerender.
+        backgroundColor: imageUrl ? '#0001' : bg,
         color: fg,
         alignItems: 'center',
         justifyContent: 'center',

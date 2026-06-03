@@ -2,6 +2,7 @@ import { Trans } from '@lingui/macro';
 import { Link } from '@tanstack/react-router';
 
 import type { DocumentSummary } from '../../lib/documents/types';
+import { AuthorTag } from '../AuthorTag';
 import { CategoryBadge } from '../categories/CategoryBadge';
 import { Card } from '../ui/Card';
 
@@ -66,6 +67,7 @@ export function DocumentList({ slug, documents }: DocumentListProps) {
                 {doc.name}
               </h3>
               <div className="mt-3 flex flex-wrap items-center gap-2">
+                <AuthorTag slug={slug} authorId={doc.current_version?.author_id} />
                 <CategoryBadge slug={slug} categoryId={doc.current_version?.category_id} />
                 {doc.active_amendment && (
                   <span

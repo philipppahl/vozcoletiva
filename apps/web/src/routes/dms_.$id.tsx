@@ -18,6 +18,7 @@ import {
   useToggleReaction,
 } from '../lib/messages';
 import type { Message } from '../lib/messages/types';
+import { useGoBack } from '../lib/useGoBack';
 
 interface DmSearch {
   thread?: string;
@@ -45,6 +46,7 @@ function DmDetailPage() {
   const markRead = useMarkRead(id);
   const { session } = useAuth();
   const toggleReaction = useToggleReaction(id);
+  const goBack = useGoBack('/dms');
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
 
   const onRetry = (message: Message) => {
@@ -91,10 +93,7 @@ function DmDetailPage() {
       className="flex h-dvh flex-col overflow-hidden"
       style={{ background: 'var(--bg)', color: 'var(--ink)' }}
     >
-      <ConversationHeader
-        conversation={conversation.data}
-        onBack={() => void navigate({ to: '/dms' })}
-      />
+      <ConversationHeader conversation={conversation.data} onBack={goBack} />
       <MessageList
         messages={messages.data?.messages ?? []}
         onRetry={onRetry}

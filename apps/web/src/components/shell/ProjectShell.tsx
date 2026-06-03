@@ -37,27 +37,38 @@ export function ProjectShell({
   const project = useProject(slug);
   const navigate = useNavigate();
   const projectName = project.data?.project.name ?? slug;
-  const hidden = useHideOnScroll();
+  // Scroll happens inside `scrollEl`, not the document — a fixed h-dvh frame
+  // with no document scroll, so the sticky header/footer can't drift on
+  // overscroll (the rubber-band that pushed the tab bar around). The header +
+  // tab bar still slide in/out on scroll, now driven by this container.
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const hidden = useHideOnScroll(scrollEl);
   const unreadByProject = useUnreadByProject();
   const otherUnread = Object.entries(unreadByProject).some(([s, n]) => s !== slug && n > 0);
 
   return (
     <div
-      className="flex min-h-dvh flex-col"
+      className="flex h-dvh flex-col overflow-hidden"
       style={{ background: 'var(--bg)', color: 'var(--ink)' }}
     >
-      <ProjectHeader
-        projectName={projectName}
-        pageTitle={pageTitle}
-        subsection={subsection}
-        otherUnread={otherUnread}
-        onBack={onBack}
-        hidden={hidden}
-        onAvatarClick={() => void navigate({ to: '/preferences' })}
-        onProjectClick={() => setSheetOpen(true)}
-      />
-      <main className="flex flex-1 flex-col">{children}</main>
-      <TabBar slug={slug} current={tab} hidden={hidden} />
+      <div
+        ref={setScrollEl}
+        className="flex flex-1 flex-col overflow-y-auto"
+        style={{ minHeight: 0, overscrollBehavior: 'contain' }}
+      >
+        <ProjectHeader
+          projectName={projectName}
+          pageTitle={pageTitle}
+          subsection={subsection}
+          otherUnread={otherUnread}
+          onBack={onBack}
+          hidden={hidden}
+          onAvatarClick={() => void navigate({ to: '/preferences' })}
+          onProjectClick={() => setSheetOpen(true)}
+        />
+        <main className="flex flex-1 flex-col">{children}</main>
+        <TabBar slug={slug} current={tab} hidden={hidden} />
+      </div>
       <ProjectTopSheet open={sheetOpen} onOpenChange={setSheetOpen} currentSlug={slug} />
     </div>
   );

@@ -4,9 +4,11 @@ import { useState } from 'react';
 
 import { useAuth } from '../lib/auth/hooks';
 import { useDeleteComment, useEditComment } from '../lib/comments';
+import { useMemberLookup } from '../lib/projects';
 import { CommentForm } from './CommentForm';
 import { Markdown } from './Markdown';
 import { RelativeTime } from './RelativeTime';
+import { Avatar } from './shell/Avatar';
 
 interface Comment {
   id: string;
@@ -29,6 +31,7 @@ export function CommentItem({ slug, proposalId, comment }: Props) {
   const { session } = useAuth();
   const edit = useEditComment(slug, proposalId);
   const del = useDeleteComment(slug, proposalId);
+  const lookup = useMemberLookup(slug);
   const [editing, setEditing] = useState(false);
 
   const isAuthor = session?.userId === comment.author_id;
@@ -56,6 +59,11 @@ export function CommentItem({ slug, proposalId, comment }: Props) {
         className="flex flex-wrap items-center gap-2 text-xs"
         style={{ color: 'var(--text-muted)' }}
       >
+        <Avatar
+          displayName={comment.author_display_name}
+          imageUrl={lookup(comment.author_id)?.avatar_url}
+          size={22}
+        />
         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
           {comment.author_display_name}
         </span>
