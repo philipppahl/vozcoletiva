@@ -205,7 +205,7 @@ fn cors_preflight() -> Result<Response<lambda_http::Body>, Error> {
         .header("access-control-allow-headers", "authorization,content-type")
         .header(
             "access-control-allow-methods",
-            "GET,POST,PATCH,DELETE,OPTIONS",
+            "GET,POST,PUT,PATCH,DELETE,OPTIONS",
         )
         .body(lambda_http::Body::Empty)?)
 }
