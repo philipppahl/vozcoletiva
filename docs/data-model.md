@@ -51,8 +51,8 @@ Reconciled from `mocks/db.ts`. Four facts drive the whole design:
    `proposalKind:'document'` proposals sharing a `documentName`; the current
    version is the most-recently-closed one. There is no Document entity.
 3. **Conversations are unified** — a `Conversation` is either a project
-   **channel** or a user-pair **DM**. Messages carry `parentMessageId` (threads).
-   Two read-marker kinds exist: per-conversation and per-thread.
+   **channel** or a user-pair **DM**. A reply carries `replyToId` + a quote
+   snapshot and lives inline (decision 0031). One per-conversation read marker.
 4. **Forks and multi-option labels are child proposals** linked by
    `parentId` / `rootId`. `isQuestion` marks a non-votable multi-option root.
 
@@ -83,9 +83,9 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
   close in the worker) pushes one `INBOX#` item per entitled recipient, via the
   shared `notify` module. Best-effort — never fails the trigger. See decision 0021.
 
-### Conversation-read / thread-read markers
+### Conversation-read marker
 - **PK** `USER#<userId>` · **SK** `CONVREAD#<conversationId>` — `lastReadMessageId`, `at`
-- **PK** `USER#<userId>` · **SK** `THREADREAD#<parentMessageId>` — `lastReadMessageId`, `at`
+  (per-thread markers were removed in 0031 — replies count as normal messages).
 
 ### WebSocket connection (live delivery, decision 0028)
 - **PK** `CONN#<connectionId>` · **SK** `META` — `userId`, `connectedAt`, `ttl`
@@ -209,23 +209,24 @@ For each entity: `PK` / `SK` / notable attrs / GSI mappings.
   pair maps to one conversation; per-user `DM#<convId>` pointers list a user's
   DMs. No GSI. See decision 0020.
 
-### Message (channel message or thread reply)
-- **PK** `CONV#<conversationId>` · **SK** `MSG#<ulid>` (top-level) or
-  `REPLY#<ulid>` (a thread reply) — the split keeps "list top-level messages" a
-  clean range query (`BETWEEN MSG# AND MSG$`) with no filter, and pagination via
-  a `before` cursor.
+### Message (channel message or inline reply)
+- **PK** `CONV#<conversationId>` · **SK** `MSG#<ulid>` — **every** message,
+  top-level or reply (decision 0031). One range query (`BETWEEN MSG# AND MSG$`)
+  is the timeline and includes replies inline; pagination via a `before` cursor.
 - attrs: `authorId`, `authorDisplayName` (denormalised from the poster's
-  membership), `body`, `parentMessageId?` (replies), `createdAt`, `editedAt?`;
-  top-level carries `replyCount` + `lastReplyAt?` (bumped transactionally when a
-  reply is posted).
-- **Reply → GSI3PK** `THREAD#<parentMessageId>` · **GSI3SK** `<ulid>` —
-  *sparse, replies only* — a thread's replies without scanning the conversation.
-- **Top-level → GSI3PK** `MSG#<id>` · **GSI3SK** `<conversationId>` —
-  *sparse, top-level only* — resolves a message id to its conversation for the
-  `…/messages/{id}/thread` and `…/thread/read` endpoints (which carry only the id).
-- Read markers + unread: see Conversation-read / thread-read markers above;
-  unread = `Select=COUNT` over `MSG#` newer than the marker. Attachments and
-  WebSocket live-push are later slices.
+  membership), `body`, `createdAt`, `editedAt?`, `replyCount` + `lastReplyAt?`
+  (bumped transactionally when something replies to this message).
+- **Reply quote snapshot** (decision 0031): a reply also carries `replyToId` +
+  an immutable snapshot `replyToAuthorId` / `replyToAuthor` / `replyToPreview` /
+  `replyToKind`, so the quote header renders with no extra read and survives the
+  original being edited/deleted.
+- **GSI3PK** `MSG#<id>` · **GSI3SK** `<conversationId>` — resolves any message id
+  to its conversation (for `…/messages/{id}/thread`; you can reply to a reply).
+- Focused thread view: `thread_replies` is a filtered query on the conversation
+  by `replyToId` (opened on demand; channels are bounded — add a GSI if they grow).
+- Read markers + unread: a single Conversation-read marker; unread =
+  `Select=COUNT` over `MSG#` newer than it. Replies count as normal messages
+  (per-thread read markers were removed in 0031).
 
 ### Audit event
 - **PK** `PROJECT#<projectId>` · **SK** `AUDIT#<ulid>`
@@ -239,7 +240,7 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
 |---|---|---|
 | **GSI1** — secondary-id lookups | `SLUG#<slug>`/`PROJECT` · `USER#<uid>`/`MEMBER#<pid>` · `INVITETOKEN#<t>`/`INVITE` · `INVITECODE#<c>`/`INVITE` | slug→project; my projects (switcher); invite token→invite; short code→invite |
 | **GSI2** — by root / by user | `DELIB#<rootId>`/`PROPOSAL#<created>#<id>` · `USER#<uid>`/`VOTE#<rootId>` | deliberation tree; a user's vote history |
-| **GSI3** — time/status windows + lookups | `PROJECT#<pid>#VOTING`/`<endsAt>` · `PROJECT#<pid>#DOC`/`<name>#<closedAt>` · `THREAD#<parentMsgId>`/`<ulid>` · `MSG#<id>`/`<convId>` | closing-soon roots; document library by name; thread replies; top-level message → conversation |
+| **GSI3** — time/status windows + lookups | `PROJECT#<pid>#VOTING`/`<endsAt>` · `PROJECT#<pid>#DOC`/`<name>#<closedAt>` · `MSG#<id>`/`<convId>` | closing-soon roots; document library by name; any message id → conversation |
 
 ## Access patterns covered (all 42 endpoints)
 
@@ -276,11 +277,10 @@ Three, each overloaded with **disjoint, sparse** key-spaces:
 | `GET …/documents/by-name/:name` | `Query GSI3(PROJECT#p#DOC, begins_with name#)` |
 | `GET /projects/:slug/search` | `Query(PROJECT#p)` + in-Lambda substring filter (MVP — see Open questions) |
 | `GET /conversations/:id` | `GetItem(CONV#id, META)` |
-| `GET /conversations/:id/messages` | `Query(CONV#id, MSG#)` desc + `before`, filter top-level |
-| `POST /conversations/:id/messages` | put `CONV#id / MSG#<ulid>` (+ GSI3 `THREAD#` row if reply) |
+| `GET /conversations/:id/messages` | `Query(CONV#id, MSG#)` desc + `before` (replies inline) |
+| `POST /conversations/:id/messages` | put `CONV#id / MSG#<ulid>` (+ quote snapshot & bump parent if reply) |
 | `POST /conversations/:id/read` | upsert `USER#u / CONVREAD#id` |
-| `GET /messages/:id/thread` | `Query GSI3(THREAD#parentId)` |
-| `POST /messages/:parentId/thread/read` | upsert `USER#u / THREADREAD#parentId` |
+| `GET /messages/:id/thread` | resolve parent via `GSI3(MSG#id)`, then `Query(CONV#id, MSG#)` filtered by `replyToId` |
 | `GET /dms` | `Query(USER#u, DM#)` → `BatchGetItem(CONV#id, META)` |
 | `POST /dms` | derive deterministic id from sorted pair → `GetItem` or create (+ `DM#` pointer per participant) |
 | `GET /invites/:token` | `Query GSI1(INVITETOKEN#t)` |

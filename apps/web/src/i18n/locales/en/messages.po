@@ -117,6 +117,18 @@ msgstr "+ Add option"
 msgid "+ New"
 msgstr "+ New"
 
+#: src/components/messages/QuoteHeader.tsx
+msgid "🎙 Voice note"
+msgstr "🎙 Voice note"
+
+#: src/components/messages/QuoteHeader.tsx
+msgid "📄 Document"
+msgstr "📄 Document"
+
+#: src/components/messages/QuoteHeader.tsx
+msgid "📷 Photo"
+msgstr "📷 Photo"
+
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "1 day"
 msgstr "1 day"
@@ -281,6 +293,10 @@ msgstr "Cancel"
 msgid "Cancel recording"
 msgstr "Cancel recording"
 
+#: src/components/messages/MessageComposer.tsx
+msgid "Cancel reply"
+msgstr "Cancel reply"
+
 #: src/routes/p.$slug.categories.tsx
 #: src/routes/p.$slug.manage.tsx
 #~ msgid "Categories"
@@ -393,6 +409,10 @@ msgstr "Copy"
 #: src/routes/p.$slug.invites.tsx
 msgid "Copy code"
 msgstr "Copy code"
+
+#: src/components/messages/MessageActions.tsx
+msgid "Copy text"
+msgstr "Copy text"
 
 #: src/routes/p.$slug.invites.tsx
 msgid "Copy URL"
@@ -749,6 +769,10 @@ msgstr "Mentions"
 msgid "Message — @ to mention"
 msgstr "Message — @ to mention"
 
+#: src/components/messages/MessageActions.tsx
+msgid "Message actions"
+msgstr "Message actions"
+
 #: src/components/shell/TabBar.tsx
 #: src/routes/p.$slug.messages.tsx
 msgid "Messages"
@@ -911,6 +935,10 @@ msgstr "Open deliberation"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Open this alternative"
 msgstr "Open this alternative"
+
+#: src/components/messages/MessageActions.tsx
+msgid "Open thread"
+msgstr "Open thread"
 
 #. placeholder {0}: i + 1
 #: src/routes/p.$slug.proposals.new.tsx
@@ -1150,6 +1178,15 @@ msgstr "Remove option"
 msgid "Rename"
 msgstr "Rename"
 
+#: src/components/messages/MessageActions.tsx
+msgid "Reply"
+msgstr "Reply"
+
+#. placeholder {0}: replyingTo.author_display_name
+#: src/components/messages/MessageComposer.tsx
+msgid "Replying to {0}"
+msgstr "Replying to {0}"
+
 #: src/components/VoteControl.tsx
 msgid "Retract"
 msgstr "Retract"
@@ -1286,6 +1323,10 @@ msgstr "Something went wrong."
 #: src/routes/sign-up.tsx
 msgid "Something went wrong. Please try again."
 msgstr "Something went wrong. Please try again."
+
+#: src/components/messages/MessageActions.tsx
+msgid "Start thread"
+msgstr "Start thread"
 
 #: src/routes/welcome.tsx
 msgid "Stay accountable"

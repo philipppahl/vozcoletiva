@@ -11,7 +11,6 @@ mod support;
 use support::{docker_available, LocalDdb};
 use voz_api::auth::AuthenticatedUser;
 use voz_api::domain::slug::Slug;
-use voz_api::error::AppError;
 use voz_api::repo::{conversation, message, project};
 
 fn user(id: &str) -> AuthenticatedUser {
@@ -91,7 +90,7 @@ async fn post_list_and_paginate_top_level_messages() {
     }
 
     // The newest page (3 of 5), returned oldest-first: [m2, m3, m4].
-    let (page, has_more) = message::list_top_level(&ddb.state, &conv, None, 3)
+    let (page, has_more) = message::list(&ddb.state, &conv, None, 3)
         .await
         .unwrap();
     assert_eq!(page.len(), 3);
@@ -102,7 +101,7 @@ async fn post_list_and_paginate_top_level_messages() {
     );
 
     // Older page via the `before` cursor (before m2): [m0, m1].
-    let (page2, has_more2) = message::list_top_level(&ddb.state, &conv, Some(&ids[2]), 3)
+    let (page2, has_more2) = message::list(&ddb.state, &conv, Some(&ids[2]), 3)
         .await
         .unwrap();
     assert_eq!(
@@ -120,13 +119,20 @@ async fn replies_form_a_thread_and_bump_the_parent() {
     let parent = message::post(&ddb.state, &conv, "owner", "Owner", "topic", None, vec![])
         .await
         .unwrap();
+    let snap = |id: &str| message::ReplyTo {
+        id: id.to_string(),
+        author_id: "owner".to_string(),
+        author_display_name: "Owner".to_string(),
+        preview: "topic".to_string(),
+        kind: "text".to_string(),
+    };
     let r1 = message::post(
         &ddb.state,
         &conv,
         "u2",
         "Bob",
         "reply 1",
-        Some(&parent.id),
+        Some(snap(&parent.id)),
         vec![],
     )
     .await
@@ -137,43 +143,37 @@ async fn replies_form_a_thread_and_bump_the_parent() {
         "owner",
         "Owner",
         "reply 2",
-        Some(&parent.id),
+        Some(snap(&parent.id)),
         vec![],
     )
     .await
     .unwrap();
 
-    // Replies don't show in the top-level list.
-    let (top, _) = message::list_top_level(&ddb.state, &conv, None, 50)
-        .await
-        .unwrap();
-    assert_eq!(top.len(), 1);
+    // Replies now show inline in the main list (decision 0031): parent + 2.
+    let (top, _) = message::list(&ddb.state, &conv, None, 50).await.unwrap();
+    assert_eq!(top.len(), 3);
     assert_eq!(top[0].id, parent.id);
     assert_eq!(top[0].reply_count, 2, "parent reply_count bumped");
+    // The reply carries the quote snapshot pointing at the parent.
+    assert_eq!(
+        top[1].reply_to.as_ref().map(|r| r.id.as_str()),
+        Some(parent.id.as_str())
+    );
 
-    // The thread lists replies chronologically.
-    let replies = message::thread_replies(&ddb.state, &parent.id)
+    // The focused thread view lists the parent's replies chronologically.
+    let replies = message::thread_replies(&ddb.state, &conv, &parent.id)
         .await
         .unwrap();
-    assert_eq!(
-        replies
-            .iter()
-            .map(|m| m.id.clone())
-            .collect::<Vec<_>>()
-            .first(),
-        Some(&r1.id)
-    );
     assert_eq!(replies.len(), 2);
+    assert_eq!(replies.first().map(|m| m.id.clone()), Some(r1.id.clone()));
 
-    // A reply is not resolvable as a top-level message (so the handler rejects
-    // replying to a reply).
-    assert!(matches!(
-        message::top_level_by_id(&ddb.state, &r1.id).await,
-        Err(AppError::NotFound)
-    ));
-    // The parent resolves by id alone.
+    // Any message — including a reply — resolves by id (you can reply to a reply).
     assert_eq!(
-        message::top_level_by_id(&ddb.state, &parent.id)
+        message::message_by_id(&ddb.state, &r1.id).await.unwrap().id,
+        r1.id
+    );
+    assert_eq!(
+        message::message_by_id(&ddb.state, &parent.id)
             .await
             .unwrap()
             .id,
@@ -255,8 +255,8 @@ async fn read_marker_drives_unread_count() {
 }
 
 #[tokio::test]
-async fn last_message_is_the_newest_top_level() {
-    let ddb = ddb_or_skip!("last_message_is_the_newest_top_level");
+async fn last_message_is_the_newest_message() {
+    let ddb = ddb_or_skip!("last_message_is_the_newest_message");
     let (_pid, conv) = project_with_channel(&ddb, "epsilon").await;
     assert!(message::last_message(&ddb.state, &conv)
         .await
@@ -269,14 +269,20 @@ async fn last_message_is_the_newest_top_level() {
     let second = message::post(&ddb.state, &conv, "owner", "Owner", "second", None, vec![])
         .await
         .unwrap();
-    // A reply must not become the "last message".
-    message::post(
+    // A reply is an inline message (decision 0031) — it becomes the latest.
+    let reply = message::post(
         &ddb.state,
         &conv,
         "owner",
         "Owner",
         "a reply",
-        Some(&second.id),
+        Some(message::ReplyTo {
+            id: second.id.clone(),
+            author_id: "owner".into(),
+            author_display_name: "Owner".into(),
+            preview: "second".into(),
+            kind: "text".into(),
+        }),
         vec![],
     )
     .await
@@ -286,5 +292,5 @@ async fn last_message_is_the_newest_top_level() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(last.id, second.id);
+    assert_eq!(last.id, reply.id);
 }

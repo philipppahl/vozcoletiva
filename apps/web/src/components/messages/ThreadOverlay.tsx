@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/macro';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { discardMessage, useSendMessage, useThread } from '../../lib/messages';
+import { discardMessage, toReplyTo, useSendMessage, useThread } from '../../lib/messages';
 import type { Attachment, Conversation, Message } from '../../lib/messages/types';
 import { Sheet } from '../ui/Sheet';
 import type { MentionCandidate } from './MentionPopover';
@@ -30,13 +30,24 @@ export function ThreadOverlay({
 
   async function onPost(body: string, attachments: Attachment[]) {
     if (!parentMessageId) return;
-    await send.mutateAsync({ body, attachments, parent_message_id: parentMessageId });
+    // Replying from the thread quotes the parent message.
+    const parent = thread.data?.parent;
+    await send.mutateAsync({
+      body,
+      attachments,
+      reply_to_id: parentMessageId,
+      reply_to: parent ? toReplyTo(parent) : undefined,
+    });
   }
 
   const onRetry = (message: Message) => {
     if (!conversation) return;
     discardMessage(qc, conversation.id, message);
-    send.mutate({ body: message.body, parent_message_id: message.parent_message_id ?? undefined });
+    send.mutate({
+      body: message.body,
+      reply_to_id: message.reply_to?.id,
+      reply_to: message.reply_to ?? undefined,
+    });
   };
 
   return (

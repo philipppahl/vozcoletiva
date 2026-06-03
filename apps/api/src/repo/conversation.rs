@@ -421,23 +421,6 @@ pub async fn set_conversation_read(
     .await
 }
 
-pub async fn set_thread_read(
-    state: &AppState,
-    user_id: &str,
-    parent_message_id: &str,
-    message_id: &str,
-    at: &str,
-) -> Result<(), AppError> {
-    set_read(
-        state,
-        user_id,
-        &format!("THREADREAD#{parent_message_id}"),
-        message_id,
-        at,
-    )
-    .await
-}
-
 async fn last_read(state: &AppState, user_id: &str, sk: &str) -> Result<Option<String>, AppError> {
     let r = state
         .ddb

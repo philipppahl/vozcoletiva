@@ -1,4 +1,5 @@
 import { Trans } from '@lingui/macro';
+import { useRef, useState } from 'react';
 
 import { useAuth } from '../../lib/auth/hooks';
 import type { Message } from '../../lib/messages/types';
@@ -6,6 +7,7 @@ import { RelativeTime } from '../RelativeTime';
 import { Avatar } from '../shell/Avatar';
 import { AttachmentBlock } from './DocCard';
 import { MessageMarkdown } from './messageMarkdown';
+import { QuoteHeader } from './QuoteHeader';
 
 interface MessageRowProps {
   message: Message;
@@ -21,6 +23,12 @@ interface MessageRowProps {
   onRetry?: (message: Message) => void;
   /** The author's avatar URL, if any (else initials). */
   avatarUrl?: string | null;
+  /** Quote-reply to this message (swipe-right or the long-press menu). */
+  onReply?: (message: Message) => void;
+  /** Long-press → open the message action sheet. */
+  onLongPress?: (message: Message) => void;
+  /** Tapping a quote header jumps to the original message. */
+  onJumpTo?: (messageId: string) => void;
 }
 
 /**
@@ -37,8 +45,15 @@ export function MessageRow({
   projectSlug,
   onRetry,
   avatarUrl,
+  onReply,
+  onLongPress,
+  onJumpTo,
 }: MessageRowProps) {
   const { session } = useAuth();
+  const gestures = useMessageGestures({
+    onLongPress: onLongPress ? () => onLongPress(message) : undefined,
+    onReply: onReply ? () => onReply(message) : undefined,
+  });
   const own = !!session && message.author_id === session.userId;
   const pending = message._optimistic === 'pending';
   const failed = message._optimistic === 'failed';
@@ -56,9 +71,33 @@ export function MessageRow({
 
   return (
     <div
-      className="flex w-full px-3"
-      style={{ justifyContent: own ? 'flex-end' : 'flex-start', paddingTop: grouped ? 2 : 10 }}
+      className="relative flex w-full px-3"
+      style={{
+        justifyContent: own ? 'flex-end' : 'flex-start',
+        paddingTop: grouped ? 2 : 10,
+        transform: gestures.swipeX ? `translateX(${gestures.swipeX}px)` : undefined,
+        transition: gestures.dragging ? 'none' : 'transform 0.18s ease',
+        touchAction: 'pan-y',
+      }}
+      {...gestures.handlers}
     >
+      {/* Swipe-to-reply affordance, revealed as the row slides right. */}
+      {gestures.swipeX > 0 && (
+        <div
+          aria-hidden="true"
+          className="flex items-center justify-center"
+          style={{
+            position: 'absolute',
+            left: 6,
+            top: 0,
+            bottom: 0,
+            opacity: Math.min(1, gestures.swipeX / 56),
+            color: 'var(--accent)',
+          }}
+        >
+          <ReplyArrowIcon />
+        </div>
+      )}
       {!own && (
         <div style={{ width: 28, marginRight: 8, flexShrink: 0 }}>
           {grouped ? null : (
@@ -81,6 +120,7 @@ export function MessageRow({
         )}
 
         <div
+          data-mid={message.id}
           style={{
             background: mediaOnly ? 'transparent' : own ? 'var(--accent)' : 'var(--surface-2)',
             color: own ? 'var(--accent-ink)' : 'var(--ink)',
@@ -92,6 +132,13 @@ export function MessageRow({
             maxWidth: '100%',
           }}
         >
+          {message.reply_to && (
+            <QuoteHeader
+              reply={message.reply_to}
+              own={own}
+              onJump={onJumpTo ? () => onJumpTo(message.reply_to!.id) : undefined}
+            />
+          )}
           {hasText && <MessageMarkdown body={message.body} projectSlug={projectSlug} own={own} />}
           {inlineTime && (
             <span
@@ -199,6 +246,96 @@ export function MessageRow({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Touch/pointer gestures on a message row (decision 0031): a long-press (~450ms,
+ * cancelled by movement) opens the action sheet; a rightward swipe past ~56px
+ * triggers a quote-reply. Vertical movement is treated as a scroll and cancels
+ * both. Mouse users get long-press too, but reply is via the menu.
+ */
+function useMessageGestures({
+  onLongPress,
+  onReply,
+}: {
+  onLongPress?: () => void;
+  onReply?: () => void;
+}) {
+  const [swipeX, setSwipeX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swiping = useRef(false);
+  const fired = useRef(false);
+
+  const clearTimer = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  const reset = () => {
+    clearTimer();
+    start.current = null;
+    swiping.current = false;
+    fired.current = false;
+    setDragging(false);
+    setSwipeX(0);
+  };
+
+  if (!onLongPress && !onReply) return { swipeX: 0, dragging: false, handlers: {} };
+
+  const handlers = {
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      start.current = { x: e.clientX, y: e.clientY };
+      fired.current = false;
+      if (onLongPress) {
+        timer.current = setTimeout(() => {
+          fired.current = true;
+          onLongPress();
+        }, 450);
+      }
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (!start.current) return;
+      const dx = e.clientX - start.current.x;
+      const dy = e.clientY - start.current.y;
+      if (Math.abs(dy) > 12 && !swiping.current) {
+        reset(); // vertical → let the list scroll
+        return;
+      }
+      if (onReply && dx > 8) {
+        swiping.current = true;
+        clearTimer(); // a swipe is not a long-press
+        setDragging(true);
+        setSwipeX(Math.min(72, dx));
+      }
+    },
+    onPointerUp: () => {
+      if (swiping.current && onReply && swipeX >= 56 && !fired.current) onReply();
+      reset();
+    },
+    onPointerCancel: reset,
+    onContextMenu: (e: React.MouseEvent) => {
+      // Long-press on mobile can raise a context menu — suppress it if ours fired.
+      if (fired.current) e.preventDefault();
+    },
+  };
+
+  return { swipeX, dragging, handlers };
+}
+
+function ReplyArrowIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M9 17l-5-5 5-5M4 12h11a5 5 0 015 5v1"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

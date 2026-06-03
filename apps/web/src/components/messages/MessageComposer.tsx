@@ -2,11 +2,13 @@ import { Trans, t } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { Attachment } from '../../lib/messages/types';
+import { toReplyTo } from '../../lib/messages';
+import type { Attachment, Message } from '../../lib/messages/types';
 import { toast } from '../../lib/toast';
 import { compressImage, extOf, uploadBlob } from '../../lib/uploads';
 import type { MentionCandidate } from './MentionPopover';
 import { MentionPopover } from './MentionPopover';
+import { QuoteBody } from './QuoteHeader';
 
 interface MessageComposerProps {
   /** Members of the conversation, used for the mention popover. */
@@ -16,6 +18,9 @@ interface MessageComposerProps {
   /** When true, the composer is awaiting a server response. */
   pending: boolean;
   placeholder?: string;
+  /** The message being quote-replied to (decision 0031); shows a chip. */
+  replyingTo?: Message | null;
+  onCancelReply?: () => void;
 }
 
 export function MessageComposer({
@@ -23,6 +28,8 @@ export function MessageComposer({
   onSubmit,
   pending,
   placeholder,
+  replyingTo,
+  onCancelReply,
 }: MessageComposerProps) {
   const { _ } = useLingui();
   const ref = useRef<HTMLTextAreaElement | null>(null);
@@ -285,6 +292,52 @@ export function MessageComposer({
       className="relative flex flex-col gap-2 border-t px-3 pt-3 pb-[max(env(safe-area-inset-bottom),12px)]"
       style={{ background: 'var(--bg)', borderColor: 'var(--border)' }}
     >
+      {replyingTo && (
+        <div
+          className="flex items-stretch gap-2 rounded-lg px-2 py-1.5"
+          style={{ background: 'var(--surface-2)' }}
+        >
+          <span
+            aria-hidden="true"
+            style={{ width: 2.5, borderRadius: 2, background: 'var(--accent)', flexShrink: 0 }}
+          />
+          <span className="min-w-0 flex-1 py-0.5">
+            <span
+              className="block truncate text-[12px] font-semibold leading-tight"
+              style={{ color: 'var(--accent)' }}
+            >
+              <Trans>Replying to {replyingTo.author_display_name}</Trans>
+            </span>
+            <span
+              className="block truncate text-[12.5px] leading-tight"
+              style={{ color: 'var(--ink-soft)' }}
+            >
+              <QuoteBody reply={toReplyTo(replyingTo)} />
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={onCancelReply}
+            aria-label={_(t`Cancel reply`)}
+            className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full self-center"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--ink-soft)',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+      )}
       {attachments.length > 0 && (
         <ul className="flex flex-wrap gap-2 px-1">
           {attachments.map((a) => (

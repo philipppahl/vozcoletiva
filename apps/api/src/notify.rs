@@ -15,12 +15,11 @@ use crate::repo::inbox::{self, InboxKind, NewInboxItem};
 use crate::repo::message::Message;
 use crate::repo::project::Project;
 use crate::repo::proposal::Proposal;
-use crate::repo::{membership, message, project, user, vote};
+use crate::repo::{membership, project, user, vote};
 use crate::error::AppError;
 use crate::state::AppState;
 
 const PREVIEW_LEN: usize = 120;
-const THREAD_CAP: usize = 12;
 
 fn preview(text: &str) -> String {
     let cleaned = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -210,26 +209,16 @@ pub async fn message_posted(
         notified.insert(uid.clone());
     }
 
-    // Thread reply — notify prior participants (parent author + earlier
-    // repliers), most-recent 12, unique, excluding the replier and anyone
-    // already mentioned in this message.
-    if let Some(parent_id) = &msg.parent_message_id {
-        let parent = message::top_level_by_id(state, parent_id).await?;
-        let replies = message::thread_replies(state, parent_id).await?;
-        let mut chain: Vec<String> = vec![parent.author_id.clone()];
-        for r in &replies {
-            if r.id != msg.id {
-                chain.push(r.author_id.clone());
-            }
-        }
-        let recent = &chain[chain.len().saturating_sub(THREAD_CAP)..];
-        for author in recent {
-            if author == &msg.author_id || notified.contains(author) {
-                continue;
-            }
-            notified.insert(author.clone());
+    // Quote-reply — notify the author of the quoted message that someone replied
+    // to them (decision 0031), unless that's the replier themselves or they were
+    // already @mentioned in this message. Uses the denormalised snapshot, so no
+    // extra read. (Replies are inline messages; we notify the direct target, not
+    // a whole thread chain.)
+    if let Some(rt) = &msg.reply_to {
+        if rt.author_id != msg.author_id && !notified.contains(&rt.author_id) {
+            notified.insert(rt.author_id.clone());
             let mut it = base(
-                author.clone(),
+                rt.author_id.clone(),
                 InboxKind::Reply,
                 &project,
                 &msg.author_id,

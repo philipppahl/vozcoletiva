@@ -1079,7 +1079,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
     post:
-      summary: Post a message (a reply sets parent_message_id)
+      summary: Post a message (a reply quotes another via reply_to_id)
       operationId: postMessage
       tags: [messaging]
       security: [{ bearerAuth: [] }]
@@ -1136,31 +1136,6 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ThreadResponse' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-
-  /v1/messages/{parentId}/thread/read:
-    post:
-      summary: Advance the thread read marker
-      operationId: markThreadRead
-      tags: [messaging]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: parentId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/ReadBody' }
-      responses:
-        '200':
-          description: Marker advanced.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
@@ -1332,7 +1307,9 @@ components:
       properties:
         id: { type: string }
         conversation_id: { type: string }
-        parent_message_id: { type: string, nullable: true }
+        reply_to:
+          oneOf: [{ $ref: '#/components/schemas/ReplyTo' }]
+          nullable: true
         author_id: { type: string }
         author_display_name: { type: string }
         body: { type: string }
@@ -1343,6 +1320,17 @@ components:
         edited_at: { type: string, format: date-time, nullable: true }
         reply_count: { type: integer }
         last_reply_at: { type: string, format: date-time, nullable: true }
+
+    ReplyTo:
+      type: object
+      description: An immutable snapshot of the quoted message (decision 0031).
+      required: [id, author_display_name, preview, kind]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        author_display_name: { type: string }
+        preview: { type: string }
+        kind: { type: string, enum: [text, image, doc, voice] }
 
     MessageListResponse:
       type: object
@@ -1370,7 +1358,7 @@ components:
       additionalProperties: false
       properties:
         body: { type: string, minLength: 0, maxLength: 4000 }
-        parent_message_id: { type: string, nullable: true }
+        reply_to_id: { type: string, nullable: true }
         attachments:
           type: array
           items: { $ref: '#/components/schemas/AttachmentInput' }

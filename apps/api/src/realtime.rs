@@ -3,7 +3,7 @@
 //! conversation's broadcast audience.
 //!
 //! The broadcast payload is deliberately a thin *signal*, not the message DTO:
-//! `{ "type": "message.created", "conversationId", "parentMessageId" }`. The
+//! `{ "type": "message.created", "conversationId", "replyToId" }`. The
 //! client invalidates the affected queries and refetches through the same REST
 //! endpoints it already uses — so the WS surface carries no DTO coupling and
 //! the optimistic-merge dedup (decision 0027) handles reconciliation. This
@@ -25,7 +25,7 @@ pub struct MessageEvent {
     pub author_id: String,
     pub author_display_name: String,
     pub body: String,
-    pub parent_message_id: Option<String>,
+    pub reply_to_id: Option<String>,
 }
 
 /// A new inbox item extracted from a stream `NewImage` (`type == "InboxItem"`).
@@ -76,7 +76,7 @@ pub fn classify(new_image: &Value) -> StreamEntity {
                 author_id,
                 author_display_name: s(new_image, "authorDisplayName").unwrap_or_default(),
                 body: s(new_image, "body").unwrap_or_default(),
-                parent_message_id: s(new_image, "parentMessageId"),
+                reply_to_id: s(new_image, "replyToId"),
             })
         }
         Some("InboxItem") => {
@@ -137,7 +137,7 @@ pub fn message_signal(ev: &MessageEvent) -> String {
     serde_json::json!({
         "type": "message.created",
         "conversationId": ev.conversation_id,
-        "parentMessageId": ev.parent_message_id,
+        "replyToId": ev.reply_to_id,
     })
     .to_string()
 }
@@ -227,13 +227,13 @@ mod tests {
                 author_id: "U1".into(),
                 author_display_name: "Tomás".into(),
                 body: "olá".into(),
-                parent_message_id: None,
+                reply_to_id: None,
             })
         );
     }
 
     #[test]
-    fn classifies_reply_with_parent() {
+    fn classifies_reply_with_reply_to() {
         let image = json!({
             "type": attr_s("Message"),
             "conversationId": attr_s("CONV1"),
@@ -241,12 +241,12 @@ mod tests {
             "authorId": attr_s("U2"),
             "authorDisplayName": attr_s("Marina"),
             "body": attr_s("+1"),
-            "parentMessageId": attr_s("M1"),
+            "replyToId": attr_s("M1"),
         });
         let StreamEntity::Message(ev) = classify(&image) else {
             panic!("expected Message");
         };
-        assert_eq!(ev.parent_message_id.as_deref(), Some("M1"));
+        assert_eq!(ev.reply_to_id.as_deref(), Some("M1"));
     }
 
     fn msg(author: &str, name: &str, body: &str, conv: &str) -> MessageEvent {
@@ -256,7 +256,7 @@ mod tests {
             author_id: author.into(),
             author_display_name: name.into(),
             body: body.into(),
-            parent_message_id: None,
+            reply_to_id: None,
         }
     }
 
@@ -351,18 +351,18 @@ mod tests {
     }
 
     #[test]
-    fn signal_is_thin_and_carries_parent() {
+    fn signal_is_thin_and_carries_reply_to() {
         let ev = MessageEvent {
             conversation_id: "C".into(),
             message_id: "M".into(),
             author_id: "U".into(),
             author_display_name: "U Name".into(),
             body: "hi".into(),
-            parent_message_id: Some("P".into()),
+            reply_to_id: Some("P".into()),
         };
         let v: Value = serde_json::from_str(&message_signal(&ev)).unwrap();
         assert_eq!(v["type"], "message.created");
         assert_eq!(v["conversationId"], "C");
-        assert_eq!(v["parentMessageId"], "P");
+        assert_eq!(v["replyToId"], "P");
     }
 }

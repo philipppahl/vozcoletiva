@@ -27,10 +27,32 @@ export interface MessagePreview {
   at: string;
 }
 
+/** Immutable snapshot of the message a reply quotes (decision 0031). */
+export interface ReplyTo {
+  id: string;
+  author_display_name: string;
+  preview: string;
+  kind: 'text' | AttachmentKind;
+}
+
+/** Build the quote snapshot an optimistic reply shows before the server echoes
+ *  it back. Mirrors the server's `quote_snapshot` (text wins, else media kind).
+ *  Pure (no API client) so it's unit-testable without the app's compile-time env. */
+export function toReplyTo(m: Message): ReplyTo {
+  const hasText = m.body.trim().length > 0;
+  return {
+    id: m.id,
+    author_display_name: m.author_display_name,
+    preview: hasText ? m.body.slice(0, 80) : '',
+    kind: hasText ? 'text' : (m.attachments[0]?.kind ?? 'text'),
+  };
+}
+
 export interface Message {
   id: string;
   conversation_id: string;
-  parent_message_id?: string | null;
+  /** Set when this message quotes another (decision 0031). Replies live inline. */
+  reply_to?: ReplyTo | null;
   author_id: string;
   author_display_name: string;
   body: string;

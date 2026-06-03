@@ -30,7 +30,7 @@ export interface paths {
         /** List top-level messages (newest-first, cursor) */
         get: operations["listMessages"];
         put?: never;
-        /** Post a message (a reply sets parent_message_id) */
+        /** Post a message (a reply quotes another via reply_to_id) */
         post: operations["postMessage"];
         delete?: never;
         options?: never;
@@ -357,23 +357,6 @@ export interface paths {
         get: operations["getThread"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/messages/{parentId}/thread/read": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Advance the thread read marker */
-        post: operations["markThreadRead"];
         delete?: never;
         options?: never;
         head?: never;
@@ -989,8 +972,8 @@ export interface components {
             id: string;
             /** Format: date-time */
             last_reply_at?: string | null;
-            parent_message_id?: string | null;
             reply_count: number;
+            reply_to?: components["schemas"]["ReplyTo"] | null;
         };
         MessageListResponse: {
             has_more: boolean;
@@ -1011,7 +994,7 @@ export interface components {
         PostMessageBody: {
             attachments?: components["schemas"]["AttachmentInput"][];
             body: string;
-            parent_message_id?: string | null;
+            reply_to_id?: string | null;
         };
         Project: {
             /** Format: date-time */
@@ -1102,6 +1085,14 @@ export interface components {
         };
         ReadBody: {
             message_id: string;
+        };
+        /** @description An immutable snapshot of the quoted message (decision 0031). */
+        ReplyTo: {
+            author_display_name: string;
+            id: string;
+            /** @enum {string} */
+            kind: "text" | "image" | "doc" | "voice";
+            preview: string;
         };
         /** @enum {string} */
         Role: "owner" | "admin" | "moderator" | "member" | "observer";
@@ -1944,34 +1935,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ThreadResponse"];
-                };
-            };
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    markThreadRead: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                parentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ReadBody"];
-            };
-        };
-        responses: {
-            /** @description Marker advanced. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Ok"];
                 };
             };
             403: components["responses"]["Forbidden"];

@@ -10,11 +10,15 @@ import type {
   DmListResponse,
   Message,
   MessageListResponse,
+  ReplyTo,
   ThreadResponse,
 } from './messages/types';
 import { tempId } from './optimistic';
 import { qk } from './query';
 import { useRealtimeStore } from './realtime';
+
+// Re-export so existing callers keep importing it from `./messages`.
+export { toReplyTo } from './messages/types';
 
 function unwrap<T>(data: T | undefined, error: unknown): T {
   if (error) {
@@ -147,7 +151,11 @@ export function useThread(parentMessageId: string | undefined) {
 export interface SendMessageInput {
   body: string;
   attachments?: Attachment[];
-  parent_message_id?: string;
+  /** The quoted message id (decision 0031); the reply lives inline. */
+  reply_to_id?: string;
+  /** The quote snapshot, for the optimistic bubble's header before the server
+   *  echoes it back. */
+  reply_to?: ReplyTo;
 }
 
 export function useSendMessage(conversationId: string) {
@@ -171,7 +179,7 @@ export function useSendMessage(conversationId: string) {
         params: { path: { id: conversationId } },
         body: {
           body: input.body,
-          parent_message_id: input.parent_message_id ?? null,
+          reply_to_id: input.reply_to_id ?? null,
           ...(attachments.length ? { attachments } : {}),
         },
       });
@@ -184,7 +192,7 @@ export function useSendMessage(conversationId: string) {
       const optimistic: Message = {
         id,
         conversation_id: conversationId,
-        parent_message_id: input.parent_message_id ?? null,
+        reply_to: input.reply_to ?? null,
         author_id: session?.userId ?? '',
         author_display_name: session?.displayName ?? '',
         body: input.body,
@@ -205,7 +213,7 @@ export function useSendMessage(conversationId: string) {
     },
     // Keep the bubble, mark it failed so the row can offer a retry.
     onError: (_e, input, ctx) => {
-      setMessageStatus(qc, conversationId, ctx?.tempId, input.parent_message_id, 'failed');
+      setMessageStatus(qc, conversationId, ctx?.tempId, input.reply_to?.id, 'failed');
     },
   });
 }
@@ -214,9 +222,9 @@ export function useSendMessage(conversationId: string) {
 export function discardMessage(
   qc: QueryClient,
   conversationId: string,
-  message: Pick<Message, 'id' | 'parent_message_id'>,
+  message: Pick<Message, 'id' | 'reply_to'>,
 ) {
-  removeMessage(qc, conversationId, message.id, message.parent_message_id ?? null);
+  removeMessage(qc, conversationId, message.id, message.reply_to?.id ?? null);
 }
 
 export function useMarkRead(conversationId: string, slug?: string) {
@@ -298,20 +306,25 @@ function setThread(
   );
 }
 
-/** Append an optimistic message into the right place (thread or top-level). */
+/**
+ * Insert an optimistic message. Replies live inline in the main list now
+ * (decision 0031); when it's a reply we also bump the quoted message's
+ * `reply_count` and mirror it into an open thread view.
+ */
 function insertMessage(qc: QueryClient, conversationId: string, msg: Message) {
-  if (msg.parent_message_id) {
-    setThread(qc, msg.parent_message_id, (prev) => ({ ...prev, replies: [...prev.replies, msg] }));
-    setMessages(qc, conversationId, (prev) => ({
-      ...prev,
-      messages: prev.messages.map((m) =>
-        m.id === msg.parent_message_id
+  setMessages(qc, conversationId, (prev) => ({
+    ...prev,
+    messages: [
+      ...prev.messages.map((m) =>
+        m.id === msg.reply_to?.id
           ? { ...m, reply_count: m.reply_count + 1, last_reply_at: msg.created_at }
           : m,
       ),
-    }));
-  } else {
-    setMessages(qc, conversationId, (prev) => ({ ...prev, messages: [...prev.messages, msg] }));
+      msg,
+    ],
+  }));
+  if (msg.reply_to) {
+    setThread(qc, msg.reply_to.id, (prev) => ({ ...prev, replies: [...prev.replies, msg] }));
   }
 }
 
@@ -323,15 +336,14 @@ function replaceMessage(
   real: Message,
 ) {
   if (!tempIdValue) return;
-  if (real.parent_message_id) {
-    setThread(qc, real.parent_message_id, (prev) => ({
+  setMessages(qc, conversationId, (prev) => ({
+    ...prev,
+    messages: prev.messages.map((m) => (m.id === tempIdValue ? real : m)),
+  }));
+  if (real.reply_to) {
+    setThread(qc, real.reply_to.id, (prev) => ({
       ...prev,
       replies: prev.replies.map((r) => (r.id === tempIdValue ? real : r)),
-    }));
-  } else {
-    setMessages(qc, conversationId, (prev) => ({
-      ...prev,
-      messages: prev.messages.map((m) => (m.id === tempIdValue ? real : m)),
     }));
   }
 }
@@ -344,15 +356,14 @@ function setMessageStatus(
   status: Message['_optimistic'],
 ) {
   if (!id) return;
+  setMessages(qc, conversationId, (prev) => ({
+    ...prev,
+    messages: prev.messages.map((m) => (m.id === id ? { ...m, _optimistic: status } : m)),
+  }));
   if (parentId) {
     setThread(qc, parentId, (prev) => ({
       ...prev,
       replies: prev.replies.map((r) => (r.id === id ? { ...r, _optimistic: status } : r)),
-    }));
-  } else {
-    setMessages(qc, conversationId, (prev) => ({
-      ...prev,
-      messages: prev.messages.map((m) => (m.id === id ? { ...m, _optimistic: status } : m)),
     }));
   }
 }
@@ -363,21 +374,18 @@ function removeMessage(
   id: string,
   parentId: string | null,
 ) {
+  setMessages(qc, conversationId, (prev) => ({
+    ...prev,
+    messages: prev.messages
+      .filter((m) => m.id !== id)
+      .map((m) =>
+        parentId && m.id === parentId ? { ...m, reply_count: Math.max(0, m.reply_count - 1) } : m,
+      ),
+  }));
   if (parentId) {
     setThread(qc, parentId, (prev) => ({
       ...prev,
       replies: prev.replies.filter((r) => r.id !== id),
-    }));
-    setMessages(qc, conversationId, (prev) => ({
-      ...prev,
-      messages: prev.messages.map((m) =>
-        m.id === parentId ? { ...m, reply_count: Math.max(0, m.reply_count - 1) } : m,
-      ),
-    }));
-  } else {
-    setMessages(qc, conversationId, (prev) => ({
-      ...prev,
-      messages: prev.messages.filter((m) => m.id !== id),
     }));
   }
 }

@@ -94,7 +94,7 @@ async fn messages_work_in_a_dm_via_the_shared_repo() {
         .await
         .unwrap();
 
-    let (page, has_more) = message::list_top_level(&ddb.state, &dm.id, None, 50)
+    let (page, has_more) = message::list(&ddb.state, &dm.id, None, 50)
         .await
         .unwrap();
     assert_eq!(page.len(), 2);

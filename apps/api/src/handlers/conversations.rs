@@ -99,11 +99,22 @@ struct AttachmentInput {
     duration_ms: Option<i64>,
 }
 
+/// The quote header shown on a reply (decision 0031). A client-safe projection
+/// of the stored snapshot (no internal author id).
+#[derive(Debug, Serialize)]
+struct ReplyToView {
+    id: String,
+    author_display_name: String,
+    preview: String,
+    kind: String,
+}
+
 #[derive(Debug, Serialize)]
 struct MessageView {
     id: String,
     conversation_id: String,
-    parent_message_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reply_to: Option<ReplyToView>,
     author_id: String,
     author_display_name: String,
     body: String,
@@ -129,7 +140,9 @@ struct ThreadResponse {
 #[derive(Debug, Deserialize)]
 struct PostMessageBody {
     body: String,
-    parent_message_id: Option<String>,
+    /// The message this one quotes (decision 0031). The reply lives inline; the
+    /// quoted message accrues a reply count.
+    reply_to_id: Option<String>,
     #[serde(default)]
     attachments: Vec<AttachmentInput>,
 }
@@ -176,6 +189,18 @@ fn preview(body: &str) -> String {
     body.chars().take(80).collect()
 }
 
+/// Build the quote snapshot (preview text + kind) for a message being replied
+/// to. Text wins; otherwise the first attachment's kind drives a media label.
+fn quote_snapshot(m: &Message) -> (String, String) {
+    if !m.body.trim().is_empty() {
+        (preview(&m.body), "text".to_string())
+    } else if let Some(a) = m.attachments.first() {
+        (String::new(), a.kind.clone())
+    } else {
+        (String::new(), "text".to_string())
+    }
+}
+
 fn message_view(m: &Message, media: Option<&MediaConfig>) -> MessageView {
     let attachments = m
         .attachments
@@ -191,10 +216,16 @@ fn message_view(m: &Message, media: Option<&MediaConfig>) -> MessageView {
             duration_ms: a.duration_ms,
         })
         .collect();
+    let reply_to = m.reply_to.as_ref().map(|rt| ReplyToView {
+        id: rt.id.clone(),
+        author_display_name: rt.author_display_name.clone(),
+        preview: rt.preview.clone(),
+        kind: rt.kind.clone(),
+    });
     MessageView {
         id: m.id.clone(),
         conversation_id: m.conversation_id.clone(),
-        parent_message_id: m.parent_message_id.clone(),
+        reply_to,
         author_id: m.author_id.clone(),
         author_display_name: m.author_display_name.clone(),
         body: m.body.clone(),
@@ -392,7 +423,7 @@ pub async fn list_messages(
             authorize_conversation(state, &meta, &user.user_id).await?;
             let before = query_param(&req, "before");
             let (messages, has_more) =
-                message::list_top_level(state, meta.id(), before.as_deref(), PAGE_LIMIT).await?;
+                message::list(state, meta.id(), before.as_deref(), PAGE_LIMIT).await?;
             let media = state.media.as_ref();
             Ok(MessageListResponse {
                 messages: messages.iter().map(|m| message_view(m, media)).collect(),
@@ -425,23 +456,34 @@ pub async fn post_message(
                 validate_body(&body.body)?
             };
 
-            if let Some(parent_id) = body.parent_message_id.as_deref() {
-                // The parent must be a top-level message in this conversation.
-                let parent = match message::top_level_by_id(state, parent_id).await {
-                    Ok(p) => p,
-                    Err(AppError::NotFound) => {
+            // Resolve the quoted message into an immutable snapshot (decision 0031).
+            let reply_to = match body.reply_to_id.as_deref() {
+                Some(rid) => {
+                    let quoted = match message::message_by_id(state, rid).await {
+                        Ok(p) => p,
+                        Err(AppError::NotFound) => {
+                            return Err(AppError::BadRequest(
+                                "replied-to message not found in this conversation".into(),
+                            ))
+                        }
+                        Err(e) => return Err(e),
+                    };
+                    if quoted.conversation_id != conv_id {
                         return Err(AppError::BadRequest(
-                            "parent must be a top-level message in this conversation".into(),
-                        ))
+                            "replied-to message is not in this conversation".into(),
+                        ));
                     }
-                    Err(e) => return Err(e),
-                };
-                if parent.conversation_id != conv_id {
-                    return Err(AppError::BadRequest(
-                        "parent message is not in this conversation".into(),
-                    ));
+                    let (preview, kind) = quote_snapshot(&quoted);
+                    Some(message::ReplyTo {
+                        id: quoted.id,
+                        author_id: quoted.author_id,
+                        author_display_name: quoted.author_display_name,
+                        preview,
+                        kind,
+                    })
                 }
-            }
+                None => None,
+            };
 
             let msg = message::post(
                 state,
@@ -449,7 +491,7 @@ pub async fn post_message(
                 &user.user_id,
                 &author_name,
                 &text,
-                body.parent_message_id.as_deref(),
+                reply_to,
                 attachments,
             )
             .await?;
@@ -462,7 +504,7 @@ pub async fn post_message(
                     ConversationMeta::Dm(_) => "dm",
                 },
                 conversation_id = %conv_id,
-                has_parent = body.parent_message_id.is_some(),
+                is_reply = msg.reply_to.is_some(),
                 by_user = %user.user_id,
             );
             // Best-effort notifications — never fail the post.
@@ -508,42 +550,16 @@ pub async fn get_thread(
     super::json_or_error(
         async {
             let user = authenticate(state, &req).await?;
-            let parent = message::top_level_by_id(state, message_id).await?;
+            let parent = message::message_by_id(state, message_id).await?;
             let meta = conversation::get_meta(state, &parent.conversation_id).await?;
             authorize_conversation(state, &meta, &user.user_id).await?;
-            let replies = message::thread_replies(state, &parent.id).await?;
+            let replies =
+                message::thread_replies(state, &parent.conversation_id, &parent.id).await?;
             let media = state.media.as_ref();
             Ok(ThreadResponse {
                 parent: message_view(&parent, media),
                 replies: replies.iter().map(|m| message_view(m, media)).collect(),
             })
-        },
-        200,
-    )
-    .await
-}
-
-pub async fn mark_thread_read(
-    state: &AppState,
-    req: Request,
-    parent_id: &str,
-) -> Result<Response<Body>, Error> {
-    super::json_or_error(
-        async {
-            let user = authenticate(state, &req).await?;
-            let parent = message::top_level_by_id(state, parent_id).await?;
-            let meta = conversation::get_meta(state, &parent.conversation_id).await?;
-            authorize_conversation(state, &meta, &user.user_id).await?;
-            let body: ReadBody = parse_body(&req)?;
-            conversation::set_thread_read(
-                state,
-                &user.user_id,
-                &parent.id,
-                &body.message_id,
-                &Utc::now().to_rfc3339(),
-            )
-            .await?;
-            Ok(serde_json::json!({ "ok": true }))
         },
         200,
     )

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ConversationHeader } from '../components/messages/ConversationHeader';
 import { MessageComposer } from '../components/messages/MessageComposer';
@@ -10,6 +10,7 @@ import { RequireAuth } from '../components/RequireAuth';
 import { useAuth } from '../lib/auth/hooks';
 import {
   discardMessage,
+  toReplyTo,
   useConversation,
   useMarkRead,
   useMessages,
@@ -42,10 +43,15 @@ function DmDetailPage() {
   const send = useSendMessage(id);
   const markRead = useMarkRead(id);
   const { session } = useAuth();
+  const [replyTarget, setReplyTarget] = useState<Message | null>(null);
 
   const onRetry = (message: Message) => {
     discardMessage(qc, id, message);
-    send.mutate({ body: message.body, parent_message_id: message.parent_message_id ?? undefined });
+    send.mutate({
+      body: message.body,
+      reply_to_id: message.reply_to?.id,
+      reply_to: message.reply_to ?? undefined,
+    });
   };
 
   useEffect(() => {
@@ -91,6 +97,7 @@ function DmDetailPage() {
         messages={messages.data?.messages ?? []}
         onRetry={onRetry}
         avatarFor={avatarFor}
+        onReply={setReplyTarget}
         onOpenThread={(messageId) =>
           void navigate({
             to: '/dms/$id',
@@ -101,8 +108,16 @@ function DmDetailPage() {
       />
       <MessageComposer
         mentionCandidates={mentionCandidates}
+        replyingTo={replyTarget}
+        onCancelReply={() => setReplyTarget(null)}
         onSubmit={async (body, attachments) => {
-          await send.mutateAsync({ body, attachments });
+          await send.mutateAsync({
+            body,
+            attachments,
+            reply_to_id: replyTarget?.id,
+            reply_to: replyTarget ? toReplyTo(replyTarget) : undefined,
+          });
+          setReplyTarget(null);
         }}
         pending={send.isPending}
       />

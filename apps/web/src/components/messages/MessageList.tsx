@@ -1,7 +1,8 @@
 import { Trans } from '@lingui/macro';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import type { Message } from '../../lib/messages/types';
+import { MessageActions } from './MessageActions';
 import { MessageRow } from './MessageRow';
 import { UnreadDivider } from './UnreadDivider';
 
@@ -14,6 +15,8 @@ interface MessageListProps {
   onRetry?: (message: Message) => void;
   /** Resolve an author's avatar URL (channel members / DM participants). */
   avatarFor?: (userId: string) => string | null | undefined;
+  /** Quote-reply to a message (swipe-right or the long-press menu). */
+  onReply?: (message: Message) => void;
 }
 
 const DAY_MS = 86_400_000;
@@ -31,10 +34,27 @@ export function MessageList({
   projectSlug,
   onRetry,
   avatarFor,
+  onReply,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastIdRef = useRef<string | null>(null);
   const wasNearBottomRef = useRef(true);
+  const [actionTarget, setActionTarget] = useState<Message | null>(null);
+
+  // Scroll to + briefly flash a message (tapping a quote header jumps here).
+  const jumpTo = (id: string) => {
+    const el = containerRef.current?.querySelector<HTMLElement>(`[data-mid="${CSS.escape(id)}"]`);
+    if (!el) return;
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    el.animate?.(
+      [
+        { boxShadow: '0 0 0 3px var(--accent)' },
+        { boxShadow: '0 0 0 3px var(--accent)', offset: 0.6 },
+        { boxShadow: '0 0 0 0 transparent' },
+      ],
+      { duration: 1300, easing: 'ease-out' },
+    );
+  };
 
   // Track whether the user is near the bottom *before* the layout updates,
   // so we know whether to follow new messages.
@@ -97,9 +117,18 @@ export function MessageList({
             projectSlug={projectSlug}
             onRetry={onRetry}
             avatarUrl={avatarFor?.(it.message.author_id)}
+            onReply={onReply}
+            onLongPress={setActionTarget}
+            onJumpTo={jumpTo}
           />
         );
       })}
+      <MessageActions
+        message={actionTarget}
+        onClose={() => setActionTarget(null)}
+        onReply={(m) => onReply?.(m)}
+        onOpenThread={onOpenThread}
+      />
     </div>
   );
 }
@@ -134,8 +163,8 @@ function decorate(messages: Message[], lastReadId: string | null): Item[] {
       lastAuthor = null;
     }
     const atMs = Date.parse(m.created_at);
-    const grouped =
-      lastAuthor === m.author_id && atMs - lastAtMs < 5 * 60_000 && !m.parent_message_id;
+    // A reply starts a fresh bubble (it carries a quote header), never grouping.
+    const grouped = lastAuthor === m.author_id && atMs - lastAtMs < 5 * 60_000 && !m.reply_to;
     const item: MsgItem = { kind: 'msg', message: m, grouped, tail: true };
     if (grouped && lastMsgItem) lastMsgItem.tail = false;
     out.push(item);

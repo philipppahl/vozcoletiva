@@ -28,11 +28,26 @@ pub struct Attachment {
     pub duration_ms: Option<i64>,
 }
 
+/// An immutable snapshot of the message a reply quotes (decision 0031). Captured
+/// at write time so the quote header survives the original being edited/deleted
+/// and needs no extra read on display. `author_id` is internal (used for the
+/// "someone replied to you" notification); it isn't exposed to clients.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReplyTo {
+    pub id: String,
+    pub author_id: String,
+    pub author_display_name: String,
+    pub preview: String,
+    pub kind: String, // "text" | "image" | "doc" | "voice"
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Message {
     pub id: String,
     pub conversation_id: String,
-    pub parent_message_id: Option<String>,
+    /// The quoted message, when this is a reply (decision 0031). Replies live
+    /// inline in the timeline; the parent also accrues `reply_count`.
+    pub reply_to: Option<ReplyTo>,
     pub author_id: String,
     pub author_display_name: String,
     pub body: String,
@@ -42,27 +57,25 @@ pub struct Message {
     pub attachments: Vec<Attachment>,
 }
 
-/// Top-level messages live at `MSG#<ulid>`, replies at `REPLY#<ulid>` — so
-/// listing a channel's top-level messages is a clean range query with no filter.
-fn top_sk(id: &str) -> String {
+/// Every message — top-level or reply — lives at `MSG#<ulid>`, so the timeline is
+/// one clean range query that includes replies inline (decision 0031). A reply
+/// just carries `replyToId` + a quote snapshot and bumps its parent's counters.
+fn msg_sk(id: &str) -> String {
     format!("MSG#{id}")
 }
-fn reply_sk(id: &str) -> String {
-    format!("REPLY#{id}")
-}
 
-/// Post a message. A reply (`parent_message_id`) is written under `REPLY#`,
-/// indexed on GSI3 `THREAD#<parent>`, and bumps the parent's reply counters in
-/// the same transaction. A top-level message is indexed on GSI3 `MSG#<id>` so it
-/// can be resolved to its conversation by id alone. `author_display_name` is
-/// denormalised here (the poster's project membership name).
+/// Post a message. Every message is a `MSG#<ulid>` item indexed on GSI3
+/// `MSG#<id>` → conversation (resolve-by-id). A **reply** (`reply_to`) lives
+/// inline in the timeline like any message, carries an immutable quote snapshot,
+/// and bumps its parent's `replyCount`/`lastReplyAt` in the same transaction.
+/// `author_display_name` is denormalised here (the poster's membership name).
 pub async fn post(
     state: &AppState,
     conversation_id: &str,
     author_id: &str,
     author_display_name: &str,
     body: &str,
-    parent_message_id: Option<&str>,
+    reply_to: Option<ReplyTo>,
     attachments: Vec<Attachment>,
 ) -> Result<Message, AppError> {
     let id = Ulid::new().to_string();
@@ -73,6 +86,7 @@ pub async fn post(
             "PK".to_string(),
             AttributeValue::S(format!("CONV#{conversation_id}")),
         ),
+        ("SK".to_string(), AttributeValue::S(msg_sk(&id))),
         ("type".to_string(), AttributeValue::S("Message".into())),
         ("messageId".to_string(), AttributeValue::S(id.clone())),
         (
@@ -89,6 +103,13 @@ pub async fn post(
         ),
         ("body".to_string(), AttributeValue::S(body.to_string())),
         ("createdAt".to_string(), AttributeValue::S(now.clone())),
+        ("replyCount".to_string(), AttributeValue::N("0".into())),
+        // Resolve message id → conversation for the by-id + thread endpoints.
+        ("GSI3PK".to_string(), AttributeValue::S(format!("MSG#{id}"))),
+        (
+            "GSI3SK".to_string(),
+            AttributeValue::S(conversation_id.to_string()),
+        ),
     ]);
 
     // Attachments are stored as a JSON blob (a list of small maps) on the item.
@@ -98,10 +119,31 @@ pub async fn post(
         item.insert("attachments".to_string(), AttributeValue::S(json));
     }
 
+    // Denormalise the quote snapshot onto the reply.
+    if let Some(rt) = &reply_to {
+        item.insert("replyToId".to_string(), AttributeValue::S(rt.id.clone()));
+        item.insert(
+            "replyToAuthorId".to_string(),
+            AttributeValue::S(rt.author_id.clone()),
+        );
+        item.insert(
+            "replyToAuthor".to_string(),
+            AttributeValue::S(rt.author_display_name.clone()),
+        );
+        item.insert(
+            "replyToPreview".to_string(),
+            AttributeValue::S(rt.preview.clone()),
+        );
+        item.insert(
+            "replyToKind".to_string(),
+            AttributeValue::S(rt.kind.clone()),
+        );
+    }
+
     let message = Message {
         id: id.clone(),
         conversation_id: conversation_id.to_string(),
-        parent_message_id: parent_message_id.map(String::from),
+        reply_to: reply_to.clone(),
         author_id: author_id.to_string(),
         author_display_name: author_display_name.to_string(),
         body: body.to_string(),
@@ -111,29 +153,18 @@ pub async fn post(
         attachments,
     };
 
-    match parent_message_id {
-        Some(parent) => {
-            item.insert("SK".to_string(), AttributeValue::S(reply_sk(&id)));
-            item.insert(
-                "parentMessageId".to_string(),
-                AttributeValue::S(parent.to_string()),
-            );
-            item.insert(
-                "GSI3PK".to_string(),
-                AttributeValue::S(format!("THREAD#{parent}")),
-            );
-            item.insert("GSI3SK".to_string(), AttributeValue::S(id.clone()));
-
+    match &reply_to {
+        Some(rt) => {
             let put_reply = Put::builder()
                 .table_name(&state.table_name)
                 .set_item(Some(item))
                 .build()
                 .map_err(|e| AppError::Internal(Box::new(e)))?;
-            // Bump the parent's reply counters.
+            // Bump the quoted message's reply counters (it stays a normal MSG#).
             let bump_parent = Update::builder()
                 .table_name(&state.table_name)
                 .key("PK", AttributeValue::S(format!("CONV#{conversation_id}")))
-                .key("SK", AttributeValue::S(top_sk(parent)))
+                .key("SK", AttributeValue::S(msg_sk(&rt.id)))
                 .update_expression("ADD replyCount :one SET lastReplyAt = :ts")
                 .expression_attribute_values(":one", AttributeValue::N("1".into()))
                 .expression_attribute_values(":ts", AttributeValue::S(now))
@@ -149,14 +180,6 @@ pub async fn post(
                 .await?;
         }
         None => {
-            item.insert("SK".to_string(), AttributeValue::S(top_sk(&id)));
-            item.insert("replyCount".to_string(), AttributeValue::N("0".into()));
-            // Resolve message id → conversation for the thread endpoints.
-            item.insert("GSI3PK".to_string(), AttributeValue::S(format!("MSG#{id}")));
-            item.insert(
-                "GSI3SK".to_string(),
-                AttributeValue::S(conversation_id.to_string()),
-            );
             state
                 .ddb
                 .put_item()
@@ -169,16 +192,16 @@ pub async fn post(
     Ok(message)
 }
 
-/// The newest page of top-level messages, returned **oldest-first** (chat
-/// display order). `before` (a message id) fetches the page of older messages;
-/// `has_more` is true when older messages remain. `limit` caps the page size.
-pub async fn list_top_level(
+/// The newest page of messages, returned **oldest-first** (chat display order).
+/// Includes replies inline (decision 0031). `before` (a message id) fetches the
+/// page of older messages; `has_more` is true when older messages remain.
+pub async fn list(
     state: &AppState,
     conversation_id: &str,
     before: Option<&str>,
     limit: usize,
 ) -> Result<(Vec<Message>, bool), AppError> {
-    let hi = before.map(top_sk).unwrap_or_else(|| "MSG$".to_string());
+    let hi = before.map(msg_sk).unwrap_or_else(|| "MSG$".to_string());
     let q = state
         .ddb
         .query()
@@ -206,8 +229,8 @@ pub async fn list_top_level(
     Ok((msgs, has_more))
 }
 
-/// A top-level message resolved by its id alone (via GSI3 `MSG#<id>`).
-pub async fn top_level_by_id(state: &AppState, message_id: &str) -> Result<Message, AppError> {
+/// Any message resolved by its id alone (via GSI3 `MSG#<id>`).
+pub async fn message_by_id(state: &AppState, message_id: &str) -> Result<Message, AppError> {
     let q = state
         .ddb
         .query()
@@ -225,26 +248,44 @@ pub async fn top_level_by_id(state: &AppState, message_id: &str) -> Result<Messa
     message_from_item(&item)
 }
 
-/// A thread's replies, chronological.
+/// A message's direct replies, chronological. Filters the conversation's
+/// messages by `replyToId` — the focused-thread view is opened on demand, and
+/// our channels are bounded, so a filtered query is fine (revisit with a GSI if
+/// channels grow large). See decision 0031.
 pub async fn thread_replies(
     state: &AppState,
+    conversation_id: &str,
     parent_message_id: &str,
 ) -> Result<Vec<Message>, AppError> {
-    let q = state
-        .ddb
-        .query()
-        .table_name(&state.table_name)
-        .index_name("GSI3")
-        .key_condition_expression("GSI3PK = :pk")
-        .expression_attribute_values(
-            ":pk",
-            AttributeValue::S(format!("THREAD#{parent_message_id}")),
-        )
-        .send()
-        .await?;
     let mut out = Vec::new();
-    for item in q.items.unwrap_or_default() {
-        out.push(message_from_item(&item)?);
+    let mut start_key = None;
+    loop {
+        let q = state
+            .ddb
+            .query()
+            .table_name(&state.table_name)
+            .key_condition_expression("PK = :pk AND SK BETWEEN :lo AND :hi")
+            .filter_expression("replyToId = :parent")
+            .expression_attribute_values(
+                ":pk",
+                AttributeValue::S(format!("CONV#{conversation_id}")),
+            )
+            .expression_attribute_values(":lo", AttributeValue::S("MSG#".into()))
+            .expression_attribute_values(":hi", AttributeValue::S("MSG$".into()))
+            .expression_attribute_values(
+                ":parent",
+                AttributeValue::S(parent_message_id.to_string()),
+            )
+            .set_exclusive_start_key(start_key)
+            .send()
+            .await?;
+        for item in q.items.unwrap_or_default() {
+            out.push(message_from_item(&item)?);
+        }
+        start_key = q.last_evaluated_key;
+        if start_key.is_none() {
+            break;
+        }
     }
     Ok(out)
 }
@@ -280,7 +321,7 @@ pub async fn unread_count(
     last_read_id: Option<&str>,
 ) -> Result<i64, AppError> {
     let lo = last_read_id
-        .map(top_sk)
+        .map(msg_sk)
         .unwrap_or_else(|| "MSG#".to_string());
     let q = state
         .ddb
@@ -318,10 +359,18 @@ fn message_from_item(item: &HashMap<String, AttributeValue>) -> Result<Message, 
             .and_then(|v| v.as_s().ok())
             .map(String::as_str)
     }
+    // The quote snapshot is present iff this message is a reply (decision 0031).
+    let reply_to = s_opt(item, "replyToId").map(|id| ReplyTo {
+        id: id.to_string(),
+        author_id: s_opt(item, "replyToAuthorId").unwrap_or_default().to_string(),
+        author_display_name: s_opt(item, "replyToAuthor").unwrap_or_default().to_string(),
+        preview: s_opt(item, "replyToPreview").unwrap_or_default().to_string(),
+        kind: s_opt(item, "replyToKind").unwrap_or("text").to_string(),
+    });
     Ok(Message {
         id: s(item, "messageId")?.to_string(),
         conversation_id: s(item, "conversationId")?.to_string(),
-        parent_message_id: s_opt(item, "parentMessageId").map(String::from),
+        reply_to,
         author_id: s(item, "authorId")?.to_string(),
         author_display_name: s(item, "authorDisplayName")?.to_string(),
         body: s(item, "body")?.to_string(),

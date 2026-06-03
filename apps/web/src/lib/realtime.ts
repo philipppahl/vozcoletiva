@@ -62,7 +62,7 @@ export function useRealtimeSocket() {
     let stopped = false; // set on cleanup so we stop reconnecting
 
     const onSignal = (raw: string) => {
-      let evt: { type?: string; conversationId?: string; parentMessageId?: string | null };
+      let evt: { type?: string; conversationId?: string; replyToId?: string | null };
       try {
         evt = JSON.parse(raw);
       } catch {
@@ -71,11 +71,13 @@ export function useRealtimeSocket() {
       if (evt.type !== 'message.created') return;
       // Refetch through the existing REST queries; the optimistic-merge dedup
       // (0027) reconciles the just-sent bubble with the authoritative server row.
+      // Replies live inline, so the main message list always covers them.
       if (evt.conversationId) {
         void qc.invalidateQueries({ queryKey: qk.chat.messages(evt.conversationId) });
       }
-      if (evt.parentMessageId) {
-        void qc.invalidateQueries({ queryKey: qk.chat.thread(evt.parentMessageId) });
+      // Also refresh an open focused-thread view of the quoted message.
+      if (evt.replyToId) {
+        void qc.invalidateQueries({ queryKey: qk.chat.thread(evt.replyToId) });
       }
       void qc.invalidateQueries({ queryKey: qk.chat.dms() });
       void qc.invalidateQueries({ queryKey: ['projects'], exact: false });
