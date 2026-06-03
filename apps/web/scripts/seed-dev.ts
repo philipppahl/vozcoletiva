@@ -25,11 +25,11 @@ const API = 'https://cch3zqvos9.execute-api.eu-west-1.amazonaws.com/v1';
 const PASSWORD = 'Vozcoletiva!2026';
 
 const USERS = [
-  { email: 'marina@example.com', name: 'Marina Alves' },
-  { email: 'tomas@example.com', name: 'Tomás Ferreira' },
-  { email: 'lucia@example.com', name: 'Lúcia Pereira' },
-  { email: 'rafael@example.com', name: 'Rafael Costa' },
-  { email: 'sofia@example.com', name: 'Sofia Martins' },
+  { email: 'marina@example.com', name: 'Marina Alves', handle: 'marina' },
+  { email: 'tomas@example.com', name: 'Tomás Ferreira', handle: 'tomas' },
+  { email: 'lucia@example.com', name: 'Lúcia Pereira', handle: 'lucia' },
+  { email: 'rafael@example.com', name: 'Rafael Costa', handle: 'rafael' },
+  { email: 'sofia@example.com', name: 'Sofia Martins', handle: 'sofia' },
 ] as const;
 
 type Session = { email: string; token: string; sub: string };
@@ -157,9 +157,10 @@ async function main() {
   // Bootstrap each profile's display name via the API (Cognito is auth-only —
   // decision 0019). Must run before projects/invites so memberships + messages
   // denormalise the real name rather than the user id.
-  console.log('• setting display names…');
+  console.log('• setting display names + handles…');
   for (const u of USERS) {
     await api(S(u.email), 'PATCH', '/me', { display_name: u.name });
+    await api(S(u.email), 'PUT', '/me/handle', { handle: u.handle });
   }
 
   // ── helpers bound to a member's session ──────────────────────────────────

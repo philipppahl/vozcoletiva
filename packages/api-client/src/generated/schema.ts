@@ -76,6 +76,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/handles/{handle}/availability": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check whether a handle is free to claim
+         * @description Reports whether `handle` can be claimed. Auth-optional — the sign-up form checks before the account exists. When a valid token is present, the caller's own current handle reads as available (so the profile form does not flag a no-op save).
+         */
+        get: operations["getHandleAvailability"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/hello": {
         parameters: {
             query?: never;
@@ -198,6 +218,26 @@ export interface paths {
         post: operations["setAvatar"];
         /** Remove the caller's avatar */
         delete: operations["deleteAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/handle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or change the caller's @handle
+         * @description Claims a unique, case-insensitive @handle for the caller (used for mentions and as a public identifier). Releasing the previous handle and claiming the new one is atomic. Idempotent if the handle is unchanged.
+         */
+        put: operations["setHandle"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -819,6 +859,7 @@ export interface components {
         DmParticipant: {
             avatar_url?: string | null;
             display_name: string;
+            handle?: string | null;
             user_id: string;
         };
         DocumentDetail: {
@@ -841,6 +882,10 @@ export interface components {
             current_version?: components["schemas"]["Proposal"] | null;
             name: string;
             version_count: number;
+        };
+        HandleAvailability: {
+            available: boolean;
+            handle: string;
         };
         Hello: {
             /** @constant */
@@ -917,6 +962,7 @@ export interface components {
         Member: {
             avatar_url?: string | null;
             display_name: string;
+            handle?: string | null;
             /** Format: date-time */
             joined_at: string;
             role: components["schemas"]["Role"];
@@ -1080,6 +1126,12 @@ export interface components {
                 };
             };
         };
+        SetHandleBody: {
+            handle: string;
+        };
+        SetHandleResponse: {
+            handle: string;
+        };
         StartDmBody: {
             user_id: string;
         };
@@ -1109,6 +1161,7 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             display_name: string;
+            handle?: string | null;
             /** @enum {string} */
             locale: "en" | "pt";
             /** @enum {string} */
@@ -1332,6 +1385,37 @@ export interface operations {
             };
             /** @description Peer user does not exist. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    getHandleAvailability: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Availability of the handle. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandleAvailability"];
+                };
+            };
+            /** @description Malformed or reserved handle. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1606,6 +1690,57 @@ export interface operations {
             };
             /** @description Missing, malformed, or expired access token. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    setHandle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetHandleBody"];
+            };
+        };
+        responses: {
+            /** @description Handle claimed. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetHandleResponse"];
+                };
+            };
+            /** @description Malformed or reserved handle. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Missing, malformed, or expired access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            /** @description Handle already taken by another user. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

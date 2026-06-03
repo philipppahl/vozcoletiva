@@ -125,6 +125,72 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ApiError' }
 
+  /v1/me/handle:
+    put:
+      summary: Set or change the caller's @handle
+      description: >
+        Claims a unique, case-insensitive @handle for the caller (used for
+        mentions and as a public identifier). Releasing the previous handle and
+        claiming the new one is atomic. Idempotent if the handle is unchanged.
+      operationId: setHandle
+      tags: [auth]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetHandleBody' }
+      responses:
+        '200':
+          description: Handle claimed.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SetHandleResponse' }
+        '400':
+          description: Malformed or reserved handle.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '401':
+          description: Missing, malformed, or expired access token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '409':
+          description: Handle already taken by another user.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
+  /v1/handles/{handle}/availability:
+    get:
+      summary: Check whether a handle is free to claim
+      description: >
+        Reports whether `handle` can be claimed. Auth-optional — the sign-up form
+        checks before the account exists. When a valid token is present, the
+        caller's own current handle reads as available (so the profile form does
+        not flag a no-op save).
+      operationId: getHandleAvailability
+      tags: [auth]
+      # Auth-optional: anonymous (sign-up) or authenticated (profile edit).
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - name: handle
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Availability of the handle.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HandleAvailability' }
+        '400':
+          description: Malformed or reserved handle.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+
   /v1/uploads:
     post:
       summary: Get a presigned URL to upload chat media
@@ -1217,6 +1283,7 @@ components:
       properties:
         user_id: { type: string }
         display_name: { type: string }
+        handle: { type: string, nullable: true }
         avatar_url: { type: string, nullable: true }
 
     DmConversation:
@@ -1375,10 +1442,33 @@ components:
       properties:
         user_id: { type: string }
         display_name: { type: string }
+        handle: { type: string, nullable: true }
         locale: { type: string, enum: [en, pt] }
         theme: { type: string, enum: [system, light, dark] }
         created_at: { type: string, format: date-time }
         avatar_url: { type: string, nullable: true }
+
+    SetHandleBody:
+      type: object
+      required: [handle]
+      additionalProperties: false
+      properties:
+        handle: { type: string, minLength: 3, maxLength: 20 }
+
+    SetHandleResponse:
+      type: object
+      required: [handle]
+      additionalProperties: false
+      properties:
+        handle: { type: string }
+
+    HandleAvailability:
+      type: object
+      required: [handle, available]
+      additionalProperties: false
+      properties:
+        handle: { type: string }
+        available: { type: boolean }
 
     UpdateProfileBody:
       type: object
@@ -1612,6 +1702,7 @@ components:
       properties:
         user_id: { type: string }
         display_name: { type: string }
+        handle: { type: string, nullable: true }
         role: { $ref: '#/components/schemas/Role' }
         joined_at: { type: string, format: date-time }
         avatar_url: { type: string, nullable: true }

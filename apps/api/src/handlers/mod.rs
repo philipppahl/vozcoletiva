@@ -8,6 +8,7 @@ pub mod categories;
 pub mod comments;
 pub mod conversations;
 pub mod documents;
+pub mod handles;
 pub mod hello;
 pub mod inbox;
 pub mod invites;

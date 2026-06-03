@@ -40,6 +40,8 @@ struct ChannelListResponse {
 struct DmParticipantView {
     user_id: String,
     display_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    handle: Option<String>,
     avatar_url: Option<String>,
 }
 
@@ -251,6 +253,7 @@ async fn dm_view(
         participants.push(DmParticipantView {
             user_id: uid.clone(),
             display_name,
+            handle: profile.as_ref().and_then(|p| p.handle.clone()),
             avatar_url,
         });
     }

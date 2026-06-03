@@ -57,6 +57,7 @@ export interface ChannelConversation {
 export interface DmParticipant {
   user_id: string;
   display_name: string;
+  handle?: string | null;
   avatar_url?: string | null;
 }
 

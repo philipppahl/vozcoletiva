@@ -3,6 +3,9 @@ import { Avatar } from '../shell/Avatar';
 export interface MentionCandidate {
   user_id: string;
   display_name: string;
+  /** The handle inserted into the body (`@handle`). Candidates without one are
+   *  filtered out upstream — you can't mention a handle-less member. */
+  handle: string;
 }
 
 interface MentionPopoverProps {
@@ -55,7 +58,7 @@ export function MentionPopover({ candidates, active, onPick, onHover }: MentionP
                 {c.display_name}
               </span>
               <span className="ml-auto font-mono text-[11px]" style={{ color: 'var(--ink-muted)' }}>
-                @{c.user_id}
+                @{c.handle}
               </span>
             </button>
           </div>

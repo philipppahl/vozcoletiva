@@ -17,6 +17,8 @@ pub struct UserProfile {
     /// S3 object key of the avatar (`avatars/<uid>/<ver>.webp`), if set. The
     /// public URL is derived at the DTO layer via `MediaConfig::url_for`.
     pub avatar_key: Option<String>,
+    /// The user's unique @handle (lowercase), if picked. Mentions use it.
+    pub handle: Option<String>,
 }
 
 /// First sign-in: create the user's profile if it doesn't already exist;
@@ -55,6 +57,7 @@ pub async fn get_or_create_profile(
         theme: "system".to_string(),
         created_at: now,
         avatar_key: None,
+        handle: None,
     };
 
     let put = state
@@ -187,7 +190,106 @@ fn profile_from_item(item: &HashMap<String, AttributeValue>) -> Result<UserProfi
         theme: s(item, "theme")?.to_string(),
         created_at,
         avatar_key: item.get("avatarKey").and_then(|v| v.as_s().ok()).cloned(),
+        handle: item.get("handle").and_then(|v| v.as_s().ok()).cloned(),
     })
+}
+
+/// The user that owns a handle (`HANDLE#<handle>/CLAIM`), or None if free.
+pub async fn user_by_handle(state: &AppState, handle: &str) -> Result<Option<String>, AppError> {
+    let r = state
+        .ddb
+        .get_item()
+        .table_name(&state.table_name)
+        .key("PK", AttributeValue::S(format!("HANDLE#{handle}")))
+        .key("SK", AttributeValue::S("CLAIM".into()))
+        .send()
+        .await?;
+    Ok(r.item
+        .as_ref()
+        .and_then(|i| i.get("userId"))
+        .and_then(|v| v.as_s().ok())
+        .cloned())
+}
+
+/// Claim/change the caller's handle. One transaction: claim the new handle
+/// (conditional on it being free), release the old one, and point the profile
+/// at the new handle (bootstrapping the profile shell if needed). 409 if taken.
+pub async fn set_handle(state: &AppState, user_id: &str, handle: &str) -> Result<(), AppError> {
+    let current = get_profile(state, user_id).await?.and_then(|p| p.handle);
+    if current.as_deref() == Some(handle) {
+        return Ok(()); // no-op
+    }
+    let now = Utc::now();
+
+    let claim = aws_sdk_dynamodb::types::Put::builder()
+        .table_name(&state.table_name)
+        .item("PK", AttributeValue::S(format!("HANDLE#{handle}")))
+        .item("SK", AttributeValue::S("CLAIM".into()))
+        .item("type", AttributeValue::S("HandleClaim".into()))
+        .item("userId", AttributeValue::S(user_id.to_string()))
+        .item("createdAt", AttributeValue::S(now.to_rfc3339()))
+        .condition_expression("attribute_not_exists(PK)")
+        .build()
+        .map_err(|e| AppError::Internal(Box::new(e)))?;
+
+    let profile = aws_sdk_dynamodb::types::Update::builder()
+        .table_name(&state.table_name)
+        .key("PK", AttributeValue::S(format!("USER#{user_id}")))
+        .key("SK", AttributeValue::S("PROFILE".into()))
+        .update_expression(
+            "SET #handle = :h, \
+                 #type = if_not_exists(#type, :user), \
+                 userId = if_not_exists(userId, :uid), \
+                 displayName = if_not_exists(displayName, :uid), \
+                 locale = if_not_exists(locale, :loc), \
+                 theme = if_not_exists(theme, :th), \
+                 createdAt = if_not_exists(createdAt, :now)",
+        )
+        .expression_attribute_names("#handle", "handle")
+        .expression_attribute_names("#type", "type")
+        .expression_attribute_values(":h", AttributeValue::S(handle.to_string()))
+        .expression_attribute_values(":user", AttributeValue::S("User".into()))
+        .expression_attribute_values(":uid", AttributeValue::S(user_id.to_string()))
+        .expression_attribute_values(":loc", AttributeValue::S("en".into()))
+        .expression_attribute_values(":th", AttributeValue::S("system".into()))
+        .expression_attribute_values(":now", AttributeValue::S(now.to_rfc3339()))
+        .build()
+        .map_err(|e| AppError::Internal(Box::new(e)))?;
+
+    let mut tx = state
+        .ddb
+        .transact_write_items()
+        .transact_items(aws_sdk_dynamodb::types::TransactWriteItem::builder().put(claim).build())
+        .transact_items(
+            aws_sdk_dynamodb::types::TransactWriteItem::builder()
+                .update(profile)
+                .build(),
+        );
+    if let Some(old) = &current {
+        let release = aws_sdk_dynamodb::types::Delete::builder()
+            .table_name(&state.table_name)
+            .key("PK", AttributeValue::S(format!("HANDLE#{old}")))
+            .key("SK", AttributeValue::S("CLAIM".into()))
+            .build()
+            .map_err(|e| AppError::Internal(Box::new(e)))?;
+        tx = tx.transact_items(
+            aws_sdk_dynamodb::types::TransactWriteItem::builder()
+                .delete(release)
+                .build(),
+        );
+    }
+
+    match tx.send().await {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            let svc = err.into_service_error();
+            if svc.to_string().contains("ConditionalCheckFailed") {
+                Err(AppError::Conflict("handle is already taken".into()))
+            } else {
+                Err(AppError::Internal(Box::new(svc)))
+            }
+        }
+    }
 }
 
 /// Point the profile at a new avatar object. Returns the *previous* key (if any)
@@ -231,13 +333,20 @@ pub async fn set_avatar(
         .and_then(|a| a.get("avatarKey").and_then(|v| v.as_s().ok()).cloned()))
 }
 
-/// Resolve avatar keys for a set of users in one batch (only users that have an
-/// avatar appear in the result). Used by list endpoints to attach avatar URLs
-/// without denormalising (which would go stale on every avatar change).
-pub async fn avatar_keys(
+/// Lightweight per-user fields for list endpoints (avatar + handle).
+#[derive(Debug, Clone, Default)]
+pub struct ProfileRef {
+    pub avatar_key: Option<String>,
+    pub handle: Option<String>,
+}
+
+/// Resolve avatar keys + handles for a set of users in one batch, so list
+/// endpoints can attach them without denormalising (which would go stale on
+/// every change).
+pub async fn profile_refs(
     state: &AppState,
     user_ids: &[String],
-) -> Result<HashMap<String, String>, AppError> {
+) -> Result<HashMap<String, ProfileRef>, AppError> {
     let mut out = HashMap::new();
     for chunk in user_ids.chunks(100) {
         if chunk.is_empty() {
@@ -254,7 +363,8 @@ pub async fn avatar_keys(
             .collect();
         let kaa = KeysAndAttributes::builder()
             .set_keys(Some(keys))
-            .projection_expression("userId, avatarKey")
+            .projection_expression("userId, avatarKey, #h")
+            .expression_attribute_names("#h", "handle")
             .build()
             .map_err(|e| AppError::Internal(Box::new(e)))?;
         let resp = state
@@ -265,11 +375,14 @@ pub async fn avatar_keys(
             .await?;
         if let Some(items) = resp.responses.and_then(|mut r| r.remove(&state.table_name)) {
             for item in items {
-                if let (Some(uid), Some(key)) = (
-                    item.get("userId").and_then(|v| v.as_s().ok()),
-                    item.get("avatarKey").and_then(|v| v.as_s().ok()),
-                ) {
-                    out.insert(uid.clone(), key.clone());
+                if let Some(uid) = item.get("userId").and_then(|v| v.as_s().ok()) {
+                    out.insert(
+                        uid.clone(),
+                        ProfileRef {
+                            avatar_key: item.get("avatarKey").and_then(|v| v.as_s().ok()).cloned(),
+                            handle: item.get("handle").and_then(|v| v.as_s().ok()).cloned(),
+                        },
+                    );
                 }
             }
         }

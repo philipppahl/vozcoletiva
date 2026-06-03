@@ -86,6 +86,14 @@ msgstr "{minutes}m"
 msgid "{unread} unread"
 msgstr "{unread} não lidas"
 
+#: src/components/HandleField.tsx
+msgid "@{norm} is already taken."
+msgstr "@{norm} já está em uso."
+
+#: src/components/HandleField.tsx
+msgid "@{norm} is available"
+msgstr "@{norm} está disponível"
+
 #: src/components/messages/MessageComposer.tsx
 msgid "**bold** *italic* `code` [link](url) — @ to mention"
 msgstr "**negrito** *itálico* `código` [link](url) — @ para mencionar"
@@ -236,6 +244,14 @@ msgstr "Emenda em andamento"
 msgid "An account with this email already exists."
 msgstr "Já existe uma conta com este email."
 
+#: src/components/HandleField.tsx
+msgid "At least 3 characters."
+msgstr "Pelo menos 3 caracteres."
+
+#: src/components/HandleField.tsx
+msgid "At most 20 characters."
+msgstr "No máximo 20 caracteres."
+
 #: src/components/messages/MessageComposer.tsx
 msgid "Attach file"
 msgstr "Anexar ficheiro"
@@ -284,6 +300,10 @@ msgstr "Alterar foto"
 #: src/components/search/SearchResults.tsx
 msgid "Channels"
 msgstr "Canais"
+
+#: src/components/HandleField.tsx
+msgid "Checking…"
+msgstr "A verificar…"
 
 #: src/components/search/SearchInput.tsx
 msgid "Clear search"
@@ -352,6 +372,7 @@ msgstr "Comentários nas suas propostas"
 msgid "Consensus"
 msgstr "Consenso"
 
+#: src/components/HandleGate.tsx
 #: src/routes/sign-up.tsx
 msgid "Continue"
 msgstr "Continuar"
@@ -407,6 +428,11 @@ msgstr "Não foi possível guardar o comentário. Tenta novamente."
 #: src/routes/preferences.tsx
 msgid "Couldn't change notifications. Please try again."
 msgstr "Não foi possível alterar as notificações. Tente novamente."
+
+#: src/components/HandleGate.tsx
+#: src/routes/preferences.tsx
+msgid "Couldn't save your handle. Please try again."
+msgstr "Não foi possível guardar o nome de utilizador. Tente novamente."
 
 #: src/routes/preferences.tsx
 msgid "Couldn't save. Please try again."
@@ -548,8 +574,8 @@ msgid "Edit the text and parameters. The voting rule is inherited from the origi
 msgstr "Edite o texto e os parâmetros. A regra de votação é herdada do original."
 
 #: src/components/messages/MessageRow.tsx
-msgid "edited"
-msgstr "editado"
+#~ msgid "edited"
+#~ msgstr "editado"
 
 #: src/routes/sign-in.tsx
 #: src/routes/sign-up.tsx
@@ -583,6 +609,10 @@ msgstr "Resultado final"
 #: src/routes/index.tsx
 msgid "Got an invite code?"
 msgstr "Tens um código de convite?"
+
+#: src/components/HandleField.tsx
+msgid "Handle"
+msgstr "Nome de utilizador"
 
 #: src/routes/sign-up_.verify.tsx
 msgid "Hello, {displayName}"
@@ -662,6 +692,11 @@ msgstr "agora mesmo"
 msgid "Language"
 msgstr "Idioma"
 
+#. placeholder {0}: norm || 'name'
+#: src/components/HandleField.tsx
+msgid "Letters, numbers and _ — others will mention you as @{0}."
+msgstr "Letras, números e _ — vão mencioná-lo como @{0}."
+
 #: src/routes/preferences.tsx
 msgid "Light"
 msgstr "Claro"
@@ -731,6 +766,10 @@ msgstr "Moderador"
 #: src/components/VotingRulePicker.tsx
 msgid "Most votes wins. Ties leave no winner."
 msgstr "Mais votos vence. Empates não geram vencedor."
+
+#: src/components/HandleField.tsx
+msgid "Must start with a letter."
+msgstr "Deve começar por uma letra."
 
 #: src/routes/projects.new.tsx
 msgid "Name must be 80 characters or fewer."
@@ -845,6 +884,10 @@ msgstr "Desligado"
 msgid "On for this device"
 msgstr "Ligado neste dispositivo"
 
+#: src/components/HandleField.tsx
+msgid "Only letters, numbers and _."
+msgstr "Apenas letras, números e _."
+
 #: src/routes/p.$slug.invites.tsx
 msgid "Only owners and admins can issue invites."
 msgstr "Apenas proprietários e administradores podem emitir convites."
@@ -928,6 +971,10 @@ msgstr "A senha deve ter pelo menos 12 caracteres."
 #~ msgid "Per-project channels for fast, informal talk. Text, images and voice notes. Not a replacement for deliberation — just lighter chatter alongside it."
 #~ msgstr "Canais por projeto para conversas rápidas e informais. Texto, imagens e notas de voz. Não substitui a deliberação — só agiliza o que está ao lado dela."
 
+#: src/components/HandleGate.tsx
+msgid "Pick your handle"
+msgstr "Escolha o seu nome de utilizador"
+
 #: src/components/messages/VoiceNoteBlock.tsx
 #~ msgid "Planned"
 #~ msgstr "Previsto"
@@ -949,6 +996,10 @@ msgstr "Por favor introduza um email válido."
 #: src/routes/sign-up_.verify.tsx
 msgid "Please enter the 6-digit code."
 msgstr "Por favor introduza o código de 6 dígitos."
+
+#: src/routes/sign-up.tsx
+msgid "Please pick an available handle."
+msgstr "Escolha um nome de utilizador disponível."
 
 #: src/components/VoteControl.tsx
 #: src/components/VotingRulePicker.tsx
@@ -1130,9 +1181,16 @@ msgid "Save"
 msgstr "Guardar"
 
 #: src/routes/preferences.tsx
+msgid "Save handle"
+msgstr "Guardar nome de utilizador"
+
+#: src/routes/preferences.tsx
+#: src/routes/preferences.tsx
 msgid "Saved"
 msgstr "Guardado"
 
+#: src/components/HandleGate.tsx
+#: src/routes/preferences.tsx
 #: src/routes/preferences.tsx
 msgid "Saving…"
 msgstr "A guardar…"
@@ -1259,6 +1317,15 @@ msgstr "Sistema"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Text that becomes a versioned document if it passes."
 msgstr "Texto que vira um documento versionado se for aprovado."
+
+#: src/components/HandleGate.tsx
+msgid "That handle isn't allowed. Try another."
+msgstr "Esse nome de utilizador não é permitido. Tente outro."
+
+#: src/components/HandleGate.tsx
+#: src/routes/preferences.tsx
+msgid "That handle was just taken. Try another."
+msgstr "Esse nome de utilizador acabou de ser ocupado. Tente outro."
 
 #: src/routes/join.tsx
 msgid "That invite is no longer valid."
@@ -1478,6 +1545,10 @@ msgstr "Vais juntar-te como"
 #: src/routes/i_.$token.tsx
 msgid "You're invited"
 msgstr "Foste convidado"
+
+#: src/components/HandleGate.tsx
+msgid "Your handle is how people @mention you. You can change it later if it's free."
+msgstr "O seu nome de utilizador é como as pessoas o @mencionam. Pode alterá-lo mais tarde se estiver livre."
 
 # --- projects slice ---
 #: src/routes/index.tsx

@@ -41,6 +41,12 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
         ("GET", ["me"]) => handlers::me::handle(&state, event).await,
         ("PATCH", ["me"]) => handlers::me::update(&state, event).await,
 
+        // Handles (unique @mention identifiers)
+        ("PUT", ["me", "handle"]) => handlers::handles::set(&state, event).await,
+        ("GET", ["handles", h, "availability"]) => {
+            handlers::handles::availability(&state, event, h).await
+        }
+
         // Avatar (profile photo)
         ("POST", ["me", "avatar"]) => handlers::avatar::upload(&state, event).await,
         ("DELETE", ["me", "avatar"]) => handlers::avatar::delete(&state, event).await,

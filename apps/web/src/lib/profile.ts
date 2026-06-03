@@ -10,6 +10,7 @@ import { toast } from './toast';
 export interface Profile {
   user_id: string;
   display_name: string;
+  handle?: string | null;
   locale: string;
   theme: string;
   created_at: string;
@@ -80,6 +81,17 @@ export function useSyncProfileName() {
   useEffect(() => {
     syncSessionAvatar(data?.avatar_url ?? null);
   }, [data?.avatar_url]);
+  // And the handle, so surfaces can show @handle without refetching.
+  useEffect(() => {
+    if (data) syncSessionHandle(data.handle ?? null);
+  }, [data]);
+}
+
+function syncSessionHandle(handle: string | null) {
+  const store = useAuthStore.getState();
+  if (store.session && (store.session.handle ?? null) !== handle) {
+    store.setSession({ ...store.session, handle });
+  }
 }
 
 function syncSessionName(displayName: string) {

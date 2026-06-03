@@ -2,14 +2,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Trans, t } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { HandleField } from '../components/HandleField';
 import { Logo } from '../components/Logo';
 import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
 import { mapCognitoError } from '../lib/auth/cognito';
 import { useAuth } from '../lib/auth/hooks';
+import { handleShapeError, suggestHandle, useHandleAvailability } from '../lib/handle';
 
 export const Route = createFileRoute('/sign-up')({
   component: SignUpPage,
@@ -31,16 +33,33 @@ function SignUpPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
+  // Handle is controlled (it carries live availability), so it lives outside RHF.
+  // It auto-suggests from the email until the user edits it themselves.
+  const [handle, setHandle] = useState('');
+  const [handleTouched, setHandleTouched] = useState(false);
+  const email = watch('email') ?? '';
+  useEffect(() => {
+    if (!handleTouched) setHandle(suggestHandle(email));
+  }, [email, handleTouched]);
+
+  const availability = useHandleAvailability(handle);
+  const handleOk = handleShapeError(handle) === null && availability.state === 'available';
+
   async function onSubmit(values: FormValues) {
     setFormError(null);
+    if (!handleOk) {
+      setFormError(_(t`Please pick an available handle.`));
+      return;
+    }
     try {
       await signUp(values);
       navigate({
         to: '/sign-up/verify',
-        search: { email: values.email, displayName: values.displayName },
+        search: { email: values.email, displayName: values.displayName, handle },
       });
     } catch (err) {
       const { code } = mapCognitoError(err);
@@ -74,6 +93,14 @@ function SignUpPage() {
           {...register('email')}
           error={errors.email?.message}
         />
+        <HandleField
+          value={handle}
+          onChange={(v) => {
+            setHandle(v);
+            setHandleTouched(true);
+          }}
+          availability={availability}
+        />
         <Field
           label={_(t`Password`)}
           type="password"
@@ -88,7 +115,7 @@ function SignUpPage() {
           </p>
         )}
 
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting || !handleOk}>
           <Trans>Continue</Trans>
         </Button>
       </form>

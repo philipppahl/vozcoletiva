@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { parseMentions } from '../src/components/messages/mentions';
 
-// Mentions encode a Cognito `sub` (a lowercase UUID).
-const MARINA = '32b514e4-60c1-70cc-d616-77326d610b5b';
-const PEDRO = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+// Mentions encode a lowercase @handle (decision 0030).
 
 describe('parseMentions', () => {
   it('returns an empty array for an empty string', () => {
@@ -16,25 +14,32 @@ describe('parseMentions', () => {
   });
 
   it('parses a single mention surrounded by text', () => {
-    expect(parseMentions(`hi @${MARINA}, thoughts?`)).toEqual([
+    expect(parseMentions('hi @marina, thoughts?')).toEqual([
       { kind: 'text', text: 'hi ' },
-      { kind: 'mention', userId: MARINA },
+      { kind: 'mention', handle: 'marina' },
       { kind: 'text', text: ', thoughts?' },
     ]);
   });
 
   it('parses a mention at the start', () => {
-    expect(parseMentions(`@${MARINA} take a look`)).toEqual([
-      { kind: 'mention', userId: MARINA },
+    expect(parseMentions('@marina take a look')).toEqual([
+      { kind: 'mention', handle: 'marina' },
       { kind: 'text', text: ' take a look' },
     ]);
   });
 
   it('parses two mentions back to back with a separator', () => {
-    expect(parseMentions(`@${MARINA} @${PEDRO}`)).toEqual([
-      { kind: 'mention', userId: MARINA },
+    expect(parseMentions('@marina @tomas')).toEqual([
+      { kind: 'mention', handle: 'marina' },
       { kind: 'text', text: ' ' },
-      { kind: 'mention', userId: PEDRO },
+      { kind: 'mention', handle: 'tomas' },
+    ]);
+  });
+
+  it('lowercases the captured handle to the canonical form', () => {
+    expect(parseMentions('@Marina hi')).toEqual([
+      { kind: 'mention', handle: 'marina' },
+      { kind: 'text', text: ' hi' },
     ]);
   });
 
@@ -42,13 +47,13 @@ describe('parseMentions', () => {
     expect(parseMentions('check @')).toEqual([{ kind: 'text', text: 'check @' }]);
   });
 
-  it('leaves an ordinary @word as plain text (only UUID tokens are mentions)', () => {
-    expect(parseMentions('@nobody hi')).toEqual([{ kind: 'text', text: '@nobody hi' }]);
+  it('treats a too-short @ab as plain text', () => {
+    expect(parseMentions('@ab hi')).toEqual([{ kind: 'text', text: '@ab hi' }]);
   });
 
   it('does not mistake an email for a mention', () => {
-    expect(parseMentions('mail a@b.com please')).toEqual([
-      { kind: 'text', text: 'mail a@b.com please' },
+    expect(parseMentions('mail marina@example.com please')).toEqual([
+      { kind: 'text', text: 'mail marina@example.com please' },
     ]);
   });
 });

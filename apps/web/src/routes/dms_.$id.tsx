@@ -60,8 +60,12 @@ function DmDetailPage() {
   const mentionCandidates = useMemo(() => {
     if (conversation.data?.kind !== 'dm') return [];
     return conversation.data.participants
-      .filter((p) => p.user_id !== session?.userId)
-      .map((p) => ({ user_id: p.user_id, display_name: p.display_name }));
+      .filter((p) => p.user_id !== session?.userId && !!p.handle)
+      .map((p) => ({
+        user_id: p.user_id,
+        display_name: p.display_name,
+        handle: p.handle as string,
+      }));
   }, [conversation.data, session?.userId]);
 
   // Avatars: the peer from the participants, the viewer from the live session.

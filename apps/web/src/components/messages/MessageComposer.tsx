@@ -59,7 +59,7 @@ export function MessageComposer({
     if (mentionQuery == null) return [];
     const q = mentionQuery.toLowerCase();
     return mentionCandidates
-      .filter((c) => c.display_name.toLowerCase().includes(q) || c.user_id.includes(q))
+      .filter((c) => c.display_name.toLowerCase().includes(q) || c.handle.includes(q))
       .slice(0, 6);
   }, [mentionCandidates, mentionQuery]);
 
@@ -67,7 +67,9 @@ export function MessageComposer({
     setValue(next);
     const caret = ref.current?.selectionStart ?? next.length;
     const upToCaret = next.slice(0, caret);
-    const m = /@([a-z0-9-]*)$/i.exec(upToCaret);
+    // Trigger the picker on a partial @handle (letters/digits/underscore) at the
+    // caret, but only at a mention boundary (not inside an email).
+    const m = /(?<![A-Za-z0-9_])@([A-Za-z0-9_]*)$/.exec(upToCaret);
     if (m) {
       setMentionQuery(m[1] ?? '');
       setActiveMention(0);
@@ -83,12 +85,12 @@ export function MessageComposer({
     const after = value.slice(caret);
     const tokenStart = before.lastIndexOf('@');
     if (tokenStart < 0) return;
-    const next = `${before.slice(0, tokenStart)}@${c.user_id} ${after}`;
+    const next = `${before.slice(0, tokenStart)}@${c.handle} ${after}`;
     setValue(next);
     setMentionQuery(null);
     requestAnimationFrame(() => {
       ta?.focus();
-      const newCaret = tokenStart + c.user_id.length + 2;
+      const newCaret = tokenStart + c.handle.length + 2;
       ta?.setSelectionRange(newCaret, newCaret);
     });
   }

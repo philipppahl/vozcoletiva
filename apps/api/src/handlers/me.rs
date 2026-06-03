@@ -11,6 +11,8 @@ use crate::state::{AppState, MediaConfig};
 struct MeResponse {
     user_id: String,
     display_name: String,
+    /// The user's unique @handle, or null if not yet chosen (legacy accounts).
+    handle: Option<String>,
     locale: String,
     theme: String,
     created_at: String,
@@ -24,6 +26,7 @@ impl MeResponse {
         Self {
             user_id: p.user_id,
             display_name: p.display_name,
+            handle: p.handle,
             locale: p.locale,
             theme: p.theme,
             created_at: p.created_at.to_rfc3339(),

@@ -15,7 +15,7 @@ use crate::repo::inbox::{self, InboxKind, NewInboxItem};
 use crate::repo::message::Message;
 use crate::repo::project::Project;
 use crate::repo::proposal::Proposal;
-use crate::repo::{membership, message, project, vote};
+use crate::repo::{membership, message, project, user, vote};
 use crate::error::AppError;
 use crate::state::AppState;
 
@@ -31,73 +31,111 @@ fn preview(text: &str) -> String {
     format!("{}…", truncated.trim_end())
 }
 
-/// Extract `@<sub>` mentions, where `<sub>` is a Cognito sub (a lowercase UUID).
-/// Restricting to the UUID shape avoids false positives on ordinary `@word`.
+const HANDLE_MIN: usize = 3;
+const HANDLE_MAX: usize = 20;
+
+fn is_handle_byte(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// A `@` starts a mention only at the start of the body or after a non
+/// handle-character — so an email's local part (`marina@example.com`) and a URL
+/// userinfo (`x@host`) aren't mistaken for one. Mirrors the web client's
+/// mention regex.
+fn mention_boundary(bytes: &[u8], at: usize) -> bool {
+    at == 0 || !is_handle_byte(bytes[at - 1])
+}
+
+/// Extract `@handle` mentions (lowercased, deduped) from a message body. A
+/// handle is 3–20 `[A-Za-z0-9_]` chars at a mention boundary; the run must end
+/// at a non handle-character (an over-long run isn't a valid handle).
 fn extract_mentions(body: &str) -> Vec<String> {
     let bytes = body.as_bytes();
     let mut out = Vec::new();
     let mut seen = HashSet::new();
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] != b'@' {
+        if bytes[i] != b'@' || !mention_boundary(bytes, i) {
             i += 1;
             continue;
         }
         let start = i + 1;
         let mut j = start;
-        while j < bytes.len() && matches!(bytes[j], b'0'..=b'9' | b'a'..=b'f' | b'-') {
+        while j < bytes.len() && is_handle_byte(bytes[j]) {
             j += 1;
         }
-        let token = &body[start..j];
-        if is_uuid(token) && seen.insert(token.to_string()) {
-            out.push(token.to_string());
+        let len = j - start;
+        if (HANDLE_MIN..=HANDLE_MAX).contains(&len) {
+            let handle = body[start..j].to_ascii_lowercase();
+            if seen.insert(handle.clone()) {
+                out.push(handle);
+            }
         }
         i = if j > start { j } else { i + 1 };
     }
     out
 }
 
-/// Replace `@<sub>` mention tokens with `@<display name>` for the stored preview,
-/// so a notification reads "@Marina Alves …" rather than a raw UUID. Unknown ids
-/// are left as-is. Slices on ASCII token boundaries — UTF-8 safe.
+/// Replace `@handle` mention tokens with `@<display name>` for the stored
+/// preview, so a notification reads "@Marina Alves …" rather than "@marina".
+/// Unknown / non-member handles are left as-is. Lookup is case-insensitive;
+/// slices on ASCII token boundaries — UTF-8 safe.
 fn resolve_mention_names(body: &str, names: &HashMap<String, String>) -> String {
     let bytes = body.as_bytes();
     let mut out = String::with_capacity(body.len());
     let mut last = 0;
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] != b'@' {
+        if bytes[i] != b'@' || !mention_boundary(bytes, i) {
             i += 1;
             continue;
         }
         let start = i + 1;
         let mut j = start;
-        while j < bytes.len() && matches!(bytes[j], b'0'..=b'9' | b'a'..=b'f' | b'-') {
+        while j < bytes.len() && is_handle_byte(bytes[j]) {
             j += 1;
         }
-        let token = &body[start..j];
-        if is_uuid(token) {
-            if let Some(name) = names.get(token) {
+        let len = j - start;
+        if (HANDLE_MIN..=HANDLE_MAX).contains(&len) {
+            let handle = body[start..j].to_ascii_lowercase();
+            if let Some(name) = names.get(&handle) {
                 out.push_str(&body[last..i]);
                 out.push('@');
                 out.push_str(name);
                 last = j;
             }
-            i = j;
-        } else {
-            i = if j > start { j } else { i + 1 };
         }
+        i = if j > start { j } else { i + 1 };
     }
     out.push_str(&body[last..]);
     out
 }
 
-fn is_uuid(s: &str) -> bool {
-    s.len() == 36
-        && s.as_bytes().iter().enumerate().all(|(k, &b)| match k {
-            8 | 13 | 18 | 23 => b == b'-',
-            _ => matches!(b, b'0'..=b'9' | b'a'..=b'f'),
-        })
+/// Resolve a project's members into `handle → user_id` and `handle → display
+/// name` maps for mention fan-out + preview. Members without a handle simply
+/// can't be mentioned (until they pick one).
+async fn member_handle_maps(
+    state: &AppState,
+    project_id: &str,
+) -> Result<(HashMap<String, String>, HashMap<String, String>), AppError> {
+    let members = membership::list(state, project_id).await?;
+    let ids: Vec<String> = members.iter().map(|m| m.user_id.clone()).collect();
+    let display_by_uid: HashMap<String, String> = members
+        .into_iter()
+        .map(|m| (m.user_id, m.display_name))
+        .collect();
+    let refs = user::profile_refs(state, &ids).await?;
+    let mut handle_to_uid = HashMap::new();
+    let mut handle_to_display = HashMap::new();
+    for (uid, r) in &refs {
+        if let Some(h) = &r.handle {
+            handle_to_uid.insert(h.clone(), uid.clone());
+            if let Some(dn) = display_by_uid.get(uid) {
+                handle_to_display.insert(h.clone(), dn.clone());
+            }
+        }
+    }
+    Ok((handle_to_uid, handle_to_display))
 }
 
 /// Build a base item with the common project/actor fields set and all refs None.
@@ -142,19 +180,19 @@ pub async fn message_posted(
         return Ok(());
     };
     let project = project::get_by_slug_from_id(state, &c.project_id).await?;
-    let names: HashMap<String, String> = membership::list(state, &c.project_id)
-        .await?
-        .into_iter()
-        .map(|m| (m.user_id, m.display_name))
-        .collect();
-    let body_preview = preview(&resolve_mention_names(&msg.body, &names));
+    let (handle_to_uid, handle_to_display) = member_handle_maps(state, &c.project_id).await?;
+    let body_preview = preview(&resolve_mention_names(&msg.body, &handle_to_display));
 
     let mut items: Vec<NewInboxItem> = Vec::new();
     let mut notified: HashSet<String> = HashSet::new();
 
-    // Mentions — only members (who can see the message), never the author.
-    for uid in extract_mentions(&msg.body) {
-        if uid == msg.author_id || !names.contains_key(&uid) {
+    // Mentions — resolve each @handle to a member (who can see the message),
+    // never the author. Unknown / handle-less users drop out.
+    for handle in extract_mentions(&msg.body) {
+        let Some(uid) = handle_to_uid.get(&handle) else {
+            continue;
+        };
+        if uid == &msg.author_id || notified.contains(uid) {
             continue;
         }
         let mut it = base(
@@ -169,7 +207,7 @@ pub async fn message_posted(
         it.conversation_id = Some(msg.conversation_id.clone());
         it.message_id = Some(msg.id.clone());
         items.push(it);
-        notified.insert(uid);
+        notified.insert(uid.clone());
     }
 
     // Thread reply — notify prior participants (parent author + earlier
@@ -221,12 +259,9 @@ pub async fn proposal_comment(
         return Ok(());
     }
     let project = project::get_by_slug_from_id(state, &proposal.project_id).await?;
-    let names: HashMap<String, String> = membership::list(state, &proposal.project_id)
-        .await?
-        .into_iter()
-        .map(|m| (m.user_id, m.display_name))
-        .collect();
-    let body_preview = preview(&resolve_mention_names(body, &names));
+    let (handle_to_uid, handle_to_display) =
+        member_handle_maps(state, &proposal.project_id).await?;
+    let body_preview = preview(&resolve_mention_names(body, &handle_to_display));
     let mut items: Vec<NewInboxItem> = Vec::new();
 
     if proposal.author_id != comment.author_id {
@@ -244,13 +279,16 @@ pub async fn proposal_comment(
         items.push(it);
     }
 
-    for uid in extract_mentions(body) {
+    for handle in extract_mentions(body) {
+        let Some(uid) = handle_to_uid.get(&handle) else {
+            continue;
+        };
         // The proposal author already got `comment-on-yours`; don't double-notify.
-        if uid == comment.author_id || uid == proposal.author_id || !names.contains_key(&uid) {
+        if uid == &comment.author_id || uid == &proposal.author_id {
             continue;
         }
         let mut it = base(
-            uid,
+            uid.clone(),
             InboxKind::Mention,
             &project,
             &comment.author_id,
@@ -347,34 +385,47 @@ mod tests {
     use super::*;
 
     #[test]
-    fn extracts_uuid_mentions_only() {
-        let sub = "32b514e4-60c1-70cc-d616-77326d610b5b";
-        let body = format!("hey @{sub} and @nobody and email a@b.com");
-        assert_eq!(extract_mentions(&body), vec![sub.to_string()]);
+    fn extracts_handle_mentions_not_emails() {
+        // @marina + @tomas are mentions; the email local part and a too-short
+        // @ab are not. Order preserved.
+        let body = "hey @marina and @tomas, not @ab, email someone@example.com";
+        assert_eq!(
+            extract_mentions(body),
+            vec!["marina".to_string(), "tomas".to_string()]
+        );
     }
 
     #[test]
-    fn dedups_repeated_mentions() {
-        let sub = "c2b554e4-a091-7013-dffd-0ccc4a5b82fc";
-        let body = format!("@{sub} @{sub}");
-        assert_eq!(extract_mentions(&body).len(), 1);
+    fn mentions_are_lowercased_and_deduped() {
+        let body = "@Marina @marina @MARINA";
+        assert_eq!(extract_mentions(body), vec!["marina".to_string()]);
+    }
+
+    #[test]
+    fn over_long_runs_are_not_handles() {
+        // 21 chars after @ — longer than a valid handle, so not a mention.
+        let body = "@aaaaaaaaaaaaaaaaaaaaa hi";
+        assert!(extract_mentions(body).is_empty());
     }
 
     #[test]
     fn resolves_mention_names_keeping_unicode() {
-        let sub = "32b514e4-60c1-70cc-d616-77326d610b5b";
         let mut names = HashMap::new();
-        names.insert(sub.to_string(), "Marina Alves".to_string());
-        let body = format!("@{sub} pode revisar? 🙏");
+        names.insert("marina".to_string(), "Marina Alves".to_string());
+        let body = "@marina pode revisar? 🙏";
         assert_eq!(
-            resolve_mention_names(&body, &names),
+            resolve_mention_names(body, &names),
             "@Marina Alves pode revisar? 🙏"
         );
-        // Unknown id is left as-is.
-        let other = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+        // Unknown / non-member handle is left as-is.
         assert_eq!(
-            resolve_mention_names(&format!("hi @{other}"), &names),
-            format!("hi @{other}")
+            resolve_mention_names("hi @rafael", &names),
+            "hi @rafael".to_string()
+        );
+        // Case-insensitive lookup.
+        assert_eq!(
+            resolve_mention_names("@Marina here", &names),
+            "@Marina Alves here".to_string()
         );
     }
 

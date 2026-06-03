@@ -3,6 +3,7 @@ import { useLingui } from '@lingui/react';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import type { Locale, Theme } from '@vozcoletiva/shared';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
+import { HandleField } from '../components/HandleField';
 import { RequireAuth } from '../components/RequireAuth';
 import { Avatar } from '../components/shell/Avatar';
 import { TopBar } from '../components/shell/TopBar';
@@ -11,7 +12,8 @@ import { Field } from '../components/ui/Field';
 import { setLocale } from '../i18n';
 import { useAuth } from '../lib/auth/hooks';
 import { useRemoveAvatar, useSetAvatar } from '../lib/avatar';
-import { useUpdateDisplayName } from '../lib/profile';
+import { HandleError, normalizeHandle, useHandleAvailability, useSetHandle } from '../lib/handle';
+import { useProfile, useUpdateDisplayName } from '../lib/profile';
 import {
   pushSupported,
   useDisablePush,
@@ -77,6 +79,11 @@ function PreferencesPage() {
         >
           {session?.displayName ?? ''}
         </h2>
+        {session?.handle && (
+          <div className="text-sm font-medium" style={{ color: 'var(--accent)' }}>
+            @{session.handle}
+          </div>
+        )}
         <div className="mt-1 text-sm" style={{ color: 'var(--ink-soft)' }}>
           {session?.email ?? ''}
         </div>
@@ -88,6 +95,7 @@ function PreferencesPage() {
         </PrefHeading>
         <PrefCard>
           <DisplayNameField />
+          <HandleRow />
         </PrefCard>
       </section>
 
@@ -269,6 +277,64 @@ function DisplayNameField() {
       />
       <Button onClick={onSave} disabled={!dirty || update.isPending}>
         {update.isPending ? <Trans>Saving…</Trans> : <Trans>Save</Trans>}
+      </Button>
+    </div>
+  );
+}
+
+function HandleRow() {
+  const { _ } = useLingui();
+  const profile = useProfile();
+  const current = profile.data?.handle ?? '';
+  const setHandle = useSetHandle();
+  const [value, setValue] = useState(current);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  // Seed the input once the profile's handle resolves from the backend.
+  useEffect(() => {
+    setValue(current);
+  }, [current]);
+
+  const availability = useHandleAvailability(value);
+  const dirty = normalizeHandle(value) !== normalizeHandle(current);
+  const canSave = dirty && availability.state === 'available' && !setHandle.isPending;
+
+  async function onSave() {
+    setClaimError(null);
+    setSaved(false);
+    try {
+      await setHandle.mutateAsync(value);
+      setSaved(true);
+    } catch (err) {
+      if (err instanceof HandleError && err.reason === 'taken') {
+        setClaimError(_(t`That handle was just taken. Try another.`));
+      } else {
+        setClaimError(_(t`Couldn't save your handle. Please try again.`));
+      }
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <HandleField
+        value={value}
+        onChange={(v) => {
+          setValue(v);
+          setClaimError(null);
+          setSaved(false);
+        }}
+        availability={availability}
+        claimError={claimError ?? undefined}
+      />
+      <Button onClick={onSave} disabled={!canSave}>
+        {setHandle.isPending ? (
+          <Trans>Saving…</Trans>
+        ) : saved && !dirty ? (
+          <Trans>Saved</Trans>
+        ) : (
+          <Trans>Save handle</Trans>
+        )}
       </Button>
     </div>
   );

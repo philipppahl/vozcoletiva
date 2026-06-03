@@ -3,7 +3,7 @@ import { parseMentions, type Segment } from './mentions';
 
 interface MessageMarkdownProps {
   body: string;
-  /** Used to resolve `@u-id` mention tokens to display names. */
+  /** Used to resolve `@handle` mentions to the member's display name (tooltip). */
   projectSlug?: string;
   /** True inside the viewer's own (accent) bubble → light text + chips. */
   own?: boolean;
@@ -12,7 +12,7 @@ interface MessageMarkdownProps {
 /**
  * Inline-only renderer for chat messages. Disables block-level Markdown
  * (headings, lists, blockquotes) — chat bubbles shouldn't carry that weight.
- * Supports **bold**, *italic*, `code`, [links](…), and @user-id mentions.
+ * Supports **bold**, *italic*, `code`, [links](…), and @handle mentions.
  */
 export function MessageMarkdown({ body, projectSlug, own = false }: MessageMarkdownProps) {
   const members = useMembers(projectSlug);
@@ -30,7 +30,7 @@ export function MessageMarkdown({ body, projectSlug, own = false }: MessageMarkd
       {parseMentions(body).map((seg, idx) => (
         <SegmentView
           // biome-ignore lint/suspicious/noArrayIndexKey: parsed body is deterministic per render
-          key={`${seg.kind}-${idx}-${seg.kind === 'mention' ? seg.userId : seg.text.slice(0, 8)}`}
+          key={`${seg.kind}-${idx}-${seg.kind === 'mention' ? seg.handle : seg.text.slice(0, 8)}`}
           seg={seg}
           directory={directory}
           own={own}
@@ -43,6 +43,7 @@ export function MessageMarkdown({ body, projectSlug, own = false }: MessageMarkd
 interface DirectoryEntry {
   user_id: string;
   display_name: string;
+  handle?: string | null;
 }
 
 function SegmentView({
@@ -55,17 +56,19 @@ function SegmentView({
   own: boolean;
 }) {
   if (seg.kind === 'mention') {
-    const u = directory.find((d) => d.user_id === seg.userId);
+    // Render the literal @handle; the member's name is a hover tooltip.
+    const u = directory.find((d) => d.handle === seg.handle);
     return (
       <span
         className="rounded px-1 font-medium"
+        title={u?.display_name}
         style={
           own
             ? { background: 'rgba(255,255,255,0.22)', color: 'var(--accent-ink)' }
             : { background: 'var(--accent-soft)', color: 'var(--accent)' }
         }
       >
-        @{u?.display_name ?? seg.userId}
+        @{seg.handle}
       </span>
     );
   }

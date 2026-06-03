@@ -10,17 +10,20 @@ import { Button } from '../components/ui/Button';
 import { Field } from '../components/ui/Field';
 import { mapCognitoError } from '../lib/auth/cognito';
 import { useAuth } from '../lib/auth/hooks';
+import { useSetHandle } from '../lib/handle';
 import { useUpdateDisplayName } from '../lib/profile';
 
 interface VerifySearch {
   email: string;
   displayName: string;
+  handle: string;
 }
 
 export const Route = createFileRoute('/sign-up_/verify')({
   validateSearch: (search): VerifySearch => ({
     email: typeof search.email === 'string' ? search.email : '',
     displayName: typeof search.displayName === 'string' ? search.displayName : '',
+    handle: typeof search.handle === 'string' ? search.handle : '',
   }),
   component: VerifyPage,
 });
@@ -28,9 +31,10 @@ export const Route = createFileRoute('/sign-up_/verify')({
 function VerifyPage() {
   const { _ } = useLingui();
   const navigate = useNavigate();
-  const { email, displayName } = Route.useSearch();
+  const { email, displayName, handle } = Route.useSearch();
   const { confirmSignUp, signIn } = useAuth();
   const updateDisplayName = useUpdateDisplayName();
+  const setHandle = useSetHandle();
   const [formError, setFormError] = useState<string | null>(null);
 
   const schema = z.object({
@@ -58,6 +62,15 @@ function VerifyPage() {
           await updateDisplayName.mutateAsync(displayName.trim());
         } catch {
           // Non-fatal: the name can be set later in Preferences. Don't block sign-in.
+        }
+      }
+      // Claim the handle chosen at sign-up. Best-effort: if it was taken in the
+      // meantime (race), the null-handle gate on `/` prompts for another.
+      if (handle.trim()) {
+        try {
+          await setHandle.mutateAsync(handle.trim());
+        } catch {
+          // Non-fatal — the HandleGate backstops a failed claim.
         }
       }
       navigate({ to: '/' });

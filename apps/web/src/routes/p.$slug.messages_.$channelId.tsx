@@ -57,7 +57,18 @@ function ChannelDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.data?.messages[messages.data.messages.length - 1]?.id]);
 
-  const mentionCandidates = useMemo(() => members.data?.members ?? [], [members.data]);
+  // Only members with a handle can be @mentioned (the handle goes into the body).
+  const mentionCandidates = useMemo(
+    () =>
+      (members.data?.members ?? [])
+        .filter((m) => !!m.handle)
+        .map((m) => ({
+          user_id: m.user_id,
+          display_name: m.display_name,
+          handle: m.handle as string,
+        })),
+    [members.data],
+  );
   const avatarFor = useMemo(() => {
     const map = new Map((members.data?.members ?? []).map((m) => [m.user_id, m.avatar_url]));
     return (userId: string) => map.get(userId);

@@ -1,14 +1,18 @@
 /**
- * `@<user-id>` mentions live inline in the message body as tokens, where the id
- * is a Cognito `sub` (a lowercase UUID). The composer inserts these via the
- * member picker. `parseMentions` splits the body into text + mention segments so
- * the renderer can resolve and style them. The id is matched as a UUID so an
- * ordinary `@word` (or an email's `a@b`) isn't mistaken for a mention.
+ * `@handle` mentions live inline in the message body as tokens (decision 0030).
+ * The composer inserts these via the member picker. `parseMentions` splits the
+ * body into text + mention segments so the renderer can resolve + style them.
+ *
+ * A mention is an `@` at a boundary (start, or after a non handle-character —
+ * so an email's local part `marina@example.com` isn't mistaken for one),
+ * followed by a 3–20 char `[A-Za-z0-9_]` handle that ends at a non
+ * handle-character. The handle is lowercased to match the server's canonical
+ * form. Kept in lockstep with the backend's `notify::extract_mentions`.
  */
 
-export type Segment = { kind: 'text'; text: string } | { kind: 'mention'; userId: string };
+export type Segment = { kind: 'text'; text: string } | { kind: 'mention'; handle: string };
 
-const MENTION_RE = /@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi;
+const MENTION_RE = /(?<![A-Za-z0-9_])@([A-Za-z0-9_]{3,20})(?![A-Za-z0-9_])/g;
 
 export function parseMentions(body: string): Segment[] {
   if (!body) return [];
@@ -19,7 +23,7 @@ export function parseMentions(body: string): Segment[] {
     if (start > lastIdx) {
       out.push({ kind: 'text', text: body.slice(lastIdx, start) });
     }
-    out.push({ kind: 'mention', userId: m[1] ?? '' });
+    out.push({ kind: 'mention', handle: (m[1] ?? '').toLowerCase() });
     lastIdx = start + m[0].length;
   }
   if (lastIdx < body.length) {
