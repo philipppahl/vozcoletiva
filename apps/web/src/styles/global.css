@@ -172,6 +172,17 @@ body {
 .voz-noscroll::-webkit-scrollbar { display: none; }
 .voz-noscroll { scrollbar-width: none; -ms-overflow-style: none; }
 
+/* Chat rows: on touch devices, suppress native text-selection + the long-press
+   callout so our long-press action sheet wins (the sheet offers "Copy text").
+   Desktop keeps normal selection. (decision 0031) */
+@media (pointer: coarse) {
+  .voz-msg-row {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
 /* Top sheet open/close animations for Radix Dialog. */
 @keyframes voz-sheet-in {
   from { transform: translateY(-100%); }

@@ -74,7 +74,7 @@ export function MessageRow({
 
   return (
     <div
-      className="relative flex w-full px-3"
+      className="voz-msg-row relative flex w-full px-3"
       style={{
         justifyContent: own ? 'flex-end' : 'flex-start',
         paddingTop: grouped ? 2 : 10,
@@ -308,28 +308,30 @@ function useMessageGestures({
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
   };
+  // `fired` is *not* cleared here — a `contextmenu` can arrive after pointerup,
+  // and we don't want it to re-open the sheet. It's reset on the next press.
   const reset = () => {
     clearTimer();
     start.current = null;
     swiping.current = false;
-    fired.current = false;
     setDragging(false);
     setSwipeX(0);
+  };
+  const fire = () => {
+    if (!onLongPress || fired.current) return;
+    fired.current = true;
+    clearTimer();
+    onLongPress();
   };
 
   if (!onLongPress && !onReply) return { swipeX: 0, dragging: false, handlers: {} };
 
   const handlers = {
     onPointerDown: (e: React.PointerEvent) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      fired.current = false; // fresh gesture
+      if (e.pointerType === 'mouse' && e.button !== 0) return; // let right-click → contextmenu
       start.current = { x: e.clientX, y: e.clientY };
-      fired.current = false;
-      if (onLongPress) {
-        timer.current = setTimeout(() => {
-          fired.current = true;
-          onLongPress();
-        }, 450);
-      }
+      if (onLongPress) timer.current = setTimeout(fire, 450);
     },
     onPointerMove: (e: React.PointerEvent) => {
       if (!start.current) return;
@@ -351,9 +353,11 @@ function useMessageGestures({
       reset();
     },
     onPointerCancel: reset,
+    // The browser's long-press / right-click `contextmenu` is our cue too: open
+    // the sheet and suppress the native menu (and Android text-selection menu).
     onContextMenu: (e: React.MouseEvent) => {
-      // Long-press on mobile can raise a context menu — suppress it if ours fired.
-      if (fired.current) e.preventDefault();
+      e.preventDefault();
+      fire();
     },
   };
 
