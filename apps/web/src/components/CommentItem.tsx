@@ -1,38 +1,36 @@
 import { Trans, t } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
+import type { components } from '@vozcoletiva/api-client';
 import { useState } from 'react';
-
 import { useAuth } from '../lib/auth/hooks';
 import { useDeleteComment, useEditComment } from '../lib/comments';
+import { REACTIONS } from '../lib/messages/types';
 import { useMemberLookup } from '../lib/projects';
 import { CommentForm } from './CommentForm';
 import { Markdown } from './Markdown';
 import { RelativeTime } from './RelativeTime';
 import { Avatar } from './shell/Avatar';
 
-interface Comment {
-  id: string;
-  author_id: string;
-  author_display_name: string;
-  body?: string | null;
-  created_at: string;
-  edited_at?: string | null;
-  deleted_at?: string | null;
-}
+type Comment = components['schemas']['Comment'];
 
 interface Props {
   slug: string;
   proposalId: string;
   comment: Comment;
+  /** Start a quote-reply to this comment (decision 0033). */
+  onReply?: () => void;
+  /** Toggle a reaction on this comment. */
+  onToggleReaction?: (emoji: string, active: boolean) => void;
 }
 
-export function CommentItem({ slug, proposalId, comment }: Props) {
+export function CommentItem({ slug, proposalId, comment, onReply, onToggleReaction }: Props) {
   const { _ } = useLingui();
   const { session } = useAuth();
   const edit = useEditComment(slug, proposalId);
   const del = useDeleteComment(slug, proposalId);
   const lookup = useMemberLookup(slug);
   const [editing, setEditing] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const isAuthor = session?.userId === comment.author_id;
   const isDeleted = comment.deleted_at != null;
@@ -49,6 +47,15 @@ export function CommentItem({ slug, proposalId, comment }: Props) {
       </li>
     );
   }
+
+  // Defensive: a comment restored from a persisted pre-0033 cache has no
+  // reactions array yet.
+  const reactions = comment.reactions ?? [];
+
+  const react = (emoji: string, active: boolean) => {
+    onToggleReaction?.(emoji, active);
+    setPickerOpen(false);
+  };
 
   return (
     <li
@@ -118,7 +125,104 @@ export function CommentItem({ slug, proposalId, comment }: Props) {
           }}
         />
       ) : (
-        <Markdown source={comment.body ?? ''} />
+        <>
+          {comment.reply_to && (
+            <div
+              className="rounded-lg border-l-2 px-2.5 py-1.5 text-xs"
+              style={{ borderColor: 'var(--accent)', background: 'var(--surface-2)' }}
+            >
+              <span className="font-semibold" style={{ color: 'var(--accent)' }}>
+                {comment.reply_to.author_display_name}
+              </span>
+              <span className="ml-1.5 truncate" style={{ color: 'var(--ink-muted)' }}>
+                {comment.reply_to.preview || _(t`(no text)`)}
+              </span>
+            </div>
+          )}
+          <Markdown source={comment.body ?? ''} />
+
+          {/* Reaction pills + actions (chat-style; decision 0033) */}
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+            {reactions.map((r) => (
+              <button
+                key={r.emoji}
+                type="button"
+                onClick={() => react(r.emoji, !r.me)}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+                style={{
+                  background: r.me ? 'var(--accent-soft)' : 'var(--surface-2)',
+                  border: `1px solid ${r.me ? 'var(--accent)' : 'var(--border)'}`,
+                  color: 'var(--ink)',
+                  cursor: 'pointer',
+                }}
+                aria-pressed={r.me}
+              >
+                <span>{r.emoji}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.count}</span>
+              </button>
+            ))}
+
+            {onToggleReaction && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen((v) => !v)}
+                  aria-label={_(t`Add reaction`)}
+                  className="inline-flex h-6 items-center rounded-full px-2 text-xs"
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    color: 'var(--ink-soft)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  🙂<span style={{ marginLeft: 1, fontWeight: 600 }}>+</span>
+                </button>
+                {pickerOpen && (
+                  <div
+                    className="absolute bottom-full left-0 z-10 mb-1 flex gap-1 rounded-full px-2 py-1"
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      boxShadow: 'var(--shadow-md)',
+                    }}
+                  >
+                    {REACTIONS.map((emoji) => {
+                      const mine = reactions.some((r) => r.emoji === emoji && r.me);
+                      return (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => react(emoji, !mine)}
+                          aria-label={emoji}
+                          className="rounded-full px-1 text-lg leading-none"
+                          style={{
+                            background: mine ? 'var(--accent-soft)' : 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {onReply && (
+              <button
+                type="button"
+                onClick={onReply}
+                className="ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+                style={{ background: 'transparent', border: 'none', color: 'var(--ink-soft)' }}
+              >
+                <Trans>Reply</Trans>
+              </button>
+            )}
+          </div>
+        </>
       )}
     </li>
   );

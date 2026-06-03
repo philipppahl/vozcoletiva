@@ -164,6 +164,9 @@ async fn route(state: AppState, event: Request) -> Result<Response<lambda_http::
         ("DELETE", ["projects", slug, "proposals", id, "comments", comment_id]) => {
             handlers::comments::delete(&state, event, slug, id, comment_id).await
         }
+        ("PUT", ["projects", slug, "proposals", id, "comments", comment_id, "reactions"]) => {
+            handlers::comments::set_reaction(&state, event, slug, id, comment_id).await
+        }
 
         // Messaging — channels (project-scoped) + DMs (user-pair) +
         // conversations/messages/threads

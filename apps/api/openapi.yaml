@@ -880,6 +880,37 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1/projects/{slug}/proposals/{id}/comments/{commentId}/reactions:
+    put:
+      summary: Toggle a reaction on a comment
+      description: >
+        Add (`active: true`) or remove a fixed reaction (decision 0033).
+        Idempotent; returns the comment's updated reaction tallies.
+      operationId: setCommentReaction
+      tags: [comments]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/ProposalId'
+        - in: path
+          name: commentId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReactionBody' }
+      responses:
+        '200':
+          description: Updated reactions for the comment.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReactionResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1/projects/{slug}/proposals/{id}/withdraw:
     post:
       summary: Withdraw a proposal (author-only, before close)
@@ -2007,7 +2038,7 @@ components:
 
     Comment:
       type: object
-      required: [id, proposal_id, author_id, author_display_name, created_at]
+      required: [id, proposal_id, author_id, author_display_name, created_at, reactions]
       additionalProperties: false
       properties:
         id: { type: string }
@@ -2019,6 +2050,22 @@ components:
         edited_at: { type: string, format: date-time, nullable: true }
         deleted_at: { type: string, format: date-time, nullable: true }
         deleted_by: { type: string, nullable: true }
+        reply_to:
+          oneOf: [{ $ref: '#/components/schemas/CommentReplyTo' }]
+          nullable: true
+        reactions:
+          type: array
+          items: { $ref: '#/components/schemas/Reaction' }
+
+    CommentReplyTo:
+      type: object
+      description: Immutable snapshot of the comment a reply quotes (decision 0033).
+      required: [id, author_display_name, preview]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        author_display_name: { type: string }
+        preview: { type: string }
 
     CommentListResponse:
       type: object
@@ -2035,6 +2082,7 @@ components:
       additionalProperties: false
       properties:
         body: { type: string, minLength: 1, maxLength: 10000 }
+        reply_to_id: { type: string, nullable: true }
 
     UpdateCommentBody:
       type: object

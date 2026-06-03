@@ -1,12 +1,28 @@
 import { Trans } from '@lingui/macro';
-
-import { useComments, useCreateComment } from '../lib/comments';
+import type { components } from '@vozcoletiva/api-client';
+import { useState } from 'react';
+import {
+  type CommentReplyTarget,
+  useComments,
+  useCreateComment,
+  useToggleCommentReaction,
+} from '../lib/comments';
 import { CommentForm } from './CommentForm';
 import { CommentItem } from './CommentItem';
+
+type Comment = components['schemas']['Comment'];
+
+/** A one-line preview of a comment, for the reply quote header. */
+function previewOf(c: Comment): string {
+  const flat = (c.body ?? '').split(/\s+/).filter(Boolean).join(' ');
+  return flat.length > 120 ? `${flat.slice(0, 119)}…` : flat;
+}
 
 export function Comments({ slug, proposalId }: { slug: string; proposalId: string }) {
   const comments = useComments(slug, proposalId);
   const create = useCreateComment(slug, proposalId);
+  const toggleReaction = useToggleCommentReaction(slug, proposalId);
+  const [replyTo, setReplyTo] = useState<CommentReplyTarget | null>(null);
 
   return (
     <section className="flex flex-col gap-4">
@@ -37,7 +53,22 @@ export function Comments({ slug, proposalId }: { slug: string; proposalId: strin
       {comments.data && comments.data.comments.length > 0 && (
         <ul className="flex flex-col gap-3">
           {comments.data.comments.map((c) => (
-            <CommentItem key={c.id} slug={slug} proposalId={proposalId} comment={c} />
+            <CommentItem
+              key={c.id}
+              slug={slug}
+              proposalId={proposalId}
+              comment={c}
+              onReply={() =>
+                setReplyTo({
+                  id: c.id,
+                  author_display_name: c.author_display_name,
+                  preview: previewOf(c),
+                })
+              }
+              onToggleReaction={(emoji, active) =>
+                toggleReaction.mutate({ commentId: c.id, emoji, active })
+              }
+            />
           ))}
         </ul>
       )}
@@ -46,8 +77,11 @@ export function Comments({ slug, proposalId }: { slug: string; proposalId: strin
           after the proposal closes. (User decision, 2026-05-19.) */}
       <CommentForm
         busy={create.isPending}
+        replyingTo={replyTo}
+        onCancelReply={() => setReplyTo(null)}
         onSubmit={async (body) => {
-          await create.mutateAsync(body);
+          await create.mutateAsync({ body, replyTo });
+          setReplyTo(null);
         }}
       />
     </section>

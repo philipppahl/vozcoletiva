@@ -1,6 +1,6 @@
 import { Trans, t } from '@lingui/macro';
 import { useLingui } from '@lingui/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Button } from './ui/Button';
 
@@ -12,6 +12,9 @@ interface CommentFormProps {
   onSubmit: (body: string) => Promise<void> | void;
   onCancel?: () => void;
   autoFocus?: boolean;
+  /** Quote-reply banner above the field (decision 0033). */
+  replyingTo?: { author_display_name: string; preview: string } | null;
+  onCancelReply?: () => void;
 }
 
 export function CommentForm({
@@ -22,10 +25,18 @@ export function CommentForm({
   onSubmit,
   onCancel,
   autoFocus,
+  replyingTo,
+  onCancelReply,
 }: CommentFormProps) {
   const { _ } = useLingui();
   const [body, setBody] = useState(initialBody);
   const [error, setError] = useState<string | null>(null);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  // Focus the field when a reply target is picked, so you can type straight away.
+  useEffect(() => {
+    if (replyingTo) ref.current?.focus();
+  }, [replyingTo]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,7 +61,38 @@ export function CommentForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      {replyingTo && (
+        <div
+          className="flex items-center gap-2 rounded-xl border-l-2 px-3 py-2 text-xs"
+          style={{
+            background: 'var(--surface-2)',
+            borderColor: 'var(--accent)',
+            color: 'var(--ink-soft)',
+          }}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold" style={{ color: 'var(--accent)' }}>
+              <Trans>Replying to {replyingTo.author_display_name}</Trans>
+            </div>
+            <div className="truncate" style={{ color: 'var(--ink-muted)' }}>
+              {replyingTo.preview || <Trans>(no text)</Trans>}
+            </div>
+          </div>
+          {onCancelReply && (
+            <button
+              type="button"
+              onClick={onCancelReply}
+              aria-label={_(t`Cancel reply`)}
+              className="flex-shrink-0 rounded-full px-2 py-1 text-sm font-semibold"
+              style={{ background: 'transparent', border: 'none', color: 'var(--ink-muted)' }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
       <textarea
+        ref={ref}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder={placeholder ?? _(t`Write a comment… (Markdown supported)`)}

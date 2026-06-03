@@ -31,7 +31,8 @@ export const queryClient = new QueryClient({
  * cache from an older bundle is discarded rather than rendered. A new deploy
  * with unchanged shapes keeps the cache (the whole point of persistence).
  */
-const CACHE_VERSION = '1';
+// '2': Comment DTO gained reply_to + reactions (decision 0033).
+const CACHE_VERSION = '2';
 const PERSIST_KEY = 'voz.rq';
 
 const persister =

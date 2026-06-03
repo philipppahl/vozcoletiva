@@ -133,6 +133,7 @@ async fn comment_notifies_the_proposal_author() {
         &bob,
         "Bob",
         CommentBody::parse("Nice idea".to_string()).unwrap(),
+        None,
     )
     .await
     .unwrap();

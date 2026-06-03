@@ -85,7 +85,12 @@ export function toMemberDto(userId: string, role: Member['role'], joinedAt: stri
 }
 
 export function toCommentDto(c: MockComment): Comment {
-  const author = getDb().users.get(c.authorId);
+  const db = getDb();
+  const author = db.users.get(c.authorId);
+  const meId = db.currentUserId;
+  const reactions = Object.entries(c.reactions ?? {})
+    .filter(([, ids]) => ids.length > 0)
+    .map(([emoji, ids]) => ({ emoji, count: ids.length, me: !!meId && ids.includes(meId) }));
   return {
     id: c.id,
     proposal_id: c.proposalId,
@@ -96,6 +101,14 @@ export function toCommentDto(c: MockComment): Comment {
     edited_at: c.editedAt ?? null,
     deleted_at: c.deletedAt ?? null,
     deleted_by: c.deletedBy ?? null,
+    reply_to: c.replyTo
+      ? {
+          id: c.replyTo.id,
+          author_display_name: c.replyTo.authorDisplayName,
+          preview: c.replyTo.preview,
+        }
+      : null,
+    reactions,
   };
 }
 

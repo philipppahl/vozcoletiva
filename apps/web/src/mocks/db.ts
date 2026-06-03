@@ -113,6 +113,9 @@ export interface MockComment {
   editedAt?: string | null;
   deletedAt?: string | null;
   deletedBy?: string | null;
+  // chat-style replies + reactions (decision 0033)
+  replyTo?: { id: string; authorDisplayName: string; preview: string } | null;
+  reactions?: Record<string, string[]>; // emoji → userIds who reacted
 }
 
 // ── conversations + messages (M2 — chat) ───────────────────────────────────

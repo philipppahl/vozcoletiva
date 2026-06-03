@@ -628,6 +628,26 @@ export interface paths {
         patch: operations["updateComment"];
         trace?: never;
     };
+    "/v1/projects/{slug}/proposals/{id}/comments/{commentId}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Toggle a reaction on a comment
+         * @description Add (`active: true`) or remove a fixed reaction (decision 0033). Idempotent; returns the comment's updated reaction tallies.
+         */
+        put: operations["setCommentReaction"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{slug}/proposals/{id}/tree": {
         parameters: {
             query?: never;
@@ -810,12 +830,21 @@ export interface components {
             edited_at?: string | null;
             id: string;
             proposal_id: string;
+            reactions: components["schemas"]["Reaction"][];
+            reply_to?: components["schemas"]["CommentReplyTo"] | null;
         };
         CommentListResponse: {
             comments: components["schemas"]["Comment"][];
         };
+        /** @description Immutable snapshot of the comment a reply quotes (decision 0033). */
+        CommentReplyTo: {
+            author_display_name: string;
+            id: string;
+            preview: string;
+        };
         CreateCommentBody: {
             body: string;
+            reply_to_id?: string | null;
         };
         CreateProjectBody: {
             name: string;
@@ -2626,6 +2655,37 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+        };
+    };
+    setCommentReaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                commentId: string;
+                id: components["parameters"]["ProposalId"];
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactionBody"];
+            };
+        };
+        responses: {
+            /** @description Updated reactions for the comment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReactionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getProposalTree: {
