@@ -88,7 +88,7 @@ function DmDetailPage() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col"
+      className="flex h-dvh flex-col overflow-hidden"
       style={{ background: 'var(--bg)', color: 'var(--ink)' }}
     >
       <ConversationHeader
