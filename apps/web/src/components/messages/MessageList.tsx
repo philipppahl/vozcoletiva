@@ -43,6 +43,40 @@ export function MessageList({
   const lastIdRef = useRef<string | null>(null);
   const wasNearBottomRef = useRef(true);
   const [actionTarget, setActionTarget] = useState<Message | null>(null);
+  // The message currently in free text-selection mode (decision 0031).
+  const [selectableId, setSelectableId] = useState<string | null>(null);
+
+  // Pre-select the message's text on entering select mode, so the OS handles
+  // appear and the user can refine + copy.
+  useEffect(() => {
+    if (!selectableId) return undefined;
+    const raf = requestAnimationFrame(() => {
+      const el = containerRef.current?.querySelector<HTMLElement>(
+        `[data-mid="${CSS.escape(selectableId)}"] [data-msgtext]`,
+      );
+      if (!el) return;
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selectableId]);
+
+  // A tap outside the selected message exits select mode (back to long-press).
+  useEffect(() => {
+    if (!selectableId) return undefined;
+    const onDown = (e: PointerEvent) => {
+      const el = containerRef.current?.querySelector(`[data-mid="${CSS.escape(selectableId)}"]`);
+      if (el && e.target instanceof Node && !el.contains(e.target)) {
+        setSelectableId(null);
+        window.getSelection()?.removeAllRanges();
+      }
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, [selectableId]);
 
   // Scroll to + briefly flash a message (tapping a quote header jumps here).
   const jumpTo = (id: string) => {
@@ -121,9 +155,13 @@ export function MessageList({
             onRetry={onRetry}
             avatarUrl={avatarFor?.(it.message.author_id)}
             onReply={onReply}
-            onLongPress={setActionTarget}
+            onLongPress={(m) => {
+              setSelectableId(null);
+              setActionTarget(m);
+            }}
             onJumpTo={jumpTo}
             onToggleReaction={onToggleReaction}
+            selectable={it.message.id === selectableId}
           />
         );
       })}
@@ -133,6 +171,7 @@ export function MessageList({
         onReply={(m) => onReply?.(m)}
         onOpenThread={onOpenThread}
         onToggleReaction={onToggleReaction}
+        onSelectText={(m) => setSelectableId(m.id)}
       />
     </div>
   );

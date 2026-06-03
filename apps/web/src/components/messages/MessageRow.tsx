@@ -31,6 +31,8 @@ interface MessageRowProps {
   onJumpTo?: (messageId: string) => void;
   /** Toggle a reaction pill (decision 0031). */
   onToggleReaction?: (messageId: string, emoji: string, active: boolean) => void;
+  /** This message is in free text-selection mode (gestures off, text selectable). */
+  selectable?: boolean;
 }
 
 /**
@@ -51,11 +53,13 @@ export function MessageRow({
   onLongPress,
   onJumpTo,
   onToggleReaction,
+  selectable = false,
 }: MessageRowProps) {
   const { session } = useAuth();
   const gestures = useMessageGestures({
-    onLongPress: onLongPress ? () => onLongPress(message) : undefined,
-    onReply: onReply ? () => onReply(message) : undefined,
+    // In select mode, gestures are off so a drag selects text instead of swiping.
+    onLongPress: !selectable && onLongPress ? () => onLongPress(message) : undefined,
+    onReply: !selectable && onReply ? () => onReply(message) : undefined,
   });
   const own = !!session && message.author_id === session.userId;
   const pending = message._optimistic === 'pending';
@@ -124,6 +128,7 @@ export function MessageRow({
 
         <div
           data-mid={message.id}
+          className={selectable ? 'voz-selectable' : undefined}
           style={{
             background: mediaOnly ? 'transparent' : own ? 'var(--accent)' : 'var(--surface-2)',
             color: own ? 'var(--accent-ink)' : 'var(--ink)',
@@ -142,7 +147,11 @@ export function MessageRow({
               onJump={onJumpTo ? () => onJumpTo(message.reply_to!.id) : undefined}
             />
           )}
-          {hasText && <MessageMarkdown body={message.body} projectSlug={projectSlug} own={own} />}
+          {hasText && (
+            <span data-msgtext>
+              <MessageMarkdown body={message.body} projectSlug={projectSlug} own={own} />
+            </span>
+          )}
           {inlineTime && (
             <span
               className="select-none"

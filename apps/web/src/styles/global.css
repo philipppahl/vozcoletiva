@@ -183,6 +183,16 @@ body {
   }
 }
 
+/* "Select text" from the message menu re-enables selection for one bubble,
+   overriding the touch default above (decision 0031). */
+.voz-selectable,
+.voz-selectable * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+  cursor: text;
+}
+
 /* Top sheet open/close animations for Radix Dialog. */
 @keyframes voz-sheet-in {
   from { transform: translateY(-100%); }

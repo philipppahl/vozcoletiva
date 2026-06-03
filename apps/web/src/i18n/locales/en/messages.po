@@ -1278,6 +1278,10 @@ msgstr "Searching…"
 msgid "See all →"
 msgstr "See all →"
 
+#: src/components/messages/MessageActions.tsx
+msgid "Select text"
+msgstr "Select text"
+
 #: src/components/messages/MessageComposer.tsx
 msgid "Send message"
 msgstr "Send message"

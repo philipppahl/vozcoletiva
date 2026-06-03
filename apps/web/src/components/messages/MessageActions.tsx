@@ -12,6 +12,8 @@ interface MessageActionsProps {
   onOpenThread?: (messageId: string) => void;
   /** Toggle a reaction (decision 0031). */
   onToggleReaction?: (messageId: string, emoji: string, active: boolean) => void;
+  /** Enter free text-selection mode for this message. */
+  onSelectText?: (m: Message) => void;
 }
 
 /**
@@ -24,6 +26,7 @@ export function MessageActions({
   onReply,
   onOpenThread,
   onToggleReaction,
+  onSelectText,
 }: MessageActionsProps) {
   const m = message;
   const hasText = !!m?.body.trim();
@@ -91,6 +94,16 @@ export function MessageActions({
             label={<Trans>Copy text</Trans>}
             onClick={() => {
               if (m) void navigator.clipboard?.writeText(m.body).catch(() => {});
+              onClose();
+            }}
+          />
+        )}
+        {hasText && onSelectText && (
+          <ActionRow
+            icon={<SelectIcon />}
+            label={<Trans>Select text</Trans>}
+            onClick={() => {
+              if (m) onSelectText(m);
               onClose();
             }}
           />
@@ -167,6 +180,20 @@ function CopyIcon() {
         strokeWidth="1.7"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function SelectIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path d="M9 8.5v7M12 8.5v7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }
