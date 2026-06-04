@@ -68,15 +68,15 @@ export function CommentItem({
   };
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       <header
-        className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs"
+        className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs"
         style={{ color: 'var(--text-muted)' }}
       >
         <Avatar
           displayName={comment.author_display_name}
           imageUrl={lookup(comment.author_id)?.avatar_url}
-          size={compact ? 18 : 22}
+          size={compact ? 18 : 20}
         />
         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
           {comment.author_display_name}
@@ -152,12 +152,12 @@ export function CommentItem({
               </span>
             </div>
           )}
-          <div style={{ fontSize: compact ? 14 : 15 }}>
+          <div style={{ fontSize: 14, lineHeight: 1.45 }}>
             <Markdown source={comment.body ?? ''} />
           </div>
 
           {/* Reaction pills + actions (chat-style; decision 0033) */}
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
             {reactions.map((r) => (
               <button
                 key={r.emoji}

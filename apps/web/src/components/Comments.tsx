@@ -114,14 +114,14 @@ export function Comments({ slug, proposalId, composing, onComposingChange }: Com
       )}
 
       {threads.length > 0 && (
-        <ul className="flex flex-col gap-2.5">
+        <ul className="flex flex-col gap-2">
           {threads.map(({ root, replies }) => (
             <li
               key={root.id}
               className="rounded-2xl border"
               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
             >
-              <div className="p-3">
+              <div className="px-3 py-2.5">
                 <CommentItem
                   slug={slug}
                   proposalId={proposalId}
@@ -133,7 +133,7 @@ export function Comments({ slug, proposalId, composing, onComposingChange }: Com
                 />
               </div>
               {replies.length > 0 && (
-                <ul className="flex flex-col gap-2 pb-2 pl-3 pr-3">
+                <ul className="flex flex-col gap-1.5 pb-2.5 pl-3 pr-3">
                   {replies.map((rep) => (
                     <li
                       key={rep.id}
