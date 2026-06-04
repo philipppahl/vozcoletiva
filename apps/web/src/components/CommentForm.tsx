@@ -95,6 +95,15 @@ export function CommentForm({
         ref={ref}
         value={body}
         onChange={(e) => setBody(e.target.value)}
+        onFocus={() => {
+          // Keep the field visible above the soft keyboard. The discussion
+          // scrolls inside the shell; wait for the keyboard to settle, then
+          // bring the composer into the (now shorter) viewport.
+          window.setTimeout(
+            () => ref.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }),
+            300,
+          );
+        }}
         placeholder={placeholder ?? _(t`Write a comment… (Markdown supported)`)}
         className="min-h-[88px] rounded-xl border px-3 py-2 text-base outline-none"
         style={{

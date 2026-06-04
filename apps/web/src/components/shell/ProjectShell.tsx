@@ -3,6 +3,7 @@ import { type ReactNode, useState } from 'react';
 
 import { useUnreadByProject } from '../../lib/inbox';
 import { useProject } from '../../lib/projects';
+import { useKeyboardInset } from '../../lib/useKeyboardInset';
 import { ProjectHeader } from './ProjectHeader';
 import { ProjectTopSheet } from './ProjectTopSheet';
 import { type Tab, TabBar } from './TabBar';
@@ -43,6 +44,11 @@ export function ProjectShell({
   // tab bar still slide in/out on scroll, now driven by this container.
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const hidden = useHideOnScroll(scrollEl);
+  // While the soft keyboard is open (composing a comment), keep the tab bar
+  // hidden — it otherwise covers the composer and pops back on scroll-up. The
+  // header keeps its normal scroll behaviour.
+  const keyboardOpen = useKeyboardInset() > 0;
+  const footerHidden = hidden || keyboardOpen;
   const unreadByProject = useUnreadByProject();
   const otherUnread = Object.entries(unreadByProject).some(([s, n]) => s !== slug && n > 0);
 
@@ -67,7 +73,7 @@ export function ProjectShell({
           onProjectClick={() => setSheetOpen(true)}
         />
         <main className="flex flex-1 flex-col">{children}</main>
-        <TabBar slug={slug} current={tab} hidden={hidden} />
+        <TabBar slug={slug} current={tab} hidden={footerHidden} />
       </div>
       <ProjectTopSheet open={sheetOpen} onOpenChange={setSheetOpen} currentSlug={slug} />
     </div>
