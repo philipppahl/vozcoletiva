@@ -1,4 +1,5 @@
 pub mod category;
+pub mod channel;
 pub mod code;
 pub mod comment;
 pub mod display_name;

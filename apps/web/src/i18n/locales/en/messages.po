@@ -339,6 +339,14 @@ msgstr "Cancel reply"
 msgid "Change photo"
 msgstr "Change photo"
 
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Channel name"
+msgstr "Channel name"
+
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Channel name is required."
+msgstr "Channel name is required."
+
 #: src/components/messages/ChannelListSection.tsx
 #: src/components/search/SearchResults.tsx
 msgid "Channels"
@@ -481,6 +489,10 @@ msgstr "Could not save the comment. Please try again."
 msgid "Couldn't change notifications. Please try again."
 msgstr "Couldn't change notifications. Please try again."
 
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Couldn't create the channel. Please try again."
+msgstr "Couldn't create the channel. Please try again."
+
 #: src/components/HandleGate.tsx
 #: src/routes/preferences.tsx
 msgid "Couldn't save your handle. Please try again."
@@ -505,6 +517,10 @@ msgstr "Create a project"
 msgid "Create an account"
 msgstr "Create an account"
 
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Create channel"
+msgstr "Create channel"
+
 #: src/routes/projects.new.tsx
 msgid "Create project"
 msgstr "Create project"
@@ -512,6 +528,10 @@ msgstr "Create project"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Create proposal"
 msgstr "Create proposal"
+
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Creating…"
+msgstr "Creating…"
 
 #: src/components/shell/ProjectTopSheet.tsx
 msgid "Current"
@@ -553,6 +573,10 @@ msgstr "Delete this comment?"
 #: src/routes/preferences.tsx
 msgid "Deliberations you voted in"
 msgstr "Deliberations you voted in"
+
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Description (optional)"
+msgstr "Description (optional)"
 
 #: src/components/messages/ConversationHeader.tsx
 msgid "Direct message"
@@ -863,6 +887,10 @@ msgstr "New"
 #: src/routes/p.$slug.proposals.new.tsx
 #~ msgid "New body (Markdown)"
 #~ msgstr "New body (Markdown)"
+
+#: src/components/messages/NewChannelSheet.tsx
+msgid "New channel"
+msgstr "New channel"
 
 #: src/components/messages/MemberPickerSheet.tsx
 msgid "New direct message"

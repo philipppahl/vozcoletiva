@@ -325,6 +325,29 @@ export function useStartDm() {
   });
 }
 
+export interface CreateChannelInput {
+  name: string;
+  description?: string;
+}
+
+/** Create a channel in a project (decision 0034). Moderators+ only — the API
+ *  enforces it. Returns the new channel so the caller can navigate into it. */
+export function useCreateChannel(slug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateChannelInput) => {
+      const { data, error } = await apiClient.POST('/v1/projects/{slug}/channels', {
+        params: { path: { slug } },
+        body: { name: input.name, description: input.description ?? null },
+      });
+      return unwrap(data, error);
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: qk.projects.channels(slug) });
+    },
+  });
+}
+
 // ── message cache helpers ──────────────────────────────────────────────────
 
 function setMessages(

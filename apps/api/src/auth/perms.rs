@@ -28,6 +28,22 @@ pub async fn require_member(
     }
 }
 
+/// Ensure the user is a Moderator or above (Owner / Admin / Moderator) of
+/// `slug`. Returns the project + role.
+pub async fn require_moderator(
+    state: &AppState,
+    user: &AuthenticatedUser,
+    slug: &str,
+) -> Result<ProjectAuth, AppError> {
+    let auth = require_member(state, user, slug).await?;
+    if auth.role.rank() < Role::Moderator.rank() {
+        return Err(AppError::Forbidden(
+            "only moderators and above may perform this action".into(),
+        ));
+    }
+    Ok(auth)
+}
+
 /// Ensure the user is an Owner or Admin of `slug`. Returns the project + role.
 pub async fn require_admin(
     state: &AppState,

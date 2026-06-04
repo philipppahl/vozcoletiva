@@ -464,7 +464,8 @@ export interface paths {
         /** List a project's channels */
         get: operations["listChannels"];
         put?: never;
-        post?: never;
+        /** Create a channel (moderators and above) */
+        post: operations["createChannel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -841,6 +842,10 @@ export interface components {
             author_display_name: string;
             id: string;
             preview: string;
+        };
+        CreateChannelBody: {
+            description?: string | null;
+            name: string;
         };
         CreateCommentBody: {
             body: string;
@@ -2300,6 +2305,44 @@ export interface operations {
             };
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    createChannel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: components["parameters"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateChannelBody"];
+            };
+        };
+        responses: {
+            /** @description Channel created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Channel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description A channel with this name already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
         };
     };
     listDocuments: {

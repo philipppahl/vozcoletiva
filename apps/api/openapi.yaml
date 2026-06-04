@@ -998,6 +998,32 @@ paths:
               schema: { $ref: '#/components/schemas/ChannelListResponse' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      summary: Create a channel (moderators and above)
+      operationId: createChannel
+      tags: [messaging]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateChannelBody' }
+      responses:
+        '201':
+          description: Channel created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Channel' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A channel with this name already exists.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 
   /v1/projects/{slug}/search:
     get:
@@ -1311,6 +1337,14 @@ components:
         channels:
           type: array
           items: { $ref: '#/components/schemas/Channel' }
+
+    CreateChannelBody:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 30 }
+        description: { type: string, nullable: true }
 
     DmParticipant:
       type: object

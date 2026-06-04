@@ -415,6 +415,47 @@ pub async fn list_channels(
     .await
 }
 
+#[derive(Debug, Deserialize)]
+struct CreateChannelBody {
+    name: String,
+    #[serde(default)]
+    description: Option<String>,
+}
+
+/// Create a channel in a project (decision 0034). Moderators and above only;
+/// rejects a blank/too-long or duplicate name.
+pub async fn create_channel(
+    state: &AppState,
+    req: Request,
+    slug: &str,
+) -> Result<Response<Body>, Error> {
+    super::json_or_error(
+        async {
+            let user = authenticate(state, &req).await?;
+            let auth = perms::require_moderator(state, &user, slug).await?;
+            let body: CreateChannelBody = parse_body(&req)?;
+            let name = crate::domain::channel::validate_name(&body.name)?;
+            let description = body
+                .description
+                .as_deref()
+                .map(str::trim)
+                .filter(|d| !d.is_empty())
+                .map(String::from);
+            let c = conversation::create_channel(state, &auth.project.id, &name, description).await?;
+            tracing::info!(
+                event = "channel_created",
+                project_id = %auth.project.id,
+                channel_id = %c.id,
+                by_user = %user.user_id,
+            );
+            let member_count = membership::list(state, &auth.project.id).await?.len() as i64;
+            channel_view(state, &user.user_id, c, member_count).await
+        },
+        201,
+    )
+    .await
+}
+
 pub async fn get_conversation(
     state: &AppState,
     req: Request,

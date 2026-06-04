@@ -134,6 +134,49 @@ pub fn pointer_item(c: &Conversation, created_at: &str) -> HashMap<String, Attri
     m
 }
 
+/// Create a channel in a project: writes the META + pointer items together.
+/// Rejects a name that collides (case-insensitively) with an existing channel.
+/// (decision 0034)
+pub async fn create_channel(
+    state: &AppState,
+    project_id: &str,
+    name: &str,
+    description: Option<String>,
+) -> Result<Conversation, AppError> {
+    let lower = name.to_lowercase();
+    if list_channels(state, project_id)
+        .await?
+        .iter()
+        .any(|c| c.name.to_lowercase() == lower)
+    {
+        return Err(AppError::Conflict(
+            "a channel with this name already exists".into(),
+        ));
+    }
+
+    let c = new_channel(project_id, name, description);
+    let now = chrono::Utc::now().to_rfc3339();
+    let meta = Put::builder()
+        .table_name(&state.table_name)
+        .set_item(Some(meta_item(&c, &now)))
+        .build()
+        .map_err(|e| AppError::Internal(Box::new(e)))?;
+    let ptr = Put::builder()
+        .table_name(&state.table_name)
+        .set_item(Some(pointer_item(&c, &now)))
+        .build()
+        .map_err(|e| AppError::Internal(Box::new(e)))?;
+    state
+        .ddb
+        .transact_write_items()
+        .transact_items(TransactWriteItem::builder().put(meta).build())
+        .transact_items(TransactWriteItem::builder().put(ptr).build())
+        .send()
+        .await
+        .map_err(|e| AppError::Internal(Box::new(e.into_service_error())))?;
+    Ok(c)
+}
+
 pub async fn list_channels(
     state: &AppState,
     project_id: &str,

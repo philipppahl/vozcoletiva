@@ -339,6 +339,14 @@ msgstr "Cancelar resposta"
 msgid "Change photo"
 msgstr "Alterar foto"
 
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Channel name"
+msgstr "Nome do canal"
+
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Channel name is required."
+msgstr "O nome do canal Ã© obrigatÃ³rio."
+
 #: src/components/messages/ChannelListSection.tsx
 #: src/components/search/SearchResults.tsx
 msgid "Channels"
@@ -481,6 +489,10 @@ msgstr "Não foi possível guardar o comentário. Tenta novamente."
 msgid "Couldn't change notifications. Please try again."
 msgstr "Não foi possível alterar as notificações. Tente novamente."
 
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Couldn't create the channel. Please try again."
+msgstr "NÃ£o foi possÃ­vel criar o canal. Tente novamente."
+
 #: src/components/HandleGate.tsx
 #: src/routes/preferences.tsx
 msgid "Couldn't save your handle. Please try again."
@@ -505,6 +517,10 @@ msgstr "Criar um projeto"
 msgid "Create an account"
 msgstr "Criar uma conta"
 
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Create channel"
+msgstr "Criar canal"
+
 #: src/routes/projects.new.tsx
 msgid "Create project"
 msgstr "Criar projeto"
@@ -512,6 +528,10 @@ msgstr "Criar projeto"
 #: src/routes/p.$slug.proposals.new.tsx
 msgid "Create proposal"
 msgstr "Criar proposta"
+
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Creating…"
+msgstr "A criar…"
 
 #: src/components/shell/ProjectTopSheet.tsx
 msgid "Current"
@@ -553,6 +573,10 @@ msgstr "Eliminar este comentário?"
 #: src/routes/preferences.tsx
 msgid "Deliberations you voted in"
 msgstr "Deliberações em que você votou"
+
+#: src/components/messages/NewChannelSheet.tsx
+msgid "Description (optional)"
+msgstr "DescriÃ§Ã£o (opcional)"
 
 #: src/components/messages/ConversationHeader.tsx
 msgid "Direct message"
@@ -863,6 +887,10 @@ msgstr "Nova"
 #: src/routes/p.$slug.proposals.new.tsx
 #~ msgid "New body (Markdown)"
 #~ msgstr "Novo conteúdo (Markdown)"
+
+#: src/components/messages/NewChannelSheet.tsx
+msgid "New channel"
+msgstr "Novo canal"
 
 #: src/components/messages/MemberPickerSheet.tsx
 msgid "New direct message"
