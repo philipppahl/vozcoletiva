@@ -1,4 +1,5 @@
-import { Trans } from '@lingui/macro';
+import { Trans, t } from '@lingui/macro';
+import { useLingui } from '@lingui/react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
@@ -12,6 +13,7 @@ import { ProjectShell } from '../components/shell/ProjectShell';
 import { TimeRemaining } from '../components/TimeRemaining';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Fab } from '../components/ui/Fab';
 import { Segmented } from '../components/ui/Segmented';
 import { SwipePager } from '../components/ui/SwipePager';
 import { VoteControl } from '../components/VoteControl';
@@ -36,6 +38,7 @@ export const Route = createFileRoute('/p/$slug/proposals/$id')({
 type Pane = 'proposal' | 'discussion';
 
 function ProposalDetailPage() {
+  const { _ } = useLingui();
   const { slug, id } = Route.useParams();
   const navigate = useNavigate();
   const proposal = useProposal(slug, id);
@@ -45,6 +48,9 @@ function ProposalDetailPage() {
   const withdraw = useWithdrawProposal(slug, id);
   const { session } = useAuth();
   const [pane, setPane] = useState<Pane>('proposal');
+  // The discussion composer opens on demand from the "+" (or a Reply); while
+  // it's open the FAB steps aside.
+  const [composing, setComposing] = useState(false);
 
   const treeList = tree.data?.proposals ?? (proposal.data ? [proposal.data] : []);
   const p = proposal.data;
@@ -83,6 +89,11 @@ function ProposalDetailPage() {
       }
       subsection={subsection}
       onBack={onBack}
+      fab={
+        p && pane === 'discussion' && !composing ? (
+          <Fab onClick={() => setComposing(true)} label={_(t`Add comment`)} />
+        ) : undefined
+      }
     >
       {proposal.isLoading ? (
         <p className="px-4 pt-4" style={{ color: 'var(--ink-muted)' }}>
@@ -120,7 +131,12 @@ function ProposalDetailPage() {
               }
             />,
             <section key="discussion" className="px-4 pt-5 pb-28">
-              <Comments slug={slug} proposalId={p.id} />
+              <Comments
+                slug={slug}
+                proposalId={p.id}
+                composing={composing}
+                onComposingChange={setComposing}
+              />
             </section>,
           ]}
         />

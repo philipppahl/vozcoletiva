@@ -10,6 +10,7 @@ import { ProjectShell } from '../components/shell/ProjectShell';
 import { TallyBar } from '../components/TallyBar';
 import { TimeRemaining } from '../components/TimeRemaining';
 import { Card } from '../components/ui/Card';
+import { fabClassName, fabStyle, PlusIcon } from '../components/ui/Fab';
 import { useCategories } from '../lib/categories';
 import { useProposals } from '../lib/proposals';
 import type { ExtendedProposal } from '../lib/proposals/types';
@@ -26,15 +27,29 @@ export const Route = createFileRoute('/p/$slug/')({
 });
 
 function ProjectOverview() {
+  const { _ } = useLingui();
   const { slug } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
   const categories = useCategories(slug);
+  const newProposalLabel = _(t`New proposal`);
   return (
     <ProjectShell
       slug={slug}
       tab="proposals"
       pageTitle={<Trans>Proposals</Trans>}
+      fab={
+        <Link
+          to="/p/$slug/proposals/new"
+          params={{ slug }}
+          aria-label={newProposalLabel}
+          title={newProposalLabel}
+          className={fabClassName}
+          style={fabStyle}
+        >
+          <PlusIcon />
+        </Link>
+      }
       subsection={
         categories.data ? (
           <CategoryChips
@@ -91,8 +106,6 @@ function buildDeliberations(all: ExtendedProposal[]): Deliberation[] {
 }
 
 function ProposalsList({ slug, categoryFilter }: { slug: string; categoryFilter: string | null }) {
-  const { _ } = useLingui();
-  const newProposalLabel = _(t`New proposal`);
   const proposals = useProposals(slug);
 
   if (proposals.isLoading) {
@@ -153,29 +166,6 @@ function ProposalsList({ slug, categoryFilter }: { slug: string; categoryFilter:
           )}
         </>
       )}
-
-      <Link
-        to="/p/$slug/proposals/new"
-        params={{ slug }}
-        aria-label={newProposalLabel}
-        title={newProposalLabel}
-        className="fixed right-5 bottom-[max(env(safe-area-inset-bottom),18px)] z-10 inline-flex h-14 w-14 items-center justify-center rounded-full"
-        style={{
-          marginBottom: 64,
-          background: 'var(--accent)',
-          color: 'var(--accent-ink)',
-          boxShadow: 'var(--shadow-lg)',
-        }}
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M12 5v14M5 12h14"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-          />
-        </svg>
-      </Link>
     </section>
   );
 }

@@ -57,7 +57,16 @@ function groupThreads(all: Comment[]): Array<{ root: Comment; replies: Comment[]
   }));
 }
 
-export function Comments({ slug, proposalId }: { slug: string; proposalId: string }) {
+interface CommentsProps {
+  slug: string;
+  proposalId: string;
+  /** Whether the on-demand composer is open (opened by the "+" FAB or a Reply,
+   *  owned by the proposal page so the FAB can toggle it). */
+  composing: boolean;
+  onComposingChange: (open: boolean) => void;
+}
+
+export function Comments({ slug, proposalId, composing, onComposingChange }: CommentsProps) {
   const comments = useComments(slug, proposalId);
   const create = useCreateComment(slug, proposalId);
   const toggleReaction = useToggleCommentReaction(slug, proposalId);
@@ -66,11 +75,19 @@ export function Comments({ slug, proposalId }: { slug: string; proposalId: strin
   const list = comments.data?.comments ?? [];
   const threads = useMemo(() => groupThreads(list), [list]);
 
-  const replyTarget = (c: Comment): CommentReplyTarget => ({
-    id: c.id,
-    author_display_name: c.author_display_name,
-    preview: previewOf(c),
-  });
+  const startReply = (c: Comment) => {
+    setReplyTo({
+      id: c.id,
+      author_display_name: c.author_display_name,
+      preview: previewOf(c),
+    });
+    onComposingChange(true);
+  };
+
+  const closeComposer = () => {
+    onComposingChange(false);
+    setReplyTo(null);
+  };
 
   return (
     <section className="flex flex-col gap-4">
@@ -109,7 +126,7 @@ export function Comments({ slug, proposalId }: { slug: string; proposalId: strin
                   slug={slug}
                   proposalId={proposalId}
                   comment={root}
-                  onReply={() => setReplyTo(replyTarget(root))}
+                  onReply={() => startReply(root)}
                   onToggleReaction={(emoji, active) =>
                     toggleReaction.mutate({ commentId: root.id, emoji, active })
                   }
@@ -128,7 +145,7 @@ export function Comments({ slug, proposalId }: { slug: string; proposalId: strin
                         slug={slug}
                         proposalId={proposalId}
                         comment={rep}
-                        onReply={() => setReplyTo(replyTarget(rep))}
+                        onReply={() => startReply(rep)}
                         onToggleReaction={(emoji, active) =>
                           toggleReaction.mutate({ commentId: rep.id, emoji, active })
                         }
@@ -142,17 +159,21 @@ export function Comments({ slug, proposalId }: { slug: string; proposalId: strin
         </ul>
       )}
 
-      {/* Composer is always visible — post-decision discussion stays open even
-          after the proposal closes. (User decision, 2026-05-19.) */}
-      <CommentForm
-        busy={create.isPending}
-        replyingTo={replyTo}
-        onCancelReply={() => setReplyTo(null)}
-        onSubmit={async (body) => {
-          await create.mutateAsync({ body, replyTo });
-          setReplyTo(null);
-        }}
-      />
+      {/* The composer opens on demand from the "+" FAB or a Reply (the field
+          then sits above the keyboard, with the footer hidden). */}
+      {composing && (
+        <CommentForm
+          autoFocus
+          busy={create.isPending}
+          replyingTo={replyTo}
+          onCancel={closeComposer}
+          onCancelReply={() => setReplyTo(null)}
+          onSubmit={async (body) => {
+            await create.mutateAsync({ body, replyTo });
+            closeComposer();
+          }}
+        />
+      )}
     </section>
   );
 }
