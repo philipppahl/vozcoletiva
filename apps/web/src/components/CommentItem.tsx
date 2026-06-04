@@ -21,9 +21,19 @@ interface Props {
   onReply?: () => void;
   /** Toggle a reaction on this comment. */
   onToggleReaction?: (emoji: string, active: boolean) => void;
+  /** A nested reply: smaller avatar, tighter spacing, "↳ name" in the meta row
+   *  instead of a quote block (the parent is right above it). */
+  compact?: boolean;
 }
 
-export function CommentItem({ slug, proposalId, comment, onReply, onToggleReaction }: Props) {
+export function CommentItem({
+  slug,
+  proposalId,
+  comment,
+  onReply,
+  onToggleReaction,
+  compact = false,
+}: Props) {
   const { _ } = useLingui();
   const { session } = useAuth();
   const edit = useEditComment(slug, proposalId);
@@ -37,14 +47,14 @@ export function CommentItem({ slug, proposalId, comment, onReply, onToggleReacti
 
   if (isDeleted) {
     return (
-      <li
-        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm"
-        style={{ color: 'var(--text-muted)', background: 'var(--surface)' }}
+      <div
+        className="flex items-center gap-2 py-0.5 text-xs"
+        style={{ color: 'var(--text-muted)' }}
       >
         <Trans>Comment deleted</Trans>
         <span>·</span>
         <RelativeTime iso={comment.created_at} />
-      </li>
+      </div>
     );
   }
 
@@ -58,22 +68,23 @@ export function CommentItem({ slug, proposalId, comment, onReply, onToggleReacti
   };
 
   return (
-    <li
-      className="flex flex-col gap-2 rounded-2xl border p-4"
-      style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
-    >
+    <div className="flex flex-col gap-1.5">
       <header
-        className="flex flex-wrap items-center gap-2 text-xs"
+        className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs"
         style={{ color: 'var(--text-muted)' }}
       >
         <Avatar
           displayName={comment.author_display_name}
           imageUrl={lookup(comment.author_id)?.avatar_url}
-          size={22}
+          size={compact ? 18 : 22}
         />
         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
           {comment.author_display_name}
         </span>
+        {/* Nested replies show who they answer in the meta row (compact). */}
+        {compact && comment.reply_to && (
+          <span style={{ color: 'var(--accent)' }}>↳ {comment.reply_to.author_display_name}</span>
+        )}
         <span>·</span>
         <RelativeTime iso={comment.created_at} />
         {comment.edited_at && (
@@ -85,11 +96,11 @@ export function CommentItem({ slug, proposalId, comment, onReply, onToggleReacti
           </>
         )}
         {isAuthor && !editing && (
-          <span className="ml-auto flex items-center gap-2">
+          <span className="ml-auto flex items-center gap-1">
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="rounded-full px-2 py-1 text-xs font-semibold"
+              className="rounded-full px-1.5 py-0.5 text-xs font-semibold"
               style={{ color: 'var(--brand)' }}
             >
               <Trans>Edit</Trans>
@@ -102,7 +113,7 @@ export function CommentItem({ slug, proposalId, comment, onReply, onToggleReacti
                 }
                 del.mutate(comment.id);
               }}
-              className="rounded-full px-2 py-1 text-xs font-semibold"
+              className="rounded-full px-1.5 py-0.5 text-xs font-semibold"
               style={{ color: 'var(--color-danger)' }}
               disabled={del.isPending}
             >
@@ -126,7 +137,9 @@ export function CommentItem({ slug, proposalId, comment, onReply, onToggleReacti
         />
       ) : (
         <>
-          {comment.reply_to && (
+          {/* Non-compact only: a quote block for an orphaned reply (its parent
+              isn't shown above). Nested replies use the meta-row "↳ name". */}
+          {!compact && comment.reply_to && (
             <div
               className="rounded-lg border-l-2 px-2.5 py-1.5 text-xs"
               style={{ borderColor: 'var(--accent)', background: 'var(--surface-2)' }}
@@ -139,10 +152,12 @@ export function CommentItem({ slug, proposalId, comment, onReply, onToggleReacti
               </span>
             </div>
           )}
-          <Markdown source={comment.body ?? ''} />
+          <div style={{ fontSize: compact ? 14 : 15 }}>
+            <Markdown source={comment.body ?? ''} />
+          </div>
 
           {/* Reaction pills + actions (chat-style; decision 0033) */}
-          <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             {reactions.map((r) => (
               <button
                 key={r.emoji}
@@ -224,6 +239,6 @@ export function CommentItem({ slug, proposalId, comment, onReply, onToggleReacti
           </div>
         </>
       )}
-    </li>
+    </div>
   );
 }
