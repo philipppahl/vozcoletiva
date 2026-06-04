@@ -91,6 +91,10 @@ msgstr "{hours}h"
 msgid "{minutes}m"
 msgstr "{minutes}m"
 
+#: src/components/Comments.tsx
+msgid "{total, plural, one {# reply} other {# replies}}"
+msgstr "{total, plural, one {# reply} other {# replies}}"
+
 #: src/components/shell/BellButton.tsx
 msgid "{unread} unread"
 msgstr "{unread} unread"
@@ -222,6 +226,10 @@ msgstr "Add at least one more option, or remove it for a yes / no vote."
 #: src/components/messages/MessageComposer.tsx
 msgid "Add attachment"
 msgstr "Add attachment"
+
+#: src/routes/p.$slug.proposals.$id.tsx
+msgid "Add comment"
+msgstr "Add comment"
 
 #: src/routes/preferences.tsx
 msgid "Add photo"
@@ -675,6 +683,10 @@ msgstr "Hide diff"
 #: src/components/ui/Field.tsx
 msgid "Hide password"
 msgstr "Hide password"
+
+#: src/components/Comments.tsx
+msgid "Hide replies"
+msgstr "Hide replies"
 
 #: src/components/messages/MessageComposer.tsx
 msgid "Hold to record — release to send."

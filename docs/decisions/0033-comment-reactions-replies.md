@@ -22,7 +22,15 @@ messages/conversation backend):
   `begins_with(SK, CREACT#<user>#)` query.
 - **Quote-reply** — `reply_to_id` on create resolves to an immutable
   `CommentReplyTo` snapshot (id + author_display_name + preview) stored on the
-  comment. Flat only — no nesting, no thread view.
+  comment.
+
+  **Revised 2026-06-04:** the FE first rendered replies flat (one level, with a
+  "↳ name" marker, YouTube-style); the user found flat replies confusing, so
+  replies are now rendered as a true tree — each reply nested beneath the one it
+  answers, indented per level, with a per-comment collapse toggle ("Hide
+  replies" / "N replies"). Orphaned replies (parent absent) fall back to roots
+  and keep their quote block. Storage/API unchanged — purely a render change in
+  `Comments`.
 
 ### API
 

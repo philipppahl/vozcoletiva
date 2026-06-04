@@ -81,10 +81,6 @@ export function CommentItem({
         <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
           {comment.author_display_name}
         </span>
-        {/* Nested replies show who they answer in the meta row (compact). */}
-        {compact && comment.reply_to && (
-          <span style={{ color: 'var(--accent)' }}>↳ {comment.reply_to.author_display_name}</span>
-        )}
         <span>·</span>
         <RelativeTime iso={comment.created_at} />
         {comment.edited_at && (

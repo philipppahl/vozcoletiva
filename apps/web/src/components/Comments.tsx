@@ -1,4 +1,4 @@
-import { Trans } from '@lingui/macro';
+import { Plural, Trans } from '@lingui/macro';
 import type { components } from '@vozcoletiva/api-client';
 import { useMemo, useState } from 'react';
 import {
@@ -12,6 +12,11 @@ import { CommentItem } from './CommentItem';
 
 type Comment = components['schemas']['Comment'];
 
+interface TreeNode {
+  comment: Comment;
+  children: TreeNode[];
+}
+
 /** A one-line preview of a comment, for the reply quote header. */
 function previewOf(c: Comment): string {
   const flat = (c.body ?? '').split(/\s+/).filter(Boolean).join(' ');
@@ -19,42 +24,116 @@ function previewOf(c: Comment): string {
 }
 
 /**
- * Group flat comments into YouTube-style threads: a root comment plus every
- * reply that chains back to it (flattened to one level — replies-to-replies sit
- * alongside, with a "↳ name" marker). Replies whose parent is missing fall back
- * to being roots so nothing is hidden. Sorted oldest-first.
+ * Build the reply tree: each comment nests under the one it replies to
+ * (decision 0033, revised — replies are shown beneath their parent, not
+ * flattened). A reply whose parent is missing becomes a root so nothing is
+ * hidden. Children are ordered oldest-first.
  */
-function groupThreads(all: Comment[]): Array<{ root: Comment; replies: Comment[] }> {
-  const byId = new Map(all.map((c) => [c.id, c]));
-  const rootOf = (c: Comment): Comment => {
-    let cur = c;
-    const seen = new Set<string>();
-    while (cur.reply_to && !seen.has(cur.id)) {
-      const parent = byId.get(cur.reply_to.id);
-      if (!parent) break;
-      seen.add(cur.id);
-      cur = parent;
-    }
-    return cur;
-  };
-  const byTime = (a: Comment, b: Comment) => a.created_at.localeCompare(b.created_at);
-  const repliesByRoot = new Map<string, Comment[]>();
-  const roots: Comment[] = [];
+function buildTree(all: Comment[]): TreeNode[] {
+  const nodes = new Map<string, TreeNode>(all.map((c) => [c.id, { comment: c, children: [] }]));
+  const roots: TreeNode[] = [];
   for (const c of all) {
-    const root = rootOf(c);
-    if (root.id === c.id) {
-      roots.push(c);
-    } else {
-      const list = repliesByRoot.get(root.id) ?? [];
-      list.push(c);
-      repliesByRoot.set(root.id, list);
-    }
+    const node = nodes.get(c.id);
+    if (!node) continue;
+    const parent = c.reply_to ? nodes.get(c.reply_to.id) : undefined;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
   }
-  roots.sort(byTime);
-  return roots.map((root) => ({
-    root,
-    replies: (repliesByRoot.get(root.id) ?? []).sort(byTime),
-  }));
+  const sort = (list: TreeNode[]) => {
+    list.sort((a, b) => a.comment.created_at.localeCompare(b.comment.created_at));
+    for (const n of list) sort(n.children);
+  };
+  sort(roots);
+  return roots;
+}
+
+function countDescendants(node: TreeNode): number {
+  return node.children.reduce((n, c) => n + 1 + countDescendants(c), 0);
+}
+
+interface NodeProps {
+  node: TreeNode;
+  depth: number;
+  slug: string;
+  proposalId: string;
+  collapsed: Set<string>;
+  onToggleCollapse: (id: string) => void;
+  onReply: (c: Comment) => void;
+  onReact: (commentId: string, emoji: string, active: boolean) => void;
+}
+
+function CommentNode({
+  node,
+  depth,
+  slug,
+  proposalId,
+  collapsed,
+  onToggleCollapse,
+  onReply,
+  onReact,
+}: NodeProps) {
+  const { comment, children } = node;
+  const hasChildren = children.length > 0;
+  const isCollapsed = collapsed.has(comment.id);
+  const total = hasChildren ? countDescendants(node) : 0;
+
+  return (
+    <div>
+      <CommentItem
+        compact={depth > 0}
+        slug={slug}
+        proposalId={proposalId}
+        comment={comment}
+        onReply={() => onReply(comment)}
+        onToggleReaction={(emoji, active) => onReact(comment.id, emoji, active)}
+      />
+      {hasChildren && (
+        <button
+          type="button"
+          onClick={() => onToggleCollapse(comment.id)}
+          className="mt-1 inline-flex items-center gap-1 text-xs font-semibold"
+          style={{ color: 'var(--accent)', background: 'transparent', border: 'none' }}
+          aria-expanded={!isCollapsed}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              transform: isCollapsed ? 'none' : 'rotate(90deg)',
+              transition: 'transform 0.15s',
+            }}
+          >
+            ›
+          </span>
+          {isCollapsed ? (
+            <Plural value={total} one="# reply" other="# replies" />
+          ) : (
+            <Trans>Hide replies</Trans>
+          )}
+        </button>
+      )}
+      {hasChildren && !isCollapsed && (
+        <ul
+          className="mt-1.5 flex flex-col gap-1.5 border-l-2 pl-2.5"
+          style={{ borderColor: 'var(--border-hi)' }}
+        >
+          {children.map((child) => (
+            <li key={child.comment.id}>
+              <CommentNode
+                node={child}
+                depth={depth + 1}
+                slug={slug}
+                proposalId={proposalId}
+                collapsed={collapsed}
+                onToggleCollapse={onToggleCollapse}
+                onReply={onReply}
+                onReact={onReact}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 interface CommentsProps {
@@ -71,9 +150,10 @@ export function Comments({ slug, proposalId, composing, onComposingChange }: Com
   const create = useCreateComment(slug, proposalId);
   const toggleReaction = useToggleCommentReaction(slug, proposalId);
   const [replyTo, setReplyTo] = useState<CommentReplyTarget | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const list = comments.data?.comments ?? [];
-  const threads = useMemo(() => groupThreads(list), [list]);
+  const roots = useMemo(() => buildTree(list), [list]);
 
   const startReply = (c: Comment) => {
     setReplyTo({
@@ -88,6 +168,14 @@ export function Comments({ slug, proposalId, composing, onComposingChange }: Com
     onComposingChange(false);
     setReplyTo(null);
   };
+
+  const toggleCollapse = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   return (
     <section className="flex flex-col gap-4">
@@ -113,47 +201,28 @@ export function Comments({ slug, proposalId, composing, onComposingChange }: Com
         </p>
       )}
 
-      {threads.length > 0 && (
+      {roots.length > 0 && (
         <ul className="flex flex-col gap-2">
-          {threads.map(({ root, replies }) => (
+          {roots.map((root) => (
             <li
-              key={root.id}
+              key={root.comment.id}
               className="rounded-2xl border"
               style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}
             >
               <div className="px-3 py-2.5">
-                <CommentItem
+                <CommentNode
+                  node={root}
+                  depth={0}
                   slug={slug}
                   proposalId={proposalId}
-                  comment={root}
-                  onReply={() => startReply(root)}
-                  onToggleReaction={(emoji, active) =>
-                    toggleReaction.mutate({ commentId: root.id, emoji, active })
+                  collapsed={collapsed}
+                  onToggleCollapse={toggleCollapse}
+                  onReply={startReply}
+                  onReact={(commentId, emoji, active) =>
+                    toggleReaction.mutate({ commentId, emoji, active })
                   }
                 />
               </div>
-              {replies.length > 0 && (
-                <ul className="flex flex-col gap-1.5 pb-2.5 pl-3 pr-3">
-                  {replies.map((rep) => (
-                    <li
-                      key={rep.id}
-                      className="border-l-2 pl-2.5"
-                      style={{ borderColor: 'var(--border-hi)' }}
-                    >
-                      <CommentItem
-                        compact
-                        slug={slug}
-                        proposalId={proposalId}
-                        comment={rep}
-                        onReply={() => startReply(rep)}
-                        onToggleReaction={(emoji, active) =>
-                          toggleReaction.mutate({ commentId: rep.id, emoji, active })
-                        }
-                      />
-                    </li>
-                  ))}
-                </ul>
-              )}
             </li>
           ))}
         </ul>
