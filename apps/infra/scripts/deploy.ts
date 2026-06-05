@@ -5,9 +5,10 @@
  *   bun run deploy --env dev               # local dev deploy
  *   bun run deploy --env prod              # refuses unless GITHUB_ACTIONS=true
  *   bun run deploy --env dev --dry-run     # cdk diff only
+ *   bun run deploy --cicd                  # account-level OIDC deploy-roles stack
  *
  * Guards:
- *   1. --env arg required, dev or prod.
+ *   1. --env <dev|prod> (or --cicd) required.
  *   2. Working tree must be on `main`.
  *   3. Working tree must be clean.
  *   4. --env prod refuses outside GitHub Actions (override with VOZ_FORCE_PROD_DEPLOY=1).
@@ -117,12 +118,15 @@ function writeWebEnvFile(env: 'dev' | 'prod', outputs: StackOutputs, root: strin
 interface Args {
   env: 'dev' | 'prod';
   dryRun: boolean;
+  /** Deploy the account-level CI/CD OIDC roles stack instead of an env. */
+  cicd: boolean;
 }
 
 function parseArgs(): Args {
   const argv = process.argv.slice(2);
   let env: string | undefined;
   let dryRun = false;
+  let cicd = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--env') {
@@ -131,12 +135,18 @@ function parseArgs(): Args {
       env = a.split('=')[1];
     } else if (a === '--dry-run') {
       dryRun = true;
+    } else if (a === '--cicd') {
+      cicd = true;
     }
   }
-  if (env !== 'dev' && env !== 'prod') {
-    die('usage: deploy --env <dev|prod> [--dry-run]');
+  // --cicd is its own target (the OIDC deploy-roles stack), no env required.
+  if (cicd) {
+    return { env: 'dev', dryRun, cicd };
   }
-  return { env, dryRun };
+  if (env !== 'dev' && env !== 'prod') {
+    die('usage: deploy --env <dev|prod> [--dry-run]  |  deploy --cicd [--dry-run]');
+  }
+  return { env, dryRun, cicd };
 }
 
 function die(msg: string): never {
@@ -191,6 +201,22 @@ function checkProdGuard(env: 'dev' | 'prod') {
 async function main() {
   const args = parseArgs();
   const root = resolve(HERE, '..', '..', '..');
+
+  // --cicd: the account-level OIDC deploy-roles stack (decision 0037). Pure IAM,
+  // so no Lambda/web build. Deployed once, manually, with admin creds.
+  if (args.cicd) {
+    if (!args.dryRun) {
+      checkBranch();
+      checkCleanTree();
+    }
+    console.log(`\n=== vozcoletiva deploy → cicd${args.dryRun ? ' (dry-run)' : ''} ===`);
+    const cmd = args.dryRun
+      ? 'bunx cdk diff voz-cicd'
+      : 'bunx cdk deploy voz-cicd --require-approval never';
+    run(cmd, { cwd: resolve(root, 'apps/infra'), env: { VOZ_TARGET: 'cicd' } });
+    console.log('\n✓ deploy complete');
+    return;
+  }
 
   if (!args.dryRun) {
     checkBranch();
