@@ -70,6 +70,17 @@ export class CicdStack extends Stack {
           resources: bootstrapRoleArns,
         }),
       );
+      // The deploy script reads this env's stack outputs (api/ws/pool URLs) to
+      // bake into the web build — a direct CFN call made as this role, not via
+      // the assumed bootstrap roles. Scoped to just this env's stack.
+      role.addToPolicy(
+        new PolicyStatement({
+          sid: 'ReadOwnStackOutputs',
+          effect: Effect.ALLOW,
+          actions: ['cloudformation:DescribeStacks'],
+          resources: [`arn:aws:cloudformation:${this.region}:${this.account}:stack/voz-${env}/*`],
+        }),
+      );
     }
   }
 }

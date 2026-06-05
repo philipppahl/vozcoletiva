@@ -59,4 +59,18 @@ describe('CicdStack', () => {
       }),
     });
   });
+
+  it('lets each role read only its own env stack outputs', () => {
+    const t = synth();
+    t.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: Match.objectLike({
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: 'cloudformation:DescribeStacks',
+            Resource: 'arn:aws:cloudformation:eu-west-1:130141755138:stack/voz-dev/*',
+          }),
+        ]),
+      }),
+    });
+  });
 });
