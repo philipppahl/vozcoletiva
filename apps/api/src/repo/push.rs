@@ -95,14 +95,20 @@ fn prefs_from_item(item: &HashMap<String, AttributeValue>) -> NotificationPrefs 
     }
 }
 
+/// A browser's push subscription as supplied on register. Grouped into a struct
+/// so `add_subscription` stays within clippy's argument limit.
+pub struct NewSubscription<'a> {
+    pub endpoint: &'a str,
+    pub p256dh: &'a str,
+    pub auth: &'a str,
+    pub user_agent: Option<&'a str>,
+    pub prefs: &'a NotificationPrefs,
+}
+
 pub async fn add_subscription(
     state: &AppState,
     user_id: &str,
-    endpoint: &str,
-    p256dh: &str,
-    auth: &str,
-    user_agent: Option<&str>,
-    prefs: &NotificationPrefs,
+    sub: &NewSubscription<'_>,
     now: &str,
 ) -> Result<(), AppError> {
     let mut put = state
@@ -110,16 +116,16 @@ pub async fn add_subscription(
         .put_item()
         .table_name(&state.table_name)
         .item("PK", AttributeValue::S(format!("USER#{user_id}")))
-        .item("SK", AttributeValue::S(format!("PUSHSUB#{endpoint}")))
+        .item("SK", AttributeValue::S(format!("PUSHSUB#{}", sub.endpoint)))
         .item("type", AttributeValue::S("PushSubscription".into()))
-        .item("endpoint", AttributeValue::S(endpoint.to_string()))
-        .item("p256dh", AttributeValue::S(p256dh.to_string()))
-        .item("auth", AttributeValue::S(auth.to_string()))
+        .item("endpoint", AttributeValue::S(sub.endpoint.to_string()))
+        .item("p256dh", AttributeValue::S(sub.p256dh.to_string()))
+        .item("auth", AttributeValue::S(sub.auth.to_string()))
         .item("createdAt", AttributeValue::S(now.to_string()));
-    for (k, v) in pref_items(prefs) {
+    for (k, v) in pref_items(sub.prefs) {
         put = put.item(k, AttributeValue::Bool(v));
     }
-    if let Some(ua) = user_agent {
+    if let Some(ua) = sub.user_agent {
         put = put.item("userAgent", AttributeValue::S(ua.to_string()));
     }
     put.send().await?;

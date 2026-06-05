@@ -1,4 +1,3 @@
-import * as path from 'node:path';
 import type { EnvName } from '@vozcoletiva/shared';
 import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { WebSocketApi, WebSocketStage } from 'aws-cdk-lib/aws-apigatewayv2';
@@ -9,7 +8,6 @@ import type { Table } from 'aws-cdk-lib/aws-dynamodb';
 import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import {
   Architecture,
-  Code,
   FilterCriteria,
   FilterRule,
   Function as LambdaFunction,
@@ -21,6 +19,8 @@ import { DynamoEventSource } from 'aws-cdk-lib/aws-lambda-event-sources';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 
+import { lambdaCode } from './lambda-asset';
+
 export interface RealtimeProps {
   readonly env: EnvName;
   /** The single table — must have a stream enabled (NEW_IMAGE). */
@@ -30,8 +30,6 @@ export interface RealtimeProps {
   /** CloudFront base URL for media, used to build the push notification icon. */
   readonly mediaBaseUrl: string;
 }
-
-const ARTIFACT_ROOT = path.resolve(__dirname, '..', '..', '..', '..', 'target', 'lambda');
 
 /**
  * Real-time delivery (decision 0028 + 0025 Phase B):
@@ -52,10 +50,8 @@ export class Realtime extends Construct {
 
     const region = Stack.of(this).region;
     const account = Stack.of(this).account;
-    const retention =
-      props.env === 'prod' ? RetentionDays.ONE_MONTH : RetentionDays.ONE_WEEK;
-    const removalPolicy =
-      props.env === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
+    const retention = props.env === 'prod' ? RetentionDays.ONE_MONTH : RetentionDays.ONE_WEEK;
+    const removalPolicy = props.env === 'prod' ? RemovalPolicy.RETAIN : RemovalPolicy.DESTROY;
     const commonEnv = {
       TABLE_NAME: props.table.tableName,
       USER_POOL_ID: props.userPool.userPoolId,
@@ -69,7 +65,7 @@ export class Realtime extends Construct {
       runtime: Runtime.PROVIDED_AL2023,
       architecture: Architecture.ARM_64,
       handler: 'bootstrap',
-      code: Code.fromAsset(path.join(ARTIFACT_ROOT, 'voz-ws')),
+      code: lambdaCode('voz-ws'),
       memorySize: 256,
       timeout: Duration.seconds(10),
       logGroup: new LogGroup(this, 'WsLogs', {
@@ -116,7 +112,7 @@ export class Realtime extends Construct {
       runtime: Runtime.PROVIDED_AL2023,
       architecture: Architecture.ARM_64,
       handler: 'bootstrap',
-      code: Code.fromAsset(path.join(ARTIFACT_ROOT, 'voz-realtime')),
+      code: lambdaCode('voz-realtime'),
       memorySize: 256,
       timeout: Duration.seconds(30),
       logGroup: new LogGroup(this, 'RealtimeLogs', {
@@ -156,9 +152,7 @@ export class Realtime extends Construct {
         batchSize: 10,
         retryAttempts: 2,
         bisectBatchOnError: true,
-        filters: [
-          FilterCriteria.filter({ eventName: FilterRule.isEqual('INSERT') }),
-        ],
+        filters: [FilterCriteria.filter({ eventName: FilterRule.isEqual('INSERT') })],
       }),
     );
   }
