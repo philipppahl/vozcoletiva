@@ -15,7 +15,11 @@ import { AuthenticationDetails, CognitoUser, CognitoUserPool } from 'amazon-cogn
 const POOL_ID = 'eu-west-1_UtykCiLhC';
 const CLIENT_ID = 'uck6d99i1quu8r6qmns6s9ppf';
 const API = 'https://cch3zqvos9.execute-api.eu-west-1.amazonaws.com/v1';
-const PASSWORD = 'Vozcoletiva!2026';
+// See seed-dev.ts: password comes from VOZ_SEED_PASSWORD (gitignored .env.local).
+const PASSWORD = process.env.VOZ_SEED_PASSWORD;
+if (!PASSWORD) {
+  throw new Error('VOZ_SEED_PASSWORD is not set (see root .env.local).');
+}
 
 // email → handle. Mirrors seed-dev.ts.
 const USERS = [

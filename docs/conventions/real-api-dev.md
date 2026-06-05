@@ -15,16 +15,18 @@ The new Lambda must be deployed and the demo users + data must exist.
 bun apps/infra/scripts/deploy.ts --env dev
 
 # 2. Create the 5 demo Cognito users (idempotent — skips existing).
-#    Pool: eu-west-1_UtykCiLhC   Password: Vozcoletiva!2026
+#    Pool: eu-west-1_UtykCiLhC. The demo password is NOT in git (public repo) —
+#    it lives in the gitignored root .env.local as VOZ_SEED_PASSWORD.
 #    Cognito is auth-only (decision 0019) — display names are set by the seed via
 #    PATCH /v1/me, not the Cognito `name` attribute.
+source .env.local  # exports VOZ_SEED_PASSWORD
 for email in marina@example.com tomas@example.com lucia@example.com \
              rafael@example.com sofia@example.com; do
   aws cognito-idp admin-create-user --user-pool-id eu-west-1_UtykCiLhC --region eu-west-1 \
     --username "$email" --message-action SUPPRESS \
     --user-attributes Name=email,Value="$email" Name=email_verified,Value=true 2>/dev/null
   aws cognito-idp admin-set-user-password --user-pool-id eu-west-1_UtykCiLhC --region eu-west-1 \
-    --username "$email" --password 'Vozcoletiva!2026' --permanent
+    --username "$email" --password "$VOZ_SEED_PASSWORD" --permanent
 done
 
 # 3. Seed data through the API (wipes the dev table, then recreates everything,
@@ -45,7 +47,8 @@ VITE_USER_POOL_CLIENT_ID=uck6d99i1quu8r6qmns6s9ppf
 VITE_AWS_REGION=eu-west-1
 ```
 
-Then `bun run dev` and sign in as `marina@example.com` / `Vozcoletiva!2026`.
+Then `bun run dev` and sign in as `marina@example.com` (password =
+`VOZ_SEED_PASSWORD` from the gitignored root `.env.local`).
 Delete the file to return to full-mock mode.
 
 ## Reset the data

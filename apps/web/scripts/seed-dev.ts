@@ -6,8 +6,9 @@
  *   bun apps/web/scripts/seed-dev.ts
  *
  * Prereqs: the 5 demo users exist in the pool (AdminCreateUser + permanent
- * password) and the new Lambda is deployed. Idempotent: wipes all app items in
- * the dev table first, then recreates everything.
+ * password), VOZ_SEED_PASSWORD is set (root .env.local), and the new Lambda is
+ * deployed. Idempotent: wipes all app items in the dev table first, then
+ * recreates everything.
  *
  * NOT shipped to prod — a dev convenience only.
  */
@@ -22,7 +23,13 @@ const CLIENT_ID = 'uck6d99i1quu8r6qmns6s9ppf';
 const TABLE = 'vozcoletiva-dev';
 const WORKER_FN = 'voz-dev-worker';
 const API = 'https://cch3zqvos9.execute-api.eu-west-1.amazonaws.com/v1';
-const PASSWORD = 'Vozcoletiva!2026';
+// Demo-account password is not hardcoded (this repo is public). Set
+// VOZ_SEED_PASSWORD — it lives in the gitignored root .env.local, which bun
+// auto-loads when you run from the repo root.
+const PASSWORD = process.env.VOZ_SEED_PASSWORD;
+if (!PASSWORD) {
+  throw new Error('VOZ_SEED_PASSWORD is not set (see root .env.local).');
+}
 
 const USERS = [
   { email: 'marina@example.com', name: 'Marina Alves', handle: 'marina' },
@@ -388,7 +395,7 @@ async function main() {
 
   console.log('\n✓ seed complete.');
   console.log(`  Projects: ${p1.slug}, ${p2.slug}`);
-  console.log('  Sign in at the app as marina@example.com / ' + PASSWORD);
+  console.log(`  Sign in at the app as marina@example.com / ${PASSWORD}`);
 }
 
 main().catch((e) => {
