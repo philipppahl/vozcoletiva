@@ -34,8 +34,8 @@ const CONFIGS: Record<EnvName, EnvConfig> = {
   prod: {
     ...COMMON,
     env: 'prod',
-    // Apex (vozcoletiva.com + www) wired to prod in Phase 2 (CI/CD cycle).
-    customDomain: null,
+    // Apex → prod (decision 0036). www → apex redirect is a follow-up.
+    customDomain: 'vozcoletiva.com',
   },
 };
 
