@@ -1,44 +1,37 @@
-//! Web Push subscriptions + notification preferences (decision 0025).
+//! Web Push subscriptions (decisions 0025, 0028, 0035).
 //!
 //! A subscription is keyed by its endpoint (`USER#<uid>/PUSHSUB#<endpoint>`), so
-//! re-subscribing the same browser upserts. Preferences live in one settings
-//! item (`USER#<uid>/NOTIFPREF/SETTINGS`) and gate **push only** — inbox items
-//! are always written.
+//! re-subscribing the same browser upserts. **Per-device notification prefs live
+//! on the subscription item** (decision 0035) — each device decides which event
+//! kinds push to it. A subscription existing = "push on" for that device; the
+//! booleans gate which kinds. Prefs gate **push only** — inbox items are always
+//! written.
 
 use std::collections::HashMap;
 
 use aws_sdk_dynamodb::types::AttributeValue;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
 use crate::state::AppState;
 
-#[derive(Debug, Clone)]
-pub struct PushSubscription {
-    pub endpoint: String,
-    pub p256dh: String,
-    pub auth: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
+/// Per-device push preferences (decision 0035). One set per subscription.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationPrefs {
-    pub push_enabled: bool,
     pub mention: bool,
     pub reply: bool,
     pub comment_on_yours: bool,
     pub proposal_closed: bool,
     pub document_amended: bool,
-    /// Direct messages. Unlike the others this isn't an inbox kind — DMs aren't
-    /// fanned into the inbox — so it gates the realtime DM push directly
-    /// (decision 0028). A DM is inherently direct + relevant, so default on.
+    /// Direct messages — not an inbox kind (DMs aren't fanned into the inbox),
+    /// so it gates the realtime DM push directly (decision 0028).
     pub direct_message: bool,
 }
 
 impl Default for NotificationPrefs {
-    /// Once a user opts into push, everything pushes until they toggle a kind off.
+    /// A fresh device pushes everything until the user mutes a kind on it.
     fn default() -> Self {
         Self {
-            push_enabled: true,
             mention: true,
             reply: true,
             comment_on_yours: true,
@@ -50,27 +43,57 @@ impl Default for NotificationPrefs {
 }
 
 impl NotificationPrefs {
-    /// Whether the given inbox kind (wire string) should push, honouring the
-    /// master switch.
+    /// Whether the given event kind (inbox wire string, or `direct_message`)
+    /// should push to a device with these prefs.
     pub fn allows(&self, kind: &str) -> bool {
-        self.push_enabled
-            && match kind {
-                "mention" => self.mention,
-                "reply" => self.reply,
-                "comment-on-yours" => self.comment_on_yours,
-                "proposal-closed" => self.proposal_closed,
-                "document-amended" => self.document_amended,
-                _ => false,
-            }
-    }
-
-    /// Whether a direct message should push (not an inbox kind; see the field).
-    pub fn allows_dm(&self) -> bool {
-        self.push_enabled && self.direct_message
+        match kind {
+            "mention" => self.mention,
+            "reply" => self.reply,
+            "comment-on-yours" => self.comment_on_yours,
+            "proposal-closed" => self.proposal_closed,
+            "document-amended" => self.document_amended,
+            "direct_message" => self.direct_message,
+            _ => false,
+        }
     }
 }
 
-const SETTINGS_SK: &str = "NOTIFPREF/SETTINGS";
+#[derive(Debug, Clone)]
+pub struct PushSubscription {
+    pub endpoint: String,
+    pub p256dh: String,
+    pub auth: String,
+    pub prefs: NotificationPrefs,
+    pub created_at: String,
+}
+
+fn pref_items(prefs: &NotificationPrefs) -> [(&'static str, bool); 6] {
+    [
+        ("mention", prefs.mention),
+        ("reply", prefs.reply),
+        ("commentOnYours", prefs.comment_on_yours),
+        ("proposalClosed", prefs.proposal_closed),
+        ("documentAmended", prefs.document_amended),
+        ("directMessage", prefs.direct_message),
+    ]
+}
+
+fn prefs_from_item(item: &HashMap<String, AttributeValue>) -> NotificationPrefs {
+    let b = |k: &str| {
+        item.get(k)
+            .and_then(|v| v.as_bool().ok())
+            .copied()
+            .unwrap_or(true) // pre-0035 subs (no pref attrs) default all-on
+    };
+    NotificationPrefs {
+        mention: b("mention"),
+        reply: b("reply"),
+        comment_on_yours: b("commentOnYours"),
+        proposal_closed: b("proposalClosed"),
+        document_amended: b("documentAmended"),
+        direct_message: b("directMessage"),
+    }
+}
 
 pub async fn add_subscription(
     state: &AppState,
@@ -79,6 +102,7 @@ pub async fn add_subscription(
     p256dh: &str,
     auth: &str,
     user_agent: Option<&str>,
+    prefs: &NotificationPrefs,
     now: &str,
 ) -> Result<(), AppError> {
     let mut put = state
@@ -92,11 +116,51 @@ pub async fn add_subscription(
         .item("p256dh", AttributeValue::S(p256dh.to_string()))
         .item("auth", AttributeValue::S(auth.to_string()))
         .item("createdAt", AttributeValue::S(now.to_string()));
+    for (k, v) in pref_items(prefs) {
+        put = put.item(k, AttributeValue::Bool(v));
+    }
     if let Some(ua) = user_agent {
         put = put.item("userAgent", AttributeValue::S(ua.to_string()));
     }
     put.send().await?;
     Ok(())
+}
+
+/// Update a device's per-kind prefs (decision 0035). Conditional on the
+/// subscription existing — a stale/unregistered endpoint yields `NotFound`.
+pub async fn update_subscription_prefs(
+    state: &AppState,
+    user_id: &str,
+    endpoint: &str,
+    prefs: &NotificationPrefs,
+) -> Result<(), AppError> {
+    let mut update = state
+        .ddb
+        .update_item()
+        .table_name(&state.table_name)
+        .key("PK", AttributeValue::S(format!("USER#{user_id}")))
+        .key("SK", AttributeValue::S(format!("PUSHSUB#{endpoint}")))
+        .condition_expression("attribute_exists(SK)")
+        .update_expression(
+            "SET mention = :m, reply = :r, commentOnYours = :c, \
+                 proposalClosed = :p, documentAmended = :d, directMessage = :dm",
+        );
+    let items = pref_items(prefs);
+    let names = [":m", ":r", ":c", ":p", ":d", ":dm"];
+    for ((_, v), n) in items.into_iter().zip(names) {
+        update = update.expression_attribute_values(n, AttributeValue::Bool(v));
+    }
+    match update.send().await {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            let svc = err.into_service_error();
+            if svc.is_conditional_check_failed_exception() {
+                Err(AppError::NotFound)
+            } else {
+                Err(AppError::Internal(Box::new(svc)))
+            }
+        }
+    }
 }
 
 pub async fn delete_subscription(
@@ -137,66 +201,10 @@ pub async fn list_subscriptions(
                 endpoint,
                 p256dh,
                 auth,
+                prefs: prefs_from_item(&item),
+                created_at: s("createdAt").unwrap_or_default(),
             });
         }
     }
     Ok(out)
-}
-
-pub async fn get_prefs(state: &AppState, user_id: &str) -> Result<NotificationPrefs, AppError> {
-    let r = state
-        .ddb
-        .get_item()
-        .table_name(&state.table_name)
-        .key("PK", AttributeValue::S(format!("USER#{user_id}")))
-        .key("SK", AttributeValue::S(SETTINGS_SK.into()))
-        .send()
-        .await?;
-    match r.item {
-        None => Ok(NotificationPrefs::default()),
-        Some(item) => Ok(prefs_from_item(&item)),
-    }
-}
-
-pub async fn put_prefs(
-    state: &AppState,
-    user_id: &str,
-    prefs: &NotificationPrefs,
-) -> Result<(), AppError> {
-    let b = |v: bool| AttributeValue::Bool(v);
-    state
-        .ddb
-        .put_item()
-        .table_name(&state.table_name)
-        .item("PK", AttributeValue::S(format!("USER#{user_id}")))
-        .item("SK", AttributeValue::S(SETTINGS_SK.into()))
-        .item("type", AttributeValue::S("NotificationPrefs".into()))
-        .item("pushEnabled", b(prefs.push_enabled))
-        .item("mention", b(prefs.mention))
-        .item("reply", b(prefs.reply))
-        .item("commentOnYours", b(prefs.comment_on_yours))
-        .item("proposalClosed", b(prefs.proposal_closed))
-        .item("documentAmended", b(prefs.document_amended))
-        .item("directMessage", b(prefs.direct_message))
-        .send()
-        .await?;
-    Ok(())
-}
-
-fn prefs_from_item(item: &HashMap<String, AttributeValue>) -> NotificationPrefs {
-    let b = |k: &str, default: bool| {
-        item.get(k)
-            .and_then(|v| v.as_bool().ok())
-            .copied()
-            .unwrap_or(default)
-    };
-    NotificationPrefs {
-        push_enabled: b("pushEnabled", true),
-        mention: b("mention", true),
-        reply: b("reply", true),
-        comment_on_yours: b("commentOnYours", true),
-        proposal_closed: b("proposalClosed", true),
-        document_amended: b("documentAmended", true),
-        direct_message: b("directMessage", true),
-    }
 }

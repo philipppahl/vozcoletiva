@@ -288,8 +288,19 @@ paths:
               schema: { $ref: '#/components/schemas/Ok' }
 
   /v1/me/push-subscriptions:
+    get:
+      summary: List the caller's push subscriptions with per-device prefs
+      operationId: listPushSubscriptions
+      tags: [push]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The caller's subscriptions.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushSubscriptionListResponse' }
     post:
-      summary: Register a Web Push subscription
+      summary: Register a Web Push subscription (with optional per-device prefs)
       operationId: addPushSubscription
       tags: [push]
       security: [{ bearerAuth: [] }]
@@ -303,7 +314,7 @@ paths:
           description: Subscribed.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Ok' }
+              schema: { $ref: '#/components/schemas/PushSubscriptionView' }
 
   /v1/me/push-subscriptions/remove:
     post:
@@ -323,34 +334,24 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Ok' }
 
-  /v1/me/notification-prefs:
-    get:
-      summary: Get notification preferences
-      operationId: getNotificationPrefs
-      tags: [push]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: The caller's notification preferences.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/NotificationPrefs' }
+  /v1/me/push-subscriptions/prefs:
     put:
-      summary: Update notification preferences
-      operationId: putNotificationPrefs
+      summary: Set this device's per-kind notification preferences
+      operationId: updatePushSubscriptionPrefs
       tags: [push]
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/NotificationPrefs' }
+            schema: { $ref: '#/components/schemas/UpdatePushPrefsBody' }
       responses:
         '200':
-          description: Updated preferences.
+          description: Updated preferences for this device.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/NotificationPrefs' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /v1/projects:
     get:
@@ -1653,6 +1654,10 @@ components:
           properties:
             p256dh: { type: string }
             auth: { type: string }
+        # Optional initial per-device prefs; omit for all-on (decision 0035).
+        prefs:
+          oneOf: [{ $ref: '#/components/schemas/NotificationPrefs' }]
+          nullable: true
 
     PushUnsubscribeBody:
       type: object
@@ -1661,13 +1666,13 @@ components:
       properties:
         endpoint: { type: string }
 
+    # Per-device push prefs (decision 0035) — which event kinds push to a device.
     NotificationPrefs:
       type: object
       required:
-        [push_enabled, mention, reply, comment_on_yours, proposal_closed, document_amended, direct_message]
+        [mention, reply, comment_on_yours, proposal_closed, document_amended, direct_message]
       additionalProperties: false
       properties:
-        push_enabled: { type: boolean }
         mention: { type: boolean }
         reply: { type: boolean }
         comment_on_yours: { type: boolean }
@@ -1675,6 +1680,32 @@ components:
         document_amended: { type: boolean }
         # Gates the realtime DM push (decision 0028). Not an inbox kind.
         direct_message: { type: boolean }
+
+    PushSubscriptionView:
+      type: object
+      required: [endpoint, prefs, created_at]
+      additionalProperties: false
+      properties:
+        endpoint: { type: string }
+        prefs: { $ref: '#/components/schemas/NotificationPrefs' }
+        created_at: { type: string }
+
+    PushSubscriptionListResponse:
+      type: object
+      required: [subscriptions]
+      additionalProperties: false
+      properties:
+        subscriptions:
+          type: array
+          items: { $ref: '#/components/schemas/PushSubscriptionView' }
+
+    UpdatePushPrefsBody:
+      type: object
+      required: [endpoint, prefs]
+      additionalProperties: false
+      properties:
+        endpoint: { type: string }
+        prefs: { $ref: '#/components/schemas/NotificationPrefs' }
 
     ProposalSearchHit:
       type: object

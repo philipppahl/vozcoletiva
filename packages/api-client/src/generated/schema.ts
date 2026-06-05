@@ -314,24 +314,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/me/notification-prefs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get notification preferences */
-        get: operations["getNotificationPrefs"];
-        /** Update notification preferences */
-        put: operations["putNotificationPrefs"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/me/push-subscriptions": {
         parameters: {
             query?: never;
@@ -339,10 +321,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List the caller's push subscriptions with per-device prefs */
+        get: operations["listPushSubscriptions"];
         put?: never;
-        /** Register a Web Push subscription */
+        /** Register a Web Push subscription (with optional per-device prefs) */
         post: operations["addPushSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/me/push-subscriptions/prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set this device's per-kind notification preferences */
+        put: operations["updatePushSubscriptionPrefs"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1040,7 +1040,6 @@ export interface components {
             document_amended: boolean;
             mention: boolean;
             proposal_closed: boolean;
-            push_enabled: boolean;
             reply: boolean;
         };
         Ok: {
@@ -1134,6 +1133,15 @@ export interface components {
                 auth: string;
                 p256dh: string;
             };
+            prefs?: components["schemas"]["NotificationPrefs"] | null;
+        };
+        PushSubscriptionListResponse: {
+            subscriptions: components["schemas"]["PushSubscriptionView"][];
+        };
+        PushSubscriptionView: {
+            created_at: string;
+            endpoint: string;
+            prefs: components["schemas"]["NotificationPrefs"];
         };
         PushUnsubscribeBody: {
             endpoint: string;
@@ -1202,6 +1210,10 @@ export interface components {
         };
         UpdateProfileBody: {
             display_name: string;
+        };
+        UpdatePushPrefsBody: {
+            endpoint: string;
+            prefs: components["schemas"]["NotificationPrefs"];
         };
         UploadRequest: {
             content_type: string;
@@ -1922,7 +1934,7 @@ export interface operations {
             };
         };
     };
-    getNotificationPrefs: {
+    listPushSubscriptions: {
         parameters: {
             query?: never;
             header?: never;
@@ -1931,37 +1943,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The caller's notification preferences. */
+            /** @description The caller's subscriptions. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["NotificationPrefs"];
-                };
-            };
-        };
-    };
-    putNotificationPrefs: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NotificationPrefs"];
-            };
-        };
-        responses: {
-            /** @description Updated preferences. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationPrefs"];
+                    "application/json": components["schemas"]["PushSubscriptionListResponse"];
                 };
             };
         };
@@ -1985,9 +1973,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Ok"];
+                    "application/json": components["schemas"]["PushSubscriptionView"];
                 };
             };
+        };
+    };
+    updatePushSubscriptionPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePushPrefsBody"];
+            };
+        };
+        responses: {
+            /** @description Updated preferences for this device. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPrefs"];
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     removePushSubscription: {

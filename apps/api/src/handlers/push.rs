@@ -17,6 +17,9 @@ struct SubscriptionKeys {
 struct SubscribeBody {
     endpoint: String,
     keys: SubscriptionKeys,
+    /// A fresh device's per-kind prefs; omit for all-on (decision 0035).
+    #[serde(default)]
+    prefs: Option<NotificationPrefs>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -24,53 +27,26 @@ struct UnsubscribeBody {
     endpoint: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-struct PrefsDto {
-    push_enabled: bool,
-    mention: bool,
-    reply: bool,
-    comment_on_yours: bool,
-    proposal_closed: bool,
-    document_amended: bool,
-    // Defaulted so a client that PUTs an older payload (pre-DM-pref) keeps DMs on
-    // rather than silently muting them.
-    #[serde(default = "default_true")]
-    direct_message: bool,
+#[derive(Debug, Deserialize)]
+struct UpdatePrefsBody {
+    endpoint: String,
+    prefs: NotificationPrefs,
 }
 
-fn default_true() -> bool {
-    true
+#[derive(Debug, Serialize)]
+struct SubscriptionView {
+    endpoint: String,
+    prefs: NotificationPrefs,
+    created_at: String,
 }
 
-impl From<NotificationPrefs> for PrefsDto {
-    fn from(p: NotificationPrefs) -> Self {
-        Self {
-            push_enabled: p.push_enabled,
-            mention: p.mention,
-            reply: p.reply,
-            comment_on_yours: p.comment_on_yours,
-            proposal_closed: p.proposal_closed,
-            document_amended: p.document_amended,
-            direct_message: p.direct_message,
-        }
-    }
+#[derive(Debug, Serialize)]
+struct SubscriptionListResponse {
+    subscriptions: Vec<SubscriptionView>,
 }
 
-impl From<PrefsDto> for NotificationPrefs {
-    fn from(d: PrefsDto) -> Self {
-        Self {
-            push_enabled: d.push_enabled,
-            mention: d.mention,
-            reply: d.reply,
-            comment_on_yours: d.comment_on_yours,
-            proposal_closed: d.proposal_closed,
-            document_amended: d.document_amended,
-            direct_message: d.direct_message,
-        }
-    }
-}
-
-/// `POST /v1/me/push-subscriptions` — register a browser push subscription.
+/// `POST /v1/me/push-subscriptions` — register this browser's push subscription
+/// (with optional per-device prefs; defaults all-on). Idempotent upsert.
 pub async fn subscribe(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
     super::json_or_error(
         async {
@@ -80,6 +56,8 @@ pub async fn subscribe(state: &AppState, req: Request) -> Result<Response<Body>,
                 .headers()
                 .get("user-agent")
                 .and_then(|v| v.to_str().ok());
+            let prefs = body.prefs.unwrap_or_default();
+            let now = Utc::now().to_rfc3339();
             push::add_subscription(
                 state,
                 &user.user_id,
@@ -87,19 +65,24 @@ pub async fn subscribe(state: &AppState, req: Request) -> Result<Response<Body>,
                 &body.keys.p256dh,
                 &body.keys.auth,
                 ua,
-                &Utc::now().to_rfc3339(),
+                &prefs,
+                &now,
             )
             .await?;
             tracing::info!(event = "push_subscription_added", user_id = %user.user_id);
-            Ok(serde_json::json!({ "ok": true }))
+            Ok(SubscriptionView {
+                endpoint: body.endpoint,
+                prefs,
+                created_at: now,
+            })
         },
         201,
     )
     .await
 }
 
-/// `POST /v1/me/push-subscriptions/remove` — drop a subscription (on opt-out or
-/// when the browser reports it expired).
+/// `POST /v1/me/push-subscriptions/remove` — drop a subscription (opt-out /
+/// expired).
 pub async fn unsubscribe(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
     super::json_or_error(
         async {
@@ -113,28 +96,39 @@ pub async fn unsubscribe(state: &AppState, req: Request) -> Result<Response<Body
     .await
 }
 
-/// `GET /v1/me/notification-prefs`
-pub async fn get_prefs(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
+/// `GET /v1/me/push-subscriptions` — the caller's subscriptions with per-device
+/// prefs, so the settings screen can find *this* device by its local endpoint.
+pub async fn list(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
     super::json_or_error(
         async {
             let user = authenticate(state, &req).await?;
-            let prefs = push::get_prefs(state, &user.user_id).await?;
-            Ok(PrefsDto::from(prefs))
+            let subs = push::list_subscriptions(state, &user.user_id).await?;
+            Ok(SubscriptionListResponse {
+                subscriptions: subs
+                    .into_iter()
+                    .map(|s| SubscriptionView {
+                        endpoint: s.endpoint,
+                        prefs: s.prefs,
+                        created_at: s.created_at,
+                    })
+                    .collect(),
+            })
         },
         200,
     )
     .await
 }
 
-/// `PUT /v1/me/notification-prefs`
-pub async fn put_prefs(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
+/// `PUT /v1/me/push-subscriptions/prefs` — set this device's per-kind prefs
+/// (decision 0035). 404 if the endpoint isn't a registered subscription.
+pub async fn update_prefs(state: &AppState, req: Request) -> Result<Response<Body>, Error> {
     super::json_or_error(
         async {
             let user = authenticate(state, &req).await?;
-            let dto: PrefsDto = parse_body(&req)?;
-            let prefs: NotificationPrefs = dto.into();
-            push::put_prefs(state, &user.user_id, &prefs).await?;
-            Ok(PrefsDto::from(prefs))
+            let body: UpdatePrefsBody = parse_body(&req)?;
+            push::update_subscription_prefs(state, &user.user_id, &body.endpoint, &body.prefs)
+                .await?;
+            Ok(body.prefs)
         },
         200,
     )

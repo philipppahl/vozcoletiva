@@ -16,11 +16,11 @@ import { HandleError, normalizeHandle, useHandleAvailability, useSetHandle } fro
 import { useProfile, useUpdateDisplayName } from '../lib/profile';
 import {
   pushSupported,
+  useDevicePrefs,
   useDisablePush,
   useEnablePush,
-  useNotificationPrefs,
   usePushSubscriptionState,
-  useUpdateNotificationPrefs,
+  useUpdateDevicePrefs,
 } from '../lib/push';
 import { useThemeStore } from '../lib/theme';
 import { useGoBack } from '../lib/useGoBack';
@@ -368,14 +368,15 @@ function NotificationsSection() {
   const subscribed = usePushSubscriptionState();
   const enablePush = useEnablePush();
   const disablePush = useDisablePush();
-  const prefs = useNotificationPrefs();
-  const updatePrefs = useUpdateNotificationPrefs();
+  const device = useDevicePrefs();
+  const updateDevice = useUpdateDevicePrefs();
   const [error, setError] = useState<string | null>(null);
 
   if (!supported) return null;
 
   const busy = enablePush.isPending || disablePush.isPending || subscribed === null;
-  const data = prefs.data;
+  const data = device.data?.prefs ?? null;
+  const endpoint = device.data?.endpoint ?? null;
 
   async function togglePush() {
     setError(null);
@@ -394,8 +395,8 @@ function NotificationsSection() {
   }
 
   function setKind(kind: (typeof PREF_KINDS)[number], value: boolean) {
-    if (!data) return;
-    updatePrefs.mutate({ ...data, [kind]: value });
+    if (!data || !endpoint) return;
+    updateDevice.mutate({ endpoint, prefs: { ...data, [kind]: value } });
   }
 
   const kindLabels: Record<(typeof PREF_KINDS)[number], React.ReactNode> = {
@@ -431,6 +432,9 @@ function NotificationsSection() {
         )}
         {subscribed && data && (
           <div className="flex flex-col gap-3 pt-1">
+            <div className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+              <Trans>These apply to this device only.</Trans>
+            </div>
             {PREF_KINDS.map((kind) => (
               <div key={kind} className="flex items-center justify-between gap-3">
                 <div className="min-w-0 text-sm" style={{ color: 'var(--ink-soft)' }}>
@@ -438,7 +442,7 @@ function NotificationsSection() {
                 </div>
                 <Toggle
                   on={data[kind]}
-                  disabled={updatePrefs.isPending}
+                  disabled={updateDevice.isPending}
                   onChange={(v) => setKind(kind, v)}
                 />
               </div>

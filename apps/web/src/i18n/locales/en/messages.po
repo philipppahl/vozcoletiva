@@ -1499,6 +1499,10 @@ msgstr "The winning option needs more than half of the decisive votes."
 msgid "Theme"
 msgstr "Theme"
 
+#: src/routes/preferences.tsx
+msgid "These apply to this device only."
+msgstr "These apply to this device only."
+
 #: src/routes/i_.$token.tsx
 msgid "This invite is no longer valid."
 msgstr "This invite is no longer valid."

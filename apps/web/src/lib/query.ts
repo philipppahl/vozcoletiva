@@ -73,7 +73,7 @@ export function purgeQueryCache() {
  */
 export const qk = {
   me: () => ['me'] as const,
-  notificationPrefs: () => ['notification-prefs'] as const,
+  devicePushPrefs: () => ['push', 'device-prefs'] as const,
   projects: {
     all: ['projects'] as const,
     list: () => ['projects', 'list'] as const,

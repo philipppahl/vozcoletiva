@@ -140,43 +140,20 @@ async fn deliver_message(ctx: &Ctx, ev: &MessageEvent) {
     );
 
     // 2. DM push to the non-author participant (channels notify via inbox only).
+    // Per-device prefs are applied inside push_to_user, not here (decision 0035).
     if let Some([a, b]) = &targets.dm_participants {
         let peer = if a == &ev.author_id { b } else { a };
         if peer != &ev.author_id {
-            let prefs = match push::get_prefs(&ctx.state, peer).await {
-                Ok(p) => p,
-                Err(e) => {
-                    tracing::warn!(event = "prefs_failed", error = %e);
-                    return;
-                }
-            };
-            if prefs.allows_dm() {
-                // The notification's large icon is the sender's avatar.
-                let icon = realtime::avatar_url(&ctx.state, &ev.author_id).await;
-                push_to_user(
-                    ctx,
-                    peer,
-                    &realtime::dm_push_content(ev, icon),
-                    "direct_message",
-                )
-                .await;
-            }
+            // The notification's large icon is the sender's avatar.
+            let icon = realtime::avatar_url(&ctx.state, &ev.author_id).await;
+            push_to_user(ctx, peer, &realtime::dm_push_content(ev, icon), "direct_message").await;
         }
     }
 }
 
-/// Push an inbox item to its recipient, honouring their per-kind preference.
+/// Push an inbox item to its recipient. Per-device kind preferences are applied
+/// inside push_to_user, per subscription (decision 0035).
 async fn deliver_inbox(ctx: &Ctx, ev: &InboxEvent) {
-    let prefs = match push::get_prefs(&ctx.state, &ev.recipient_id).await {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::warn!(event = "prefs_failed", error = %e);
-            return;
-        }
-    };
-    if !prefs.allows(&ev.kind) {
-        return;
-    }
     // The notification's large icon is the actor's avatar, when known.
     let icon = match &ev.actor_id {
         Some(actor) => realtime::avatar_url(&ctx.state, actor).await,
@@ -241,7 +218,13 @@ async fn push_to_user(ctx: &Ctx, user_id: &str, content: &PushContent, kind: &st
     let body = content.to_bytes();
     let mut delivered = 0usize;
     let mut pruned = 0usize;
+    let mut skipped = 0usize;
     for sub in &subs {
+        // Per-device preference: this device opted out of this kind.
+        if !sub.prefs.allows(kind) {
+            skipped += 1;
+            continue;
+        }
         match push_send::send(&ctx.http, vapid, sub, &body).await {
             Ok(SendOutcome::Delivered) => delivered += 1,
             Ok(SendOutcome::Gone) => {
@@ -252,5 +235,5 @@ async fn push_to_user(ctx: &Ctx, user_id: &str, content: &PushContent, kind: &st
         }
     }
     // Counts + kind only — never the notification body (PII).
-    tracing::info!(event = "push_sent", kind = kind, delivered, pruned);
+    tracing::info!(event = "push_sent", kind = kind, delivered, pruned, skipped);
 }
