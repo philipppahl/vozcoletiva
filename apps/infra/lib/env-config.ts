@@ -6,26 +6,35 @@ export interface EnvConfig {
   readonly region: string;
   /** GitHub repo `owner/name` used for OIDC trust on deploy roles. */
   readonly githubRepo: string;
-  /** Set to `null` until vozcoletiva.com is registered and DNS is wired. */
+  /** Hostname this env's PWA is served on, or `null` to use the raw
+   *  *.cloudfront.net domain. dev → dev.vozcoletiva.com; the apex is reserved
+   *  for prod (wired in Phase 2). See docs/decisions/0036. */
   readonly customDomain: string | null;
+  /** Route 53 hosted zone for vozcoletiva.com (shared across envs). Null only
+   *  if the domain isn't registered. */
+  readonly hostedZoneId: string | null;
+  readonly zoneName: string | null;
 }
 
 const COMMON = {
   account: '130141755138',
   region: 'eu-west-1',
-  // TODO(repo): replace with the real `owner/name` once the GH repo is created.
   githubRepo: 'philipppahl/vozcoletiva',
+  // vozcoletiva.com hosted zone, created on registration (decision 0036).
+  hostedZoneId: 'Z0669703GLJFF9CB3PZR',
+  zoneName: 'vozcoletiva.com',
 } as const;
 
 const CONFIGS: Record<EnvName, EnvConfig> = {
   dev: {
     ...COMMON,
     env: 'dev',
-    customDomain: null,
+    customDomain: 'dev.vozcoletiva.com',
   },
   prod: {
     ...COMMON,
     env: 'prod',
+    // Apex (vozcoletiva.com + www) wired to prod in Phase 2 (CI/CD cycle).
     customDomain: null,
   },
 };

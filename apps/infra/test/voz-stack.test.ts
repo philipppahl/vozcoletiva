@@ -1,5 +1,6 @@
-import { App } from 'aws-cdk-lib';
+import { App, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
+import { Certificate } from 'aws-cdk-lib/aws-certificatemanager';
 import { describe, it } from 'vitest';
 import { getEnvConfig, stackNameFor } from '../lib/env-config';
 import { VozStack } from '../lib/voz-stack';
@@ -53,8 +54,64 @@ describe('VozStack (dev)', () => {
 
   it('creates an S3 bucket and CloudFront distribution for the PWA', () => {
     const t = synth();
-    t.resourceCountIs('AWS::S3::Bucket', 1);
-    t.resourceCountIs('AWS::CloudFront::Distribution', 1);
+    t.hasResourceProperties('AWS::S3::Bucket', {
+      BucketName: 'voz-dev-web-130141755138-eu-west-1',
+    });
+    // The PWA distribution is the one with the SPA fallback (the Media construct
+    // also has a distribution, so match on the index.html error rewrites).
+    t.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({
+        DefaultRootObject: 'index.html',
+        CustomErrorResponses: Match.arrayWith([
+          Match.objectLike({ ErrorCode: 403, ResponseCode: 200, ResponsePagePath: '/index.html' }),
+        ]),
+      }),
+    });
+  });
+
+  it('leaves the distribution cert-less and without alias records when no cert is provided', () => {
+    // synth() passes no certificate, so the custom-domain wiring must be skipped
+    // even though dev's envConfig has a customDomain — a domainName without its
+    // us-east-1 cert would be rejected at deploy.
+    const t = synth();
+    t.resourceCountIs('AWS::Route53::RecordSet', 0);
+    t.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({ Aliases: Match.absent() }),
+    });
+  });
+
+  it('wires the custom domain, cert, and A/AAAA alias records when a cert is provided', () => {
+    const app = new App();
+    const env = getEnvConfig('dev');
+    // Import an existing cert ARN to stand in for the cross-region CertStack.
+    const certScope = new Stack(app, 'cert-scope', {
+      env: { account: env.account, region: 'us-east-1' },
+    });
+    const certificate = Certificate.fromCertificateArn(
+      certScope,
+      'Cert',
+      `arn:aws:acm:us-east-1:${env.account}:certificate/00000000-0000-0000-0000-000000000000`,
+    );
+    const stack = new VozStack(app, stackNameFor('dev'), {
+      envConfig: env,
+      certificate,
+      crossRegionReferences: true,
+      env: { account: env.account, region: env.region },
+    });
+    const t = Template.fromStack(stack);
+    t.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({ Aliases: ['dev.vozcoletiva.com'] }),
+    });
+    // One A + one AAAA alias pointing at CloudFront.
+    t.resourceCountIs('AWS::Route53::RecordSet', 2);
+    t.hasResourceProperties('AWS::Route53::RecordSet', {
+      Name: 'dev.vozcoletiva.com.',
+      Type: 'A',
+    });
+    t.hasResourceProperties('AWS::Route53::RecordSet', {
+      Name: 'dev.vozcoletiva.com.',
+      Type: 'AAAA',
+    });
   });
 
   it('provisions an API Lambda + a worker Lambda', () => {

@@ -267,25 +267,23 @@ async function main() {
     }
   }
 
-  // 4. CDK deploy (or diff).
+  // 4. CDK deploy (or diff). `--all` covers both the app stack and the
+  // us-east-1 cert stack — the app (bin/voz.ts) only ever synthesizes the
+  // current VOZ_ENV's stacks, so this never touches another environment.
   const cdkEnv = { VOZ_ENV: args.env };
   if (args.dryRun) {
-    run(`bunx cdk diff '${stackName(args.env)}'`, {
+    run('bunx cdk diff --all', {
       cwd: resolve(root, 'apps/infra'),
       env: cdkEnv,
     });
   } else {
-    run(`bunx cdk deploy '${stackName(args.env)}' --require-approval never`, {
+    run('bunx cdk deploy --all --require-approval never', {
       cwd: resolve(root, 'apps/infra'),
       env: cdkEnv,
     });
   }
 
   console.log('\n✓ deploy complete');
-}
-
-function stackName(env: 'dev' | 'prod'): string {
-  return `voz-${env}`;
 }
 
 await main();

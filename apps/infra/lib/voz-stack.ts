@@ -1,5 +1,6 @@
 import type { StackProps } from 'aws-cdk-lib';
 import { CfnOutput, Stack, Tags } from 'aws-cdk-lib';
+import type { ICertificate } from 'aws-cdk-lib/aws-certificatemanager';
 import type { Construct } from 'constructs';
 
 import { Api } from './constructs/api';
@@ -12,6 +13,9 @@ import type { EnvConfig } from './env-config';
 
 export interface VozStackProps extends StackProps {
   readonly envConfig: EnvConfig;
+  /** us-east-1 cert for `envConfig.customDomain`, passed cross-region from the
+   *  CertStack. Undefined when the env has no custom domain. */
+  readonly certificate?: ICertificate;
 }
 
 export class VozStack extends Stack {
@@ -31,7 +35,13 @@ export class VozStack extends Stack {
       mediaBucket: media.bucket,
       mediaBaseUrl: media.baseUrl,
     });
-    const web = new WebHosting(this, 'Web', { env: envConfig.env });
+    const web = new WebHosting(this, 'Web', {
+      env: envConfig.env,
+      customDomain: envConfig.customDomain,
+      certificate: props.certificate,
+      hostedZoneId: envConfig.hostedZoneId,
+      zoneName: envConfig.zoneName,
+    });
     const realtime = new Realtime(this, 'Realtime', {
       env: envConfig.env,
       table: data.table,
@@ -55,6 +65,12 @@ export class VozStack extends Stack {
       value: `https://${web.distribution.distributionDomainName}`,
       description: 'CloudFront URL for the PWA',
     });
+    if (envConfig.customDomain) {
+      new CfnOutput(this, 'WebCustomUrl', {
+        value: `https://${envConfig.customDomain}`,
+        description: 'Custom-domain URL for the PWA',
+      });
+    }
     new CfnOutput(this, 'WebBucketName', {
       value: web.bucket.bucketName,
       description: 'S3 bucket name for the PWA build artefacts',

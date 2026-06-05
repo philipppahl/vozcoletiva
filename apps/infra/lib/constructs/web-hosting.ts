@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { EnvName } from '@vozcoletiva/shared';
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
+import type { ICertificate } from 'aws-cdk-lib/aws-certificatemanager';
 import {
   AllowedMethods,
   CachedMethods,
@@ -11,12 +12,22 @@ import {
   ViewerProtocolPolicy,
 } from 'aws-cdk-lib/aws-cloudfront';
 import { S3BucketOrigin } from 'aws-cdk-lib/aws-cloudfront-origins';
+import { AaaaRecord, ARecord, HostedZone, RecordTarget } from 'aws-cdk-lib/aws-route53';
+import { CloudFrontTarget } from 'aws-cdk-lib/aws-route53-targets';
 import { BlockPublicAccess, Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
 
 export interface WebHostingProps {
   readonly env: EnvName;
+  /** Custom hostname to serve on (e.g. `dev.vozcoletiva.com`), or null/undefined
+   *  to stay on the raw CloudFront domain. */
+  readonly customDomain?: string | null;
+  /** us-east-1 ACM cert matching `customDomain`. When absent, the custom-domain
+   *  wiring is skipped entirely (so cert-less synth / unit tests still work). */
+  readonly certificate?: ICertificate;
+  readonly hostedZoneId?: string | null;
+  readonly zoneName?: string | null;
 }
 
 /**
@@ -57,7 +68,15 @@ export class WebHosting extends Construct {
       },
     });
 
+    // Only attach the custom domain when its cert is present — a domainName
+    // without a matching us-east-1 cert is rejected at deploy, and cert-less
+    // synth (unit tests, diff-only) must still succeed.
+    const useDomain = !!(props.customDomain && props.certificate);
+
     this.distribution = new Distribution(this, 'Distribution', {
+      ...(useDomain
+        ? { domainNames: [props.customDomain as string], certificate: props.certificate }
+        : {}),
       defaultBehavior: {
         origin: S3BucketOrigin.withOriginAccessControl(this.bucket),
         viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -73,6 +92,18 @@ export class WebHosting extends Construct {
         { httpStatus: 404, responseHttpStatus: 200, responsePagePath: '/index.html' },
       ],
     });
+
+    // Route 53 alias records (A + AAAA) pointing the custom domain at CloudFront.
+    if (useDomain && props.hostedZoneId && props.zoneName) {
+      const zone = HostedZone.fromHostedZoneAttributes(this, 'Zone', {
+        hostedZoneId: props.hostedZoneId,
+        zoneName: props.zoneName,
+      });
+      const target = RecordTarget.fromAlias(new CloudFrontTarget(this.distribution));
+      const recordName = props.customDomain as string;
+      new ARecord(this, 'AliasA', { zone, recordName, target });
+      new AaaaRecord(this, 'AliasAAAA', { zone, recordName, target });
+    }
 
     // Deploy the built PWA to S3 and invalidate CloudFront, but only if the
     // build output exists. The deploy script ensures the web build runs before

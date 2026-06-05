@@ -10,10 +10,14 @@ Status: initial, 2026-05-18. Revise once the first workflow YAML lands.
 
 Two from day one — no `staging` until traffic demands it.
 
-| Env | Purpose | Deployable from |
-|---|---|---|
-| **`dev`** | Active development, integration testing, demos. | Developer laptop **or** CI. |
-| **`prod`** | The hosted instance at `vozcoletiva.com`. | **CI only** (GitHub Actions). |
+| Env | Purpose | Hostname | Deployable from |
+|---|---|---|---|
+| **`dev`** | Active development, integration testing, demos. | `dev.vozcoletiva.com` | Developer laptop **or** CI. |
+| **`prod`** | The hosted instance. | `vozcoletiva.com` (+ `www`) | **CI only** (GitHub Actions). |
+
+Hostname → env mapping and the cross-region cert setup are recorded in
+`docs/decisions/0036-custom-domain.md`. The apex is reserved for prod; it goes
+live when prod ships (Phase 2 / CI/CD cycle). dev is live on its subdomain now.
 
 ## Triggers
 
