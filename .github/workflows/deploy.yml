@@ -27,7 +27,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.93
-          targets: aarch64-unknown-linux-musl
+          targets: aarch64-unknown-linux-gnu
 
       - name: Install cargo-lambda + Zig
         # cargo-lambda cross-compiles the arm64 Lambda via Zig as the linker;
@@ -66,7 +66,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.93
-          targets: aarch64-unknown-linux-musl
+          targets: aarch64-unknown-linux-gnu
 
       - name: Install cargo-lambda + Zig
         # cargo-lambda cross-compiles the arm64 Lambda via Zig as the linker;
