@@ -29,10 +29,13 @@ jobs:
           toolchain: 1.93
           targets: aarch64-unknown-linux-musl
 
-      - name: Install cargo-lambda
+      - name: Install cargo-lambda + Zig
+        # cargo-lambda cross-compiles the arm64 Lambda via Zig as the linker;
+        # the runner has neither. cargo-lambda auto-detects the pip `ziglang`.
         run: |
           curl -fsSL https://github.com/cargo-lambda/cargo-lambda/releases/download/v1.6.0/cargo-lambda-v1.6.0.x86_64-unknown-linux-musl.tar.gz \
             | tar -xz -C ~/.cargo/bin/
+          pip3 install --break-system-packages ziglang
 
       - name: bun install
         run: bun install --frozen-lockfile
@@ -65,10 +68,13 @@ jobs:
           toolchain: 1.93
           targets: aarch64-unknown-linux-musl
 
-      - name: Install cargo-lambda
+      - name: Install cargo-lambda + Zig
+        # cargo-lambda cross-compiles the arm64 Lambda via Zig as the linker;
+        # the runner has neither. cargo-lambda auto-detects the pip `ziglang`.
         run: |
           curl -fsSL https://github.com/cargo-lambda/cargo-lambda/releases/download/v1.6.0/cargo-lambda-v1.6.0.x86_64-unknown-linux-musl.tar.gz \
             | tar -xz -C ~/.cargo/bin/
+          pip3 install --break-system-packages ziglang
 
       - name: bun install
         run: bun install --frozen-lockfile
