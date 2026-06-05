@@ -42,7 +42,7 @@ interface StackOutputs {
  */
 const VAPID_PUBLIC_KEY: Record<'dev' | 'prod', string> = {
   dev: 'BIuekiXe68CL5-zG_q1d1ERuJ-Ia-LL_seXLk7ffdECxWnbckSYaSvS32wu-3UfePlfRu7CduU9Id1ReNCQDI-Y',
-  prod: '',
+  prod: 'BFWqyJR_XWbMk69IvyDshKxqysRqxGsOpJR62R10OclZuPONg5w8JQUzEJBMOk2TIr3X5OICfU77pbCCXFoibBs',
 };
 
 function readStackOutputs(env: 'dev' | 'prod'): StackOutputs | null {
