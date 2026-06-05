@@ -1,0 +1,6 @@
+#!/bin/sh
+# Placeholder for `cdk synth`/`diff` and infra unit tests only — never deployed.
+# The deploy script builds the real binary into target/lambda/<bin>/bootstrap
+# and refuses to deploy if it is missing. See lib/constructs/lambda-asset.ts.
+echo "vozcoletiva: placeholder lambda — real binary missing" >&2
+exit 1

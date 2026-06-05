@@ -61,11 +61,13 @@ pub async fn subscribe(state: &AppState, req: Request) -> Result<Response<Body>,
             push::add_subscription(
                 state,
                 &user.user_id,
-                &body.endpoint,
-                &body.keys.p256dh,
-                &body.keys.auth,
-                ua,
-                &prefs,
+                &push::NewSubscription {
+                    endpoint: &body.endpoint,
+                    p256dh: &body.keys.p256dh,
+                    auth: &body.keys.auth,
+                    user_agent: ua,
+                    prefs: &prefs,
+                },
                 &now,
             )
             .await?;

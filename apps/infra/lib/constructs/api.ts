@@ -1,21 +1,16 @@
-import * as path from 'node:path';
 import type { EnvName } from '@vozcoletiva/shared';
 import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { EndpointType, LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import type { UserPool, UserPoolClient } from 'aws-cdk-lib/aws-cognito';
 import type { Table } from 'aws-cdk-lib/aws-dynamodb';
-import type { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Effect, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
-import {
-  Architecture,
-  Code,
-  Function as LambdaFunction,
-  Runtime,
-  Tracing,
-} from 'aws-cdk-lib/aws-lambda';
+import { Architecture, Function as LambdaFunction, Runtime, Tracing } from 'aws-cdk-lib/aws-lambda';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import type { Bucket } from 'aws-cdk-lib/aws-s3';
 import { CfnScheduleGroup } from 'aws-cdk-lib/aws-scheduler';
 import { Construct } from 'constructs';
+
+import { lambdaCode } from './lambda-asset';
 
 export interface ApiProps {
   readonly env: EnvName;
@@ -40,27 +35,6 @@ export class Api extends Construct {
   constructor(scope: Construct, id: string, props: ApiProps) {
     super(scope, id);
 
-    const apiArtifactPath = path.resolve(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      '..',
-      'target',
-      'lambda',
-      'voz-api',
-    );
-    const workerArtifactPath = path.resolve(
-      __dirname,
-      '..',
-      '..',
-      '..',
-      '..',
-      'target',
-      'lambda',
-      'voz-worker',
-    );
-
     // --- Scheduler group ---------------------------------------------------
     const scheduleGroupName = `voz-${props.env}`;
     new CfnScheduleGroup(this, 'ScheduleGroup', {
@@ -79,7 +53,7 @@ export class Api extends Construct {
       runtime: Runtime.PROVIDED_AL2023,
       architecture: Architecture.ARM_64,
       handler: 'bootstrap',
-      code: Code.fromAsset(workerArtifactPath),
+      code: lambdaCode('voz-worker'),
       memorySize: 256,
       timeout: Duration.seconds(15),
       logGroup: workerLogGroup,
@@ -118,7 +92,7 @@ export class Api extends Construct {
       runtime: Runtime.PROVIDED_AL2023,
       architecture: Architecture.ARM_64,
       handler: 'bootstrap',
-      code: Code.fromAsset(apiArtifactPath),
+      code: lambdaCode('voz-api'),
       memorySize: 256,
       timeout: Duration.seconds(10),
       logGroup: apiLogGroup,

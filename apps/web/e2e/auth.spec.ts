@@ -10,7 +10,9 @@ test('sign-in page renders and validates inputs', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible();
   await expect(page.getByLabel(/email/i)).toBeVisible();
-  await expect(page.getByLabel(/password/i)).toBeVisible();
+  // Exact match: the field also has a "Show password" reveal toggle (Field.tsx),
+  // which would otherwise make /password/i ambiguous.
+  await expect(page.getByLabel('Password', { exact: true })).toBeVisible();
 
   // Submitting an empty form surfaces field-level errors (HTML5 + RHF/Zod).
   await page.getByRole('button', { name: /sign in/i }).click();
@@ -25,6 +27,7 @@ test('sign-up page renders and validates inputs', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /create an account/i })).toBeVisible();
   await expect(page.getByLabel(/display name/i)).toBeVisible();
 
-  await page.getByRole('button', { name: /continue/i }).click();
-  await expect(page.getByText(/please enter a display name/i)).toBeVisible();
+  // Continue is gated until the form is complete, including an available
+  // @handle (decision 0030) — so an empty form keeps it disabled.
+  await expect(page.getByRole('button', { name: /continue/i })).toBeDisabled();
 });
